@@ -1,33 +1,37 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requireSelf } from "@/lib/server/self-service";
-import { money, periodLabel } from "@/lib/format";
+import { getI18n } from "@/lib/server/i18n";
 import { Card } from "@/components/ui/card";
 import { EmptyState, PageHeader } from "@/components/ui/misc";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { NoProfile } from "../no-profile";
 
-export const metadata = { title: "My payslips" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t("me.payslipsTitle") };
+}
 
 export default async function MyPayslips() {
   const { employee } = await requireSelf();
   if (!employee) return <NoProfile />;
+  const { t, f } = await getI18n();
   const slips = await db.payslip.findMany({ where: { employeeId: employee.id, run: { status: { in: ["APPROVED", "PAID"] } } }, include: { run: true }, orderBy: [{ run: { year: "desc" } }, { run: { month: "desc" } }] });
   return (
     <div>
-      <PageHeader title="My payslips" />
+      <PageHeader title={t("me.payslipsTitle")} />
       <Card>
-        {slips.length === 0 ? <EmptyState title="No payslips yet" description="Payslips appear here once payroll has been approved." /> : (
+        {slips.length === 0 ? <EmptyState title={t("me.noPayslips")} description={t("me.payslipsEmptyText")} /> : (
           <Table>
-            <THead><TR><TH>Period</TH><TH className="text-right">Gross</TH><TH className="text-right">Deductions</TH><TH className="text-right">Net pay</TH><TH /></TR></THead>
+            <THead><TR><TH>{t("me.payslipCols.period")}</TH><TH className="text-right">{t("me.payslipCols.gross")}</TH><TH className="text-right">{t("me.payslipCols.deductions")}</TH><TH className="text-right">{t("me.payslipCols.net")}</TH><TH /></TR></THead>
             <TBody>
               {slips.map((s) => (
                 <TR key={s.id}>
-                  <TD className="font-medium">{periodLabel(s.run.year, s.run.month)}</TD>
-                  <TD className="tabular text-right">{money(s.grossPay)}</TD>
-                  <TD className="tabular text-right">{money(s.totalDeductions)}</TD>
-                  <TD className="tabular text-right font-semibold">{money(s.netPay)}</TD>
-                  <TD className="text-right space-x-3"><Link className="text-primary hover:underline" href={`/me/payslips/${s.id}`}>View</Link><a className="text-primary hover:underline" href={`/api/payslips/${s.id}/pdf`}>PDF</a></TD>
+                  <TD className="font-medium">{f.period(s.run.year, s.run.month)}</TD>
+                  <TD className="tabular text-right">{f.money(s.grossPay, s.calcCurrency)}</TD>
+                  <TD className="tabular text-right">{f.money(s.totalDeductions, s.calcCurrency)}</TD>
+                  <TD className="tabular text-right font-semibold">{f.money(s.netPayPayment, s.paymentCurrency)}</TD>
+                  <TD className="space-x-3 text-right"><Link className="text-primary hover:underline" href={`/me/payslips/${s.id}`}>{t("common.view")}</Link><a className="text-primary hover:underline" href={`/api/payslips/${s.id}/pdf`}>{t("common.pdf")}</a></TD>
                 </TR>
               ))}
             </TBody>

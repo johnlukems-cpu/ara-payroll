@@ -1,29 +1,35 @@
 import { db } from "@/lib/db";
 import { requirePage } from "@/lib/server/auth";
+import { getI18n } from "@/lib/server/i18n";
+import { getCurrencies } from "@/lib/server/rates";
 import { can } from "@/lib/permissions";
-import { amount, date, pct, toDateInput } from "@/lib/format";
+import { toDateInput, type Fmt } from "@/lib/format";
 import type { Bracket } from "@/lib/payroll/engine";
 import { ActionForm, FieldError } from "@/components/action-form";
 import { ActionButton } from "@/components/confirm-button";
 import { SubmitButton } from "@/components/submit-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, Textarea } from "@/components/ui/form";
+import { CurrencySelect } from "@/components/currency-select";
 import { Alert } from "@/components/ui/misc";
 import { Badge } from "@/components/ui/badge";
 import { saveTaxRuleSetAction, verifyTaxRuleSetAction } from "@/app/actions/settings";
 
-export const metadata = { title: "Tax rules" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t("settings.tabs.tax") };
+}
 
-function BracketRows({ prefix, rows, brackets, unit }: { prefix: string; rows: number; brackets: Bracket[]; unit: string }) {
+function BracketRows({ prefix, rows, brackets, unit, f, labels }: { prefix: string; rows: number; brackets: Bracket[]; unit: string; f: Fmt; labels: { header: string; rate: string; upper: (r: number) => string; rateRow: (r: number) => string } }) {
   return (
     <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2 text-xs font-medium text-muted-foreground"><span>Up to ({unit}) — empty = no limit</span><span>Rate %</span></div>
+      <div className="grid grid-cols-2 gap-2 text-xs font-medium text-muted-foreground"><span>{labels.header.replace("{unit}", unit)}</span><span>{labels.rate}</span></div>
       {Array.from({ length: rows }, (_, i) => {
         const b = brackets[i];
         return (
           <div key={i} className="grid grid-cols-2 gap-2">
-            <Input name={`${prefix}_upto_${i}`} defaultValue={b?.upTo != null ? amount(b.upTo) : ""} aria-label={`Bracket ${i + 1} upper bound`} />
-            <Input name={`${prefix}_rate_${i}`} defaultValue={b ? b.rateBp / 100 : ""} aria-label={`Bracket ${i + 1} rate`} />
+            <Input name={`${prefix}_upto_${i}`} defaultValue={b?.upTo != null ? f.input(b.upTo) : ""} aria-label={labels.upper(i + 1)} />
+            <Input name={`${prefix}_rate_${i}`} defaultValue={b ? f.number(b.rateBp / 100) : ""} aria-label={labels.rateRow(i + 1)} />
           </div>
         );
       })}
@@ -33,59 +39,67 @@ function BracketRows({ prefix, rows, brackets, unit }: { prefix: string; rows: n
 
 export default async function TaxPage({ searchParams }: { searchParams: Promise<{ edit?: string; copy?: string }> }) {
   const ctx = await requirePage("settings.manage");
+  const { t, f } = await getI18n();
   const sp = await searchParams;
   const sets = await db.taxRuleSet.findMany({ where: { OR: [{ companyId: ctx.company.id }, { companyId: null }] }, orderBy: { effectiveFrom: "desc" } });
+  const currencies = await getCurrencies();
   const base = sets.find((s) => s.id === (sp.edit ?? sp.copy)) ?? sets[0];
   const editing = sp.edit && base?.companyId === ctx.company.id ? base : null;
+  const cur = base?.currency ?? "SRD";
+  const labels = {
+    header: t("settings.tax.upTo", { unit: "{unit}" }),
+    rate: t("settings.tax.ratePct"),
+    upper: (r: number) => t("settings.tax.bracketUpper", { row: r }),
+    rateRow: (r: number) => t("settings.tax.bracketRate", { row: r }),
+  };
 
   return (
     <div className="space-y-6">
-      <Alert variant="warning">
-        Statutory rates (loonbelasting brackets, heffingskorting, AOV, overtime and special-reward rules) change through Surinamese legislation. ARA Payroll ships with starting values that must be checked against current Belastingdienst Suriname publications. Rule sets are versioned by effective date; approved payroll keeps the version it was calculated with.
-      </Alert>
+      <Alert variant="warning">{t("settings.tax.warning")}</Alert>
       <Card>
-        <CardHeader><CardTitle>Rule set versions</CardTitle><CardDescription>The most recent version effective on the last day of a payroll period is used. Company versions take precedence over platform defaults.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>{t("settings.tax.versions")}</CardTitle><CardDescription>{t("settings.tax.versionsSub")}</CardDescription></CardHeader>
         <CardContent className="space-y-2">
           {sets.map((s) => (
             <div key={s.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border px-4 py-3 text-sm">
               <div>
-                <p className="font-medium">{s.name} {s.isVerified ? <Badge variant="success">Verified</Badge> : <Badge variant="warning">Not verified</Badge>} {s.companyId ? <Badge variant="muted">Company</Badge> : <Badge variant="muted">Platform default</Badge>}</p>
-                <p className="text-xs text-muted-foreground">Effective {date(s.effectiveFrom)} · AOV {pct(s.aovRateBp)} · tax credit SRD {amount(s.taxCreditMonthly)}/month · top rate {pct((s.brackets as unknown as Bracket[]).at(-1)?.rateBp ?? 0)}</p>
+                <p className="font-medium">{s.name} {s.isVerified ? <Badge variant="success">{t("settings.tax.verified")}</Badge> : <Badge variant="warning">{t("settings.tax.notVerified")}</Badge>} <Badge variant="muted">{s.companyId ? t("settings.tax.companyBadge") : t("settings.tax.platformBadge")}</Badge></p>
+                <p className="text-xs text-muted-foreground">{t("settings.tax.summary", { date: f.date(s.effectiveFrom), currency: s.currency, aov: f.pct(s.aovRateBp), credit: f.money(s.taxCreditMonthly, s.currency), top: f.pct((s.brackets as unknown as Bracket[]).at(-1)?.rateBp ?? 0) })}</p>
               </div>
-              <div className="flex gap-2">
-                {s.companyId && <a href={`?edit=${s.id}`} className="text-primary hover:underline">Edit</a>}
-                <a href={`?copy=${s.id}`} className="text-primary hover:underline">New version from this</a>
-                {s.companyId && !s.isVerified && can(ctx.role, "company.manage") && <ActionButton action={verifyTaxRuleSetAction} fields={{ id: s.id }} size="sm" variant="outline" confirm="Confirm that you have verified every rate against current legislation.">Mark verified</ActionButton>}
+              <div className="flex items-center gap-3">
+                {s.companyId && <a href={`?edit=${s.id}`} className="text-primary hover:underline">{t("common.edit")}</a>}
+                <a href={`?copy=${s.id}`} className="text-primary hover:underline">{t("settings.tax.newFrom")}</a>
+                {s.companyId && !s.isVerified && can(ctx.role, "company.manage") && <ActionButton action={verifyTaxRuleSetAction} fields={{ id: s.id }} size="sm" variant="outline" confirm={t("settings.tax.verifyConfirm")}>{t("settings.tax.markVerified")}</ActionButton>}
               </div>
             </div>
           ))}
         </CardContent>
       </Card>
       <Card>
-        <CardHeader><CardTitle>{editing ? `Edit ${editing.name}` : "New rule set version"}</CardTitle><CardDescription>Monetary amounts in SRD, rates in percent.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>{editing ? t("settings.tax.editTitle", { name: editing.name }) : t("settings.tax.newTitle")}</CardTitle><CardDescription>{t("settings.tax.unitsHint")}</CardDescription></CardHeader>
         <CardContent>
           <ActionForm action={saveTaxRuleSetAction} className="space-y-6" key={base?.id ?? "new"}>
             {editing && <input type="hidden" name="id" value={editing.id} />}
             <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Name" htmlFor="name"><Input id="name" name="name" defaultValue={editing?.name ?? `SR ${new Date().getUTCFullYear()} (company)`} /><FieldError name="name" /></Field>
-              <Field label="Effective from" htmlFor="effectiveFrom"><Input id="effectiveFrom" name="effectiveFrom" type="date" defaultValue={toDateInput(editing?.effectiveFrom ?? base?.effectiveFrom)} /><FieldError name="effectiveFrom" /></Field>
+              <Field label={t("settings.tax.name")} htmlFor="name"><Input id="name" name="name" defaultValue={editing?.name ?? `SR ${new Date().getUTCFullYear()}`} /><FieldError name="name" /></Field>
+              <Field label={t("settings.tax.effectiveFrom")} htmlFor="effectiveFrom"><Input id="effectiveFrom" name="effectiveFrom" type="date" defaultValue={toDateInput(editing?.effectiveFrom ?? base?.effectiveFrom)} /><FieldError name="effectiveFrom" /></Field>
+              <Field label={t("settings.tax.calcCurrency")} htmlFor="currency" hint={t("settings.tax.calcCurrencyHint")}><CurrencySelect id="currency" name="currency" currencies={currencies} defaultValue={cur} /><FieldError name="currency" /></Field>
             </div>
             <div className="grid gap-6 lg:grid-cols-2">
-              <div><p className="mb-2 text-sm font-semibold">Wage tax brackets (annual taxable wage)</p><BracketRows prefix="lb" rows={8} brackets={(base?.brackets as unknown as Bracket[]) ?? []} unit="SRD/year" /></div>
-              <div><p className="mb-2 text-sm font-semibold">Overtime tax brackets (monthly overtime pay)</p><BracketRows prefix="ot" rows={5} brackets={(base?.overtimeBrackets as unknown as Bracket[]) ?? []} unit="SRD/month" /></div>
+              <div><p className="mb-2 text-sm font-semibold">{t("settings.tax.brackets")}</p><BracketRows prefix="lb" rows={8} brackets={(base?.brackets as unknown as Bracket[]) ?? []} unit={`${cur} ${t("settings.tax.perYear")}`} f={f} labels={labels} /></div>
+              <div><p className="mb-2 text-sm font-semibold">{t("settings.tax.overtimeBrackets")}</p><BracketRows prefix="ot" rows={5} brackets={(base?.overtimeBrackets as unknown as Bracket[]) ?? []} unit={`${cur} ${t("settings.tax.perMonth")}`} f={f} labels={labels} /></div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <Field label="Tax credit / heffingskorting (SRD/month)" htmlFor="taxCreditMonthly"><Input id="taxCreditMonthly" name="taxCreditMonthly" defaultValue={amount(base?.taxCreditMonthly)} /><FieldError name="taxCreditMonthly" /></Field>
-              <Field label="Lump-sum deduction (%)" htmlFor="lumpSumRateBp"><Input id="lumpSumRateBp" name="lumpSumRateBp" defaultValue={(base?.lumpSumRateBp ?? 0) / 100} /><FieldError name="lumpSumRateBp" /></Field>
-              <Field label="Lump-sum cap (SRD/year)" htmlFor="lumpSumCapAnnual"><Input id="lumpSumCapAnnual" name="lumpSumCapAnnual" defaultValue={amount(base?.lumpSumCapAnnual)} /></Field>
-              <Field label="AOV rate (%)" htmlFor="aovRateBp"><Input id="aovRateBp" name="aovRateBp" defaultValue={(base?.aovRateBp ?? 0) / 100} /><FieldError name="aovRateBp" /></Field>
-              <Field label="AOV franchise (SRD/month)" htmlFor="aovFranchiseMonthly"><Input id="aovFranchiseMonthly" name="aovFranchiseMonthly" defaultValue={amount(base?.aovFranchiseMonthly)} /></Field>
-              <Field label="Tax-free child allowance (SRD/child/month)" htmlFor="childAllowanceExempt"><Input id="childAllowanceExempt" name="childAllowanceExempt" defaultValue={amount(base?.childAllowanceExempt)} /></Field>
-              <Field label="Max. children" htmlFor="childAllowanceMaxChildren"><Input id="childAllowanceMaxChildren" name="childAllowanceMaxChildren" defaultValue={base?.childAllowanceMaxChildren ?? 4} /></Field>
-              <Field label="Tax-free special reward (SRD/year)" htmlFor="bonusExemptAnnual"><Input id="bonusExemptAnnual" name="bonusExemptAnnual" defaultValue={amount(base?.bonusExemptAnnual)} /></Field>
+              <Field label={t("settings.tax.taxCredit")} htmlFor="taxCreditMonthly"><Input id="taxCreditMonthly" name="taxCreditMonthly" defaultValue={f.input(base?.taxCreditMonthly)} /><FieldError name="taxCreditMonthly" /></Field>
+              <Field label={t("settings.tax.lumpSumRate")} htmlFor="lumpSumRateBp"><Input id="lumpSumRateBp" name="lumpSumRateBp" defaultValue={f.number((base?.lumpSumRateBp ?? 0) / 100)} /><FieldError name="lumpSumRateBp" /></Field>
+              <Field label={t("settings.tax.lumpSumCap")} htmlFor="lumpSumCapAnnual"><Input id="lumpSumCapAnnual" name="lumpSumCapAnnual" defaultValue={f.input(base?.lumpSumCapAnnual)} /></Field>
+              <Field label={t("settings.tax.aovRate")} htmlFor="aovRateBp"><Input id="aovRateBp" name="aovRateBp" defaultValue={f.number((base?.aovRateBp ?? 0) / 100)} /><FieldError name="aovRateBp" /></Field>
+              <Field label={t("settings.tax.aovFranchise")} htmlFor="aovFranchiseMonthly"><Input id="aovFranchiseMonthly" name="aovFranchiseMonthly" defaultValue={f.input(base?.aovFranchiseMonthly)} /></Field>
+              <Field label={t("settings.tax.childExempt")} htmlFor="childAllowanceExempt"><Input id="childAllowanceExempt" name="childAllowanceExempt" defaultValue={f.input(base?.childAllowanceExempt)} /></Field>
+              <Field label={t("settings.tax.maxChildren")} htmlFor="childAllowanceMaxChildren"><Input id="childAllowanceMaxChildren" name="childAllowanceMaxChildren" defaultValue={base?.childAllowanceMaxChildren ?? 4} /></Field>
+              <Field label={t("settings.tax.bonusExempt")} htmlFor="bonusExemptAnnual"><Input id="bonusExemptAnnual" name="bonusExemptAnnual" defaultValue={f.input(base?.bonusExemptAnnual)} /></Field>
             </div>
-            <Field label="Notes / legal source" htmlFor="notes"><Textarea id="notes" name="notes" defaultValue={editing?.notes ?? ""} placeholder="e.g. Staatsblad reference, Belastingdienst circular" /></Field>
-            <div className="flex justify-end"><SubmitButton>{editing ? "Save changes" : "Create version"}</SubmitButton></div>
+            <Field label={t("settings.tax.notes")} htmlFor="notes"><Textarea id="notes" name="notes" defaultValue={editing?.notes ?? ""} placeholder={t("settings.tax.notesPlaceholder")} /></Field>
+            <div className="flex justify-end"><SubmitButton>{editing ? t("common.saveChanges") : t("settings.tax.createVersion")}</SubmitButton></div>
           </ActionForm>
         </CardContent>
       </Card>

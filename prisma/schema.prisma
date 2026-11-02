@@ -69,6 +69,17 @@ enum LeaveStatus {
   CANCELLED
 }
 
+enum RateSource {
+  MANUAL
+  API
+}
+
+enum RateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum PayslipLineType {
   EARNING
   DEDUCTION
@@ -88,6 +99,8 @@ model User {
   email        String       @unique
   name         String
   passwordHash String
+  locale       String       @default("nl") // UI language preference: "nl" | "en"
+  isPlatformAdmin Boolean   @default(false)
   isActive     Boolean      @default(true)
   lastLoginAt  DateTime?
   createdAt    DateTime     @default(now())
@@ -134,7 +147,9 @@ model Company {
   email                 String?
   bankName              String?
   bankAccount           String?
-  currency              String             @default("SRD")
+  currency              String             @default("SRD") // base (reporting) currency, ISO 4217
+  rateRequireApproval   Boolean            @default(true) // exchange rates must be approved before payroll may use them
+  rateAllowApi          Boolean            @default(false) // allow rates fetched from the platform exchange-rate provider
   defaultHoursPerWeek   Int                @default(40)
   overtimeRate1Bp       Int                @default(15000) // 150%
   overtimeRate2Bp       Int                @default(20000) // 200%
@@ -149,6 +164,7 @@ model Company {
   leaveTypes            LeaveType[]
   auditLogs             AuditLog[]
   taxRuleSets           TaxRuleSet[]
+  exchangeRates         ExchangeRate[]
 }
 
 model Department {
@@ -179,6 +195,7 @@ model Employee {
   district          String?
   bankName          String?
   bankAccount       String?
+  paymentCurrency   String? // currency net pay is paid in; null = salary currency
   departmentId      String?
   jobTitle          String?
   hireDate          DateTime
@@ -205,10 +222,11 @@ model Contract {
   employeeId          String
   contractType        ContractType
   payType             PayType      @default(MONTHLY)
+  salaryCurrency      String       @default("SRD")
   startDate           DateTime
   endDate             DateTime?
-  baseSalary          Int          @default(0) // monthly salary in cents (MONTHLY)
-  hourlyRate          Int          @default(0) // cents per hour (HOURLY)
+  baseSalary          Int          @default(0) // monthly salary in minor units of salaryCurrency (MONTHLY)
+  hourlyRate          Int          @default(0) // minor units of salaryCurrency per hour (HOURLY)
   hoursPerWeek        Int          @default(40)
   pensionEmployeeBp   Int          @default(0)
   pensionEmployerBp   Int          @default(0)
@@ -241,7 +259,8 @@ model EmployeePayComponent {
   id          String       @id @default(cuid())
   employeeId  String
   componentId String
-  amount      Int          @default(0) // cents (FIXED)
+  amount      Int          @default(0) // minor units (FIXED)
+  currency    String? // currency of `amount`; null = the employee's salary currency
   rateBp      Int          @default(0) // basis points (PERCENT_OF_BASE)
   startDate   DateTime
   endDate     DateTime?
@@ -255,6 +274,7 @@ model TaxRuleSet {
   id                       String   @id @default(cuid())
   companyId                String?
   name                     String
+  currency                 String   @default("SRD") // currency in which statutory amounts are defined and calculated
   effectiveFrom            DateTime
   brackets                 Json // [{ upTo: cents|null, rateBp }] annual taxable wage
   taxCreditMonthly         Int // heffingskorting (cents/month)
@@ -280,6 +300,7 @@ model PayrollRun {
   month         Int
   payDate       DateTime
   status        PayrollStatus  @default(DRAFT)
+  currency      String         @default("SRD") // reporting currency of the totals (company base currency at calculation)
   taxRuleSetId  String?
   totalGross    Int            @default(0)
   totalNet      Int            @default(0)
@@ -327,6 +348,7 @@ model PayrollAdjustment {
   employeeId  String
   componentId String
   amount      Int
+  currency    String? // null = the employee's salary currency
   description String?
   run         PayrollRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
   component   PayComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
@@ -349,6 +371,17 @@ model Payslip {
   totalDeductions Int
   netPay          Int
   employerCost    Int
+  calcCurrency    String        @default("SRD") // statutory calculation currency (all amounts above and lines)
+  salaryCurrency  String        @default("SRD")
+  paymentCurrency String        @default("SRD")
+  netPayPayment   Int           @default(0) // net pay in paymentCurrency
+  baseCurrency    String        @default("SRD") // company reporting currency
+  grossBase       Int           @default(0)
+  wageTaxBase     Int           @default(0)
+  aovBase         Int           @default(0)
+  netBase         Int           @default(0)
+  employerCostBase Int          @default(0)
+  conversions     Json          @default("[]") // every currency conversion applied: amounts, rate, rate date, source
   trace           Json
   createdAt       DateTime      @default(now())
   run             PayrollRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
@@ -368,6 +401,8 @@ model PayslipLine {
   quantity    Float?
   rate        Int?
   amount      Int
+  originalAmount   Int? // amount before conversion, when the source currency differs
+  originalCurrency String?
   payslip     Payslip         @relation(fields: [payslipId], references: [id], onDelete: Cascade)
 }
 
@@ -425,4 +460,45 @@ model AuditLog {
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([companyId, createdAt])
+}
+
+/// ISO 4217 currency register. Activated/deactivated by the platform administrator.
+model Currency {
+  code      String  @id // ISO 4217 code — the identifier; symbols are never used to identify a currency
+  name      String
+  nameNl    String
+  symbol    String
+  decimals  Int     @default(2)
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+}
+
+/// 1 unit of baseCurrency = rate units of quoteCurrency, effective from effectiveDate.
+/// companyId null = platform-wide rate. Records are never overwritten, keeping a full history.
+model ExchangeRate {
+  id            String     @id @default(cuid())
+  companyId     String?
+  baseCurrency  String
+  quoteCurrency String
+  rate          Decimal    @db.Decimal(24, 10)
+  effectiveDate DateTime
+  source        RateSource @default(MANUAL)
+  provider      String?
+  status        RateStatus @default(PENDING)
+  notes         String?
+  createdById   String?
+  approvedById  String?
+  approvedAt    DateTime?
+  createdAt     DateTime   @default(now())
+  company       Company?   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([baseCurrency, quoteCurrency, effectiveDate])
+  @@index([companyId, status])
+}
+
+/// Platform-wide configuration (e.g. the exchange-rate provider).
+model PlatformSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
 }

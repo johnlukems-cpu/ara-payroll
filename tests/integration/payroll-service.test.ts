@@ -101,3 +101,50 @@ describe("calculateRun", () => {
     expect(trace.bonusTax).toBe(Math.round(SRD(5_984) * 0.38));
   });
 });
+
+describe("calculateRun — multicurrency", () => {
+  let runId: string;
+  let usdEmpId: string;
+
+  beforeAll(async () => {
+    const trans = await db.payComponent.findFirstOrThrow({ where: { companyId, code: "TRANS" } });
+    const usd = await db.employee.create({
+      data: {
+        companyId, employeeNumber: "10", firstName: "Dollar", lastName: "Earner", hireDate: new Date("2020-01-01"), paymentCurrency: "USD",
+        contracts: { create: { contractType: "PERMANENT", payType: "MONTHLY", salaryCurrency: "USD", startDate: new Date("2020-01-01"), baseSalary: SRD(1_000) } },
+        components: { create: { componentId: trans.id, amount: SRD(600), currency: "SRD", startDate: new Date("2020-01-01") } },
+      },
+    });
+    usdEmpId = usd.id;
+    const run = await db.payrollRun.create({ data: { companyId, year: 2026, month: 9, payDate: new Date("2026-09-25") } });
+    runId = run.id;
+  });
+
+  it("refuses to calculate without an approved rate (pending rates are ignored)", async () => {
+    await db.exchangeRate.create({ data: { companyId, baseCurrency: "USD", quoteCurrency: "SRD", rate: "36", effectiveDate: new Date("2026-01-01"), status: "PENDING" } });
+    await expect(calculateRun(runId)).rejects.toMatchObject({ key: "errors.missingRates" });
+  });
+
+  it("converts salary into the statutory currency and net pay into the payment currency, recording every conversion", async () => {
+    await db.exchangeRate.create({ data: { companyId, baseCurrency: "USD", quoteCurrency: "SRD", rate: "36.5", effectiveDate: new Date("2026-08-01"), status: "APPROVED" } });
+    // A later rate (after the period end) must not be used.
+    await db.exchangeRate.create({ data: { companyId, baseCurrency: "USD", quoteCurrency: "SRD", rate: "40", effectiveDate: new Date("2026-10-01"), status: "APPROVED" } });
+    await calculateRun(runId);
+    const slip = await db.payslip.findFirstOrThrow({ where: { runId, employeeId: usdEmpId }, include: { lines: true } });
+    expect(slip.calcCurrency).toBe("SRD");
+    expect(slip.salaryCurrency).toBe("USD");
+    expect(slip.grossPay).toBe(SRD(36_500 + 600)); // USD 1,000 @ 36.5 + SRD 600 (not reinterpreted as USD)
+    expect(slip.netPayPayment).toBe(Math.round(slip.netPay / 36.5));
+    const conv = slip.conversions as unknown as { purpose: string; rate: string; rateDate: string }[];
+    expect(conv.find((c) => c.purpose === "BASE")).toMatchObject({ rate: "36.5", rateDate: "2026-08-01" });
+    expect(conv.find((c) => c.purpose === "NET_PAY")?.rate).toBe("0.0273972603");
+    expect(slip.lines.find((l) => l.code === "BASE")).toMatchObject({ originalAmount: SRD(1_000), originalCurrency: "USD" });
+  });
+
+  it("keeps run totals in the base currency and never adds currencies together", async () => {
+    const run = await db.payrollRun.findUniqueOrThrow({ where: { id: runId } });
+    const slips = await db.payslip.findMany({ where: { runId } });
+    expect(run.currency).toBe("SRD");
+    expect(run.totalNet).toBe(slips.reduce((s, p) => s + p.netBase, 0));
+  });
+});

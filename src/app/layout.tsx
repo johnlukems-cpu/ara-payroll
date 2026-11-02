@@ -1,17 +1,30 @@
 import type { Metadata } from "next";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getTranslations } from "next-intl/server";
+import { Toaster } from "@/components/toaster";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: { default: "ARA Payroll", template: "%s · ARA Payroll" },
-  description: "Cloud-based payroll management for Suriname. ARA Payroll — developed by ARA Intelligent Solutions.",
-  applicationName: "ARA Payroll",
-  authors: [{ name: "ARA Intelligent Solutions" }],
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations();
+  return {
+    title: { default: `${t("brand.product")} — ${t("brand.tagline")}`, template: `%s · ${t("brand.product")}` },
+    description: t("brand.metaDescription"),
+    applicationName: t("brand.product"),
+    authors: [{ name: t("brand.company") }],
+    creator: t("brand.company"),
+    publisher: t("brand.company"),
+  };
+}
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getLocale();
   return (
-    <html lang="en">
-      <body className="min-h-screen font-sans antialiased">{children}</body>
+    <html lang={locale === "nl" ? "nl-SR" : "en-GB"}>
+      <body className="min-h-screen font-sans antialiased">
+        <NextIntlClientProvider>
+          <Toaster>{children}</Toaster>
+        </NextIntlClientProvider>
+      </body>
     </html>
   );
 }

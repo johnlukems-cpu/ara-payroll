@@ -1,7 +1,9 @@
 import type { Contract, Department, Employee } from "@prisma/client";
 import { FieldError } from "@/components/action-form";
 import { Field, Input, Select } from "@/components/ui/form";
-import { SURINAME_BANKS, SURINAME_DISTRICTS, toDateInput, amount } from "@/lib/format";
+import { CurrencySelect, type CurrencyOption } from "@/components/currency-select";
+import { getI18n } from "@/lib/server/i18n";
+import { SURINAME_BANKS, SURINAME_DISTRICTS, toDateInput } from "@/lib/format";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -21,47 +23,54 @@ function F({ name, label, children, hint }: { name: string; label: string; child
   );
 }
 
-export function EmployeeFields({ e, departments, showStatus }: { e?: Employee | null; departments: Department[]; showStatus?: boolean }) {
+const GENDERS = ["Female", "Male", "Other"];
+const MARITAL = ["Single", "Married", "Living together", "Divorced", "Widowed"];
+
+export async function EmployeeFields({ e, departments, currencies, showStatus }: { e?: Partial<Employee> | null; departments: Department[]; currencies: CurrencyOption[]; showStatus?: boolean }) {
+  const { t } = await getI18n();
   return (
     <div className="space-y-5">
-      <Section title="Personal details">
-        <F name="employeeNumber" label="Employee number"><Input id="employeeNumber" name="employeeNumber" defaultValue={e?.employeeNumber} required /></F>
-        <F name="firstName" label="First name(s)"><Input id="firstName" name="firstName" defaultValue={e?.firstName} required /></F>
-        <F name="lastName" label="Surname"><Input id="lastName" name="lastName" defaultValue={e?.lastName} required /></F>
-        <F name="idNumber" label="ID number" hint="Surinamese ID-kaart number"><Input id="idNumber" name="idNumber" defaultValue={e?.idNumber ?? ""} /></F>
-        <F name="dateOfBirth" label="Date of birth"><Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={toDateInput(e?.dateOfBirth)} /></F>
-        <F name="gender" label="Gender">
-          <Select id="gender" name="gender" defaultValue={e?.gender ?? ""}><option value="">—</option><option>Female</option><option>Male</option><option>Other</option></Select>
+      <Section title={t("employee.sections.personal")}>
+        <F name="employeeNumber" label={t("employee.employeeNumber")}><Input id="employeeNumber" name="employeeNumber" defaultValue={e?.employeeNumber} required /></F>
+        <F name="firstName" label={t("employee.firstName")}><Input id="firstName" name="firstName" defaultValue={e?.firstName} required /></F>
+        <F name="lastName" label={t("employee.lastName")}><Input id="lastName" name="lastName" defaultValue={e?.lastName} required /></F>
+        <F name="idNumber" label={t("employee.idNumber")} hint={t("employee.idNumberHint")}><Input id="idNumber" name="idNumber" defaultValue={e?.idNumber ?? ""} /></F>
+        <F name="dateOfBirth" label={t("employee.dateOfBirth")}><Input id="dateOfBirth" name="dateOfBirth" type="date" defaultValue={toDateInput(e?.dateOfBirth)} /></F>
+        <F name="gender" label={t("employee.gender")}>
+          <Select id="gender" name="gender" defaultValue={e?.gender ?? ""}><option value="">—</option>{GENDERS.map((g) => <option key={g} value={g}>{t(`enums.gender.${g}` as never)}</option>)}</Select>
         </F>
-        <F name="maritalStatus" label="Marital status">
-          <Select id="maritalStatus" name="maritalStatus" defaultValue={e?.maritalStatus ?? ""}><option value="">—</option><option>Single</option><option>Married</option><option>Living together</option><option>Divorced</option><option>Widowed</option></Select>
+        <F name="maritalStatus" label={t("employee.maritalStatus")}>
+          <Select id="maritalStatus" name="maritalStatus" defaultValue={e?.maritalStatus ?? ""}><option value="">—</option>{MARITAL.map((m) => <option key={m} value={m}>{t(`enums.marital.${m.replace(/\s/g, "")}` as never)}</option>)}</Select>
         </F>
-        <F name="numberOfChildren" label="Number of children" hint="Used for tax-free child allowance"><Input id="numberOfChildren" name="numberOfChildren" type="number" min={0} defaultValue={e?.numberOfChildren ?? 0} /></F>
+        <F name="numberOfChildren" label={t("employee.children")} hint={t("employee.childrenHint")}><Input id="numberOfChildren" name="numberOfChildren" type="number" min={0} defaultValue={e?.numberOfChildren ?? 0} /></F>
       </Section>
-      <Section title="Contact">
-        <F name="email" label="Email"><Input id="email" name="email" type="email" defaultValue={e?.email ?? ""} /></F>
-        <F name="phone" label="Phone"><Input id="phone" name="phone" defaultValue={e?.phone ?? ""} placeholder="+597 …" /></F>
-        <F name="district" label="District">
+      <Section title={t("employee.sections.contact")}>
+        <F name="email" label={t("employee.email")}><Input id="email" name="email" type="email" defaultValue={e?.email ?? ""} /></F>
+        <F name="phone" label={t("employee.phone")}><Input id="phone" name="phone" defaultValue={e?.phone ?? ""} placeholder="+597 …" /></F>
+        <F name="district" label={t("employee.district")}>
           <Select id="district" name="district" defaultValue={e?.district ?? ""}><option value="">—</option>{SURINAME_DISTRICTS.map((d) => <option key={d}>{d}</option>)}</Select>
         </F>
-        <F name="address" label="Address"><Input id="address" name="address" defaultValue={e?.address ?? ""} /></F>
+        <F name="address" label={t("employee.address")}><Input id="address" name="address" defaultValue={e?.address ?? ""} /></F>
       </Section>
-      <Section title="Employment & payment">
-        <F name="jobTitle" label="Job title"><Input id="jobTitle" name="jobTitle" defaultValue={e?.jobTitle ?? ""} /></F>
-        <F name="departmentId" label="Department">
+      <Section title={t("employee.sections.employment")}>
+        <F name="jobTitle" label={t("employee.jobTitle")}><Input id="jobTitle" name="jobTitle" defaultValue={e?.jobTitle ?? ""} /></F>
+        <F name="departmentId" label={t("employee.department")}>
           <Select id="departmentId" name="departmentId" defaultValue={e?.departmentId ?? ""}><option value="">—</option>{departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}</Select>
         </F>
-        <F name="hireDate" label="Hire date"><Input id="hireDate" name="hireDate" type="date" defaultValue={toDateInput(e?.hireDate)} required /></F>
-        <F name="bankName" label="Bank">
+        <F name="hireDate" label={t("employee.hireDate")}><Input id="hireDate" name="hireDate" type="date" defaultValue={toDateInput(e?.hireDate)} required /></F>
+        <F name="bankName" label={t("employee.bank")}>
           <Select id="bankName" name="bankName" defaultValue={e?.bankName ?? ""}><option value="">—</option>{SURINAME_BANKS.map((b) => <option key={b}>{b}</option>)}</Select>
         </F>
-        <F name="bankAccount" label="Bank account number"><Input id="bankAccount" name="bankAccount" defaultValue={e?.bankAccount ?? ""} /></F>
+        <F name="bankAccount" label={t("employee.bankAccount")}><Input id="bankAccount" name="bankAccount" defaultValue={e?.bankAccount ?? ""} /></F>
+        <F name="paymentCurrency" label={t("employee.paymentCurrency")} hint={t("employee.paymentCurrencyHint")}>
+          <CurrencySelect id="paymentCurrency" name="paymentCurrency" currencies={currencies} defaultValue={e?.paymentCurrency ?? ""} emptyLabel={t("employee.sameAsSalary")} />
+        </F>
         {showStatus && (
           <>
-            <F name="status" label="Status">
-              <Select id="status" name="status" defaultValue={e?.status}><option value="ACTIVE">Active</option><option value="ON_LEAVE">On leave</option><option value="TERMINATED">Terminated</option></Select>
+            <F name="status" label={t("employee.status")}>
+              <Select id="status" name="status" defaultValue={e?.status}>{["ACTIVE", "ON_LEAVE", "TERMINATED"].map((s) => <option key={s} value={s}>{t(`status.${s}` as never)}</option>)}</Select>
             </F>
-            <F name="terminationDate" label="Termination date"><Input id="terminationDate" name="terminationDate" type="date" defaultValue={toDateInput(e?.terminationDate)} /></F>
+            <F name="terminationDate" label={t("employee.terminationDate")}><Input id="terminationDate" name="terminationDate" type="date" defaultValue={toDateInput(e?.terminationDate)} /></F>
           </>
         )}
       </Section>
@@ -69,27 +78,29 @@ export function EmployeeFields({ e, departments, showStatus }: { e?: Employee | 
   );
 }
 
-export function ContractFields({ c, prefixStart = "startDate" }: { c?: Contract | null; prefixStart?: string }) {
+export async function ContractFields({ c, currencies, defaultCurrency, prefixStart = "startDate" }: { c?: Contract | null; currencies: CurrencyOption[]; defaultCurrency: string; prefixStart?: string }) {
+  const { t, f } = await getI18n();
   return (
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      <F name="contractType" label="Contract type">
+      <F name="contractType" label={t("employee.contract.contractType")}>
         <Select id="contractType" name="contractType" defaultValue={c?.contractType ?? "PERMANENT"}>
-          <option value="PERMANENT">Permanent (onbepaalde tijd)</option>
-          <option value="FIXED_TERM">Fixed term (bepaalde tijd)</option>
-          <option value="TEMPORARY">Temporary</option>
-          <option value="PROBATION">Probation</option>
+          {["PERMANENT", "FIXED_TERM", "TEMPORARY", "PROBATION"].map((v) => <option key={v} value={v}>{t(`enums.contractType.${v}` as never)}</option>)}
         </Select>
       </F>
-      <F name="payType" label="Pay type">
-        <Select id="payType" name="payType" defaultValue={c?.payType ?? "MONTHLY"}><option value="MONTHLY">Monthly salary</option><option value="HOURLY">Hourly wage</option></Select>
+      <F name="payType" label={t("employee.contract.payType")}>
+        <Select id="payType" name="payType" defaultValue={c?.payType ?? "MONTHLY"}>{["MONTHLY", "HOURLY"].map((v) => <option key={v} value={v}>{t(`enums.payType.${v}` as never)}</option>)}</Select>
       </F>
-      <F name="hoursPerWeek" label="Hours per week"><Input id="hoursPerWeek" name="hoursPerWeek" type="number" min={1} max={80} defaultValue={c?.hoursPerWeek ?? 40} /></F>
-      <F name="baseSalary" label="Monthly salary (SRD)" hint="For monthly-paid employees"><Input id="baseSalary" name="baseSalary" inputMode="decimal" defaultValue={c?.baseSalary ? amount(c.baseSalary) : ""} /></F>
-      <F name="hourlyRate" label="Hourly rate (SRD)" hint="For hourly-paid employees"><Input id="hourlyRate" name="hourlyRate" inputMode="decimal" defaultValue={c?.hourlyRate ? amount(c.hourlyRate) : ""} /></F>
-      <F name={prefixStart} label="Effective from"><Input id={prefixStart} name={prefixStart} type="date" required /></F>
-      <F name="endDate" label="End date (optional)"><Input id="endDate" name="endDate" type="date" /></F>
-      <F name="pensionEmployeeBp" label="Pension — employee %"><Input id="pensionEmployeeBp" name="pensionEmployeeBp" inputMode="decimal" defaultValue={c ? c.pensionEmployeeBp / 100 : 0} /></F>
-      <F name="pensionEmployerBp" label="Pension — employer %"><Input id="pensionEmployerBp" name="pensionEmployerBp" inputMode="decimal" defaultValue={c ? c.pensionEmployerBp / 100 : 0} /></F>
+      <F name="salaryCurrency" label={t("employee.contract.salaryCurrency")}>
+        <CurrencySelect id="salaryCurrency" name="salaryCurrency" currencies={currencies} defaultValue={c?.salaryCurrency ?? defaultCurrency} />
+      </F>
+      <F name="baseSalary" label={t("employee.contract.baseSalary")} hint={t("employee.contract.baseSalaryHint")}><Input id="baseSalary" name="baseSalary" inputMode="decimal" defaultValue={f.input(c?.baseSalary)} /></F>
+      <F name="hourlyRate" label={t("employee.contract.hourlyRate")} hint={t("employee.contract.hourlyRateHint")}><Input id="hourlyRate" name="hourlyRate" inputMode="decimal" defaultValue={f.input(c?.hourlyRate)} /></F>
+      <F name="hoursPerWeek" label={t("employee.contract.hoursPerWeek")}><Input id="hoursPerWeek" name="hoursPerWeek" type="number" min={1} max={80} defaultValue={c?.hoursPerWeek ?? 40} /></F>
+      <F name={prefixStart} label={t("employee.contract.effectiveFrom")}><Input id={prefixStart} name={prefixStart} type="date" required /></F>
+      <F name="endDate" label={t("employee.contract.endDate")}><Input id="endDate" name="endDate" type="date" /></F>
+      <div />
+      <F name="pensionEmployeeBp" label={t("employee.contract.pensionEmployee")}><Input id="pensionEmployeeBp" name="pensionEmployeeBp" inputMode="decimal" defaultValue={c ? f.number(c.pensionEmployeeBp / 100) : 0} /></F>
+      <F name="pensionEmployerBp" label={t("employee.contract.pensionEmployer")}><Input id="pensionEmployerBp" name="pensionEmployerBp" inputMode="decimal" defaultValue={c ? f.number(c.pensionEmployerBp / 100) : 0} /></F>
     </div>
   );
 }

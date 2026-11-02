@@ -24,6 +24,22 @@ tests/                  unit, integration, e2e
 - **Payslip** snapshots employee name, bank and department at calculation time and stores every line plus a calculation `trace` for auditability.
 - **PayrollRun** status machine: `DRAFT → CALCULATED → APPROVED → PAID`. Approved and paid runs are locked; approved runs can be reopened, paid runs cannot.
 
+## Internationalisation
+
+- `next-intl` without locale routing. The locale is resolved per request in `src/i18n/request.ts`: the signed-in user's `User.locale` → `ARA_LOCALE` cookie → Dutch (default).
+- `messages/nl.json` and `messages/en.json` hold every interface string, including validation and error messages (server actions throw `UserError("errors.key")`; Zod schemas use `validation.*` keys as messages; `handleError` translates both).
+- Formatting (`createFormat(locale)` in `src/lib/format.ts`) is locale-dependent but currency-independent; currencies are always shown by ISO code. Input parsing accepts both `1.234,56` and `1,234.56`.
+- Statutory payslip lines are stored with codes and labelled at display time, so the same payslip renders in either language (screen and PDF). Company-defined names (components, leave types, departments) are data and are seeded in the creator's language.
+- `tests/unit/i18n.test.ts` fails the build when the catalogues diverge, placeholders differ, or code uses a missing key.
+
+## Multicurrency
+
+- `Currency` (ISO 4217 register, activated by the platform administrator), `ExchangeRate` (1 base = rate quote, dated, source MANUAL/API, status PENDING/APPROVED/REJECTED, company or platform scope; never overwritten) and `PlatformSetting` (rate provider).
+- Company: `currency` (base/reporting currency), `rateRequireApproval`, `rateAllowApi`. Contract: `salaryCurrency`. Employee: `paymentCurrency`. Fixed components and adjustments: explicit `currency`.
+- `RateBook` (`src/lib/server/rates.ts`) resolves every currency pair needed for a run up front (company rate before platform rate, direct before inverse, latest effective ≤ period end; API rates only when allowed) and records each conversion. Conversion uses exact BigInt arithmetic (`src/lib/currency.ts`).
+- Payslip stores amounts in the calculation currency plus `netPayPayment` (payment currency), `*Base` amounts (base currency) and the `conversions` audit trail. Run totals are base-currency sums; reports never add different currencies together.
+- Migrations backfill existing data as SRD and pin the currency of existing components so later salary-currency changes cannot reinterpret them.
+
 ## Calculation (per employee, per month)
 
 1. Base pay: monthly salary × employed fraction − unpaid days (salary ÷ 21.75 per day), or hours × hourly rate.
@@ -55,4 +71,5 @@ All parameters live in the tax rule set — none are hard-coded in the engine.
 - Add email delivery (invitations, payslip notifications, password reset) — temporary passwords are currently shown once to the administrator.
 - Bank file is a generic CSV; add bank-specific formats (DSB, Hakrinbank, Finabank, Republic Bank) once their import specifications are confirmed.
 - Movable public holidays (Holi Phagwa, Eid ul-Fitr, Diwali, Easter, Chinese New Year) are not in the working-day calendar yet.
-- Dutch-language UI (i18n) is a natural next step for the Surinamese market.
+- Email delivery (and translated email templates) is not implemented yet.
+- The external rate provider is generic (JSON with `rates`/`conversion_rates`); add a dedicated Centrale Bank van Suriname integration if an official feed becomes available.

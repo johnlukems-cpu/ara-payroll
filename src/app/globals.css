@@ -11,16 +11,17 @@
   --muted-foreground: #5b667a;
   --border: #e2e6ee;
   --input: #d6dbe5;
-  --primary: #0b2a5b;
+  --primary: #012558;
   --primary-foreground: #ffffff;
-  --accent: #0e9f8a;
+  --accent: #007eef;
   --accent-foreground: #ffffff;
   --gold: #c9a24a;
   --destructive: #c2362f;
   --success: #12805c;
+  --brand-red: #d7262d;
   --warning: #b7791f;
-  --ring: #2b6cd8;
-  --sidebar: #0a1a38;
+  --ring: #007eef;
+  --sidebar: #011a3f;
   --sidebar-foreground: #c9d3e6;
 }
 

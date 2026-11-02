@@ -75,9 +75,9 @@ describe("validateBrackets", () => {
     expect(validateBrackets(rules.overtimeBrackets)).toBeNull();
   });
   it("rejects non-increasing or closed tables", () => {
-    expect(validateBrackets([{ upTo: 100, rateBp: 0 }, { upTo: 50, rateBp: 1 }, { upTo: null, rateBp: 2 }])).toMatch(/increase/);
-    expect(validateBrackets([{ upTo: 100, rateBp: 0 }])).toMatch(/open-ended/);
-    expect(validateBrackets([{ upTo: null, rateBp: 20000 }])).toMatch(/rate/);
+    expect(validateBrackets([{ upTo: 100, rateBp: 0 }, { upTo: 50, rateBp: 1 }, { upTo: null, rateBp: 2 }])).toEqual({ code: "increase", row: 2 });
+    expect(validateBrackets([{ upTo: 100, rateBp: 0 }])).toEqual({ code: "lastOpen" });
+    expect(validateBrackets([{ upTo: null, rateBp: 20000 }])).toEqual({ code: "rate", row: 1 });
   });
 });
 

@@ -34,14 +34,6 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   EMPLOYEE: [],
 };
 
-export const ROLE_LABELS: Record<Role, string> = {
-  OWNER: "Owner",
-  ADMIN: "Administrator",
-  PAYROLL_MANAGER: "Payroll manager",
-  HR_MANAGER: "HR manager",
-  ACCOUNTANT: "Accountant (read-only)",
-  EMPLOYEE: "Employee (self-service)",
-};
 
 export function can(role: Role | null | undefined, permission: Permission): boolean {
   return !!role && ROLE_PERMISSIONS[role].includes(permission);

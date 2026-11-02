@@ -10,20 +10,23 @@ export async function yearlySummary(companyId: string, year: number) {
 export async function annualStatements(companyId: string, year: number, finalOnly = true) {
   const slips = await db.payslip.findMany({
     where: { run: { companyId, year, status: finalOnly ? { in: ["APPROVED", "PAID"] } : undefined } },
-    select: { employeeId: true, employeeName: true, employeeNumber: true, grossPay: true, taxableWage: true, wageTax: true, aov: true, totalDeductions: true, netPay: true, employerCost: true, run: { select: { month: true } } },
+    select: { employeeId: true, employeeName: true, employeeNumber: true, calcCurrency: true, grossPay: true, taxableWage: true, wageTax: true, aov: true, totalDeductions: true, netPay: true, employerCost: true, run: { select: { month: true } } },
   });
-  const map = new Map<string, { employeeId: string; name: string; number: string; months: number; gross: number; taxable: number; tax: number; aov: number; deductions: number; net: number; employer: number }>();
+  // Totals are kept per statutory calculation currency so amounts in different currencies are never added together.
+  const map = new Map<string, { employeeId: string; name: string; number: string; currency: string; months: number; gross: number; taxable: number; tax: number; aov: number; deductions: number; net: number; employer: number }>();
   for (const s of slips) {
-    const r = map.get(s.employeeId) ?? { employeeId: s.employeeId, name: s.employeeName, number: s.employeeNumber, months: 0, gross: 0, taxable: 0, tax: 0, aov: 0, deductions: 0, net: 0, employer: 0 };
+    const key = `${s.employeeId}:${s.calcCurrency}`;
+    const r = map.get(key) ?? { employeeId: s.employeeId, name: s.employeeName, number: s.employeeNumber, currency: s.calcCurrency, months: 0, gross: 0, taxable: 0, tax: 0, aov: 0, deductions: 0, net: 0, employer: 0 };
     r.months += 1; r.gross += s.grossPay; r.taxable += s.taxableWage; r.tax += s.wageTax; r.aov += s.aov; r.deductions += s.totalDeductions; r.net += s.netPay; r.employer += s.employerCost;
-    map.set(s.employeeId, r);
+    map.set(key, r);
   }
   return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
 }
 
-export async function departmentCosts(companyId: string, year: number) {
-  const slips = await db.payslip.findMany({ where: { run: { companyId, year, status: { in: ["APPROVED", "PAID"] } } }, select: { department: true, employerCost: true } });
+/** Employer cost per department in the given reporting currency (payslips calculated in another base currency are excluded). */
+export async function departmentCosts(companyId: string, year: number, currency: string, unassigned: string) {
+  const slips = await db.payslip.findMany({ where: { baseCurrency: currency, run: { companyId, year, status: { in: ["APPROVED", "PAID"] } } }, select: { department: true, employerCostBase: true } });
   const m = new Map<string, number>();
-  for (const s of slips) m.set(s.department ?? "Unassigned", (m.get(s.department ?? "Unassigned") ?? 0) + s.employerCost);
+  for (const s of slips) m.set(s.department ?? unassigned, (m.get(s.department ?? unassigned) ?? 0) + s.employerCostBase);
   return [...m.entries()].map(([name, cost]) => ({ name, cost })).sort((a, b) => b.cost - a.cost);
 }

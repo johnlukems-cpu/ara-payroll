@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { getContext } from "@/lib/server/auth";
+import { getI18n } from "@/lib/server/i18n";
 import { can } from "@/lib/permissions";
 import { renderPayslipsPdf } from "@/lib/server/pdf";
 import { audit } from "@/lib/server/audit";
@@ -14,7 +15,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   const isStaff = membership && can(membership.role, "payroll.view");
   const isOwner = slip.employee.userId === ctx.user.id && (slip.run.status === "APPROVED" || slip.run.status === "PAID");
   if (!isStaff && !isOwner) return new Response("Not found", { status: 404 });
-  const bytes = await renderPayslipsPdf(slip.run.company, slip.run, [slip]);
+  const { t, f } = await getI18n();
+  const bytes = await renderPayslipsPdf(slip.run.company, slip.run, [slip], t as never, f);
   await audit({ companyId: slip.run.companyId, userId: ctx.user.id, action: "payslip.download", entity: "Payslip", entityId: slip.id });
   return new Response(Buffer.from(bytes), {
     headers: {

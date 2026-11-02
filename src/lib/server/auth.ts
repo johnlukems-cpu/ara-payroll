@@ -6,7 +6,11 @@ import { db } from "@/lib/db";
 import { can, type Permission } from "@/lib/permissions";
 import { readSession } from "./session";
 
-export class AuthError extends Error {}
+export class AuthError extends Error {
+  constructor(public key: "errors.unauthenticated" | "errors.forbidden") {
+    super(key);
+  }
+}
 
 /** Resolves the signed-in user, their memberships and the active company for this request. */
 export const getContext = cache(async () => {
@@ -48,7 +52,7 @@ export async function requirePage(permission?: Permission) {
 /** For server actions and route handlers: throws on missing permission. */
 export async function requirePermission(permission: Permission) {
   const ctx = await getContext();
-  if (!ctx || !ctx.company || !ctx.role) throw new AuthError("Not authenticated");
-  if (!can(ctx.role, permission)) throw new AuthError("You do not have permission to perform this action");
+  if (!ctx || !ctx.company || !ctx.role) throw new AuthError("errors.unauthenticated");
+  if (!can(ctx.role, permission)) throw new AuthError("errors.forbidden");
   return ctx as AppContext & { company: NonNullable<AppContext["company"]>; role: Role };
 }

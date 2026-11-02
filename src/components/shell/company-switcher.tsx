@@ -1,11 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { switchCompanyAction } from "@/app/actions/auth";
 
 export function CompanySwitcher({ companies, activeId }: { companies: { id: string; name: string }[]; activeId: string }) {
+  const t = useTranslations();
   return (
     <form action={switchCompanyAction}>
-      <label htmlFor="company-switch" className="mb-1 block text-[10px] font-medium uppercase tracking-[0.14em] text-white/45">Company</label>
+      <label htmlFor="company-switch" className="mb-1 block text-[10px] font-medium uppercase tracking-[0.14em] text-white/45">{t("nav.company")}</label>
       <select
         id="company-switch"
         name="companyId"

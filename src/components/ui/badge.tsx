@@ -1,8 +1,9 @@
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 
-const badgeVariants = cva("inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset", {
+const badgeVariants = cva("inline-flex items-center whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset", {
   variants: {
     variant: {
       default: "bg-primary/8 text-primary ring-primary/20",
@@ -27,5 +28,6 @@ const STATUS: Record<string, VariantProps<typeof badgeVariants>["variant"]> = {
 };
 
 export function StatusBadge({ status }: { status: string }) {
-  return <Badge variant={STATUS[status] ?? "muted"}>{status.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase())}</Badge>;
+  const t = useTranslations();
+  return <Badge variant={STATUS[status] ?? "muted"}>{t(`status.${status}` as never)}</Badge>;
 }

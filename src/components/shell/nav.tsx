@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, CalendarDays, FileClock, LayoutDashboard, Settings, Users, Wallet } from "lucide-react";
+import { ArrowLeftRight, BarChart3, Building2, CalendarDays, FileClock, LayoutDashboard, Settings, ShieldCheck, Users, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const ICONS = { dashboard: LayoutDashboard, employees: Users, payroll: Wallet, leave: CalendarDays, reports: BarChart3, companies: Building2, settings: Settings, audit: FileClock };
+const ICONS = { dashboard: LayoutDashboard, employees: Users, payroll: Wallet, leave: CalendarDays, reports: BarChart3, rates: ArrowLeftRight, companies: Building2, settings: Settings, audit: FileClock, admin: ShieldCheck };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
 

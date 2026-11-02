@@ -1,7 +1,6 @@
 import { db } from "@/lib/db";
 import { requirePage } from "@/lib/server/auth";
-import { ROLE_LABELS } from "@/lib/permissions";
-import { date } from "@/lib/format";
+import { getI18n } from "@/lib/server/i18n";
 import { ActionForm, FieldError } from "@/components/action-form";
 import { ActionButton } from "@/components/confirm-button";
 import { SubmitButton } from "@/components/submit-button";
@@ -10,47 +9,52 @@ import { Field, Input, Select } from "@/components/ui/form";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { changeRoleAction, inviteUserAction, removeMemberAction } from "@/app/actions/settings";
 
-export const metadata = { title: "Users & roles" };
+export async function generateMetadata() {
+  const { t } = await getI18n();
+  return { title: t("settings.tabs.users") };
+}
+
+const ROLES = ["OWNER", "ADMIN", "PAYROLL_MANAGER", "HR_MANAGER", "ACCOUNTANT", "EMPLOYEE"] as const;
 
 export default async function UsersPage() {
   const ctx = await requirePage("users.manage");
+  const { t, f } = await getI18n();
   const members = await db.membership.findMany({ where: { companyId: ctx.company.id }, include: { user: true }, orderBy: [{ role: "asc" }, { user: { name: "asc" } }] });
-  const roles = Object.entries(ROLE_LABELS);
   return (
     <div className="space-y-6">
       <Card>
-        <CardHeader><CardTitle>People with access</CardTitle><CardDescription>Roles control what each user can see and do in {ctx.company.name}.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>{t("settings.users.title")}</CardTitle><CardDescription>{t("settings.users.sub", { company: ctx.company.name })}</CardDescription></CardHeader>
         <Table>
-          <THead><TR><TH>Name</TH><TH>Email</TH><TH>Last sign-in</TH><TH>Role</TH><TH /></TR></THead>
+          <THead><TR><TH>{t("settings.users.cols.name")}</TH><TH>{t("settings.users.cols.email")}</TH><TH>{t("settings.users.cols.lastLogin")}</TH><TH>{t("settings.users.cols.role")}</TH><TH /></TR></THead>
           <TBody>
             {members.map((m) => (
               <TR key={m.id}>
                 <TD className="font-medium">{m.user.name}</TD>
                 <TD>{m.user.email}</TD>
-                <TD className="tabular">{date(m.user.lastLoginAt)}</TD>
+                <TD className="tabular">{f.date(m.user.lastLoginAt)}</TD>
                 <TD>
-                  {m.userId === ctx.user.id ? ROLE_LABELS[m.role] : (
+                  {m.userId === ctx.user.id ? t(`roles.${m.role}`) : (
                     <ActionForm action={changeRoleAction} className="flex items-center gap-2">
                       <input type="hidden" name="id" value={m.id} />
-                      <Select name="role" defaultValue={m.role} className="h-8 w-52" aria-label="Role">{roles.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select>
-                      <SubmitButton size="sm" variant="outline">Update</SubmitButton>
+                      <Select name="role" defaultValue={m.role} className="h-8 w-56" aria-label={t("settings.users.role")}>{ROLES.map((r) => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}</Select>
+                      <SubmitButton size="sm" variant="outline">{t("common.update")}</SubmitButton>
                     </ActionForm>
                   )}
                 </TD>
-                <TD className="text-right">{m.userId !== ctx.user.id && <ActionButton action={removeMemberAction} fields={{ id: m.id }} variant="ghost" size="sm" confirm="Remove this user's access to the company?">Remove</ActionButton>}</TD>
+                <TD className="text-right">{m.userId !== ctx.user.id && <ActionButton action={removeMemberAction} fields={{ id: m.id }} variant="ghost" size="sm" confirm={t("settings.users.removeConfirm")}>{t("common.remove")}</ActionButton>}</TD>
               </TR>
             ))}
           </TBody>
         </Table>
       </Card>
       <Card className="max-w-3xl">
-        <CardHeader><CardTitle>Add a user</CardTitle><CardDescription>To give employees self-service access, use “Enable self-service” on their employee page.</CardDescription></CardHeader>
+        <CardHeader><CardTitle>{t("settings.users.addTitle")}</CardTitle><CardDescription>{t("settings.users.addSub")}</CardDescription></CardHeader>
         <CardContent>
           <ActionForm action={inviteUserAction} className="grid items-end gap-3 sm:grid-cols-4" resetOnSuccess>
-            <Field label="Name" htmlFor="name"><Input id="name" name="name" /><FieldError name="name" /></Field>
-            <Field label="Email" htmlFor="email"><Input id="email" name="email" type="email" /><FieldError name="email" /></Field>
-            <Field label="Role" htmlFor="role"><Select id="role" name="role" defaultValue="PAYROLL_MANAGER">{roles.filter(([k]) => k !== "EMPLOYEE").map(([k, v]) => <option key={k} value={k}>{v}</option>)}</Select></Field>
-            <SubmitButton>Add user</SubmitButton>
+            <Field label={t("settings.users.name")} htmlFor="name"><Input id="name" name="name" /><FieldError name="name" /></Field>
+            <Field label={t("settings.users.email")} htmlFor="email"><Input id="email" name="email" type="email" /><FieldError name="email" /></Field>
+            <Field label={t("settings.users.role")} htmlFor="role"><Select id="role" name="role" defaultValue="PAYROLL_MANAGER">{ROLES.filter((r) => r !== "EMPLOYEE").map((r) => <option key={r} value={r}>{t(`roles.${r}`)}</option>)}</Select></Field>
+            <SubmitButton>{t("settings.users.add")}</SubmitButton>
           </ActionForm>
         </CardContent>
       </Card>

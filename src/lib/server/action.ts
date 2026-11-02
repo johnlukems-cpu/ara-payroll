@@ -1,22 +1,67 @@
 import "server-only";
 import { z } from "zod";
+import { getTranslations } from "next-intl/server";
 import { AuthError } from "./auth";
 import { PayrollError } from "@/lib/payroll/service";
+import { MissingRateError } from "@/lib/currency";
 
 export type ActionState = { ok: boolean; message?: string; errors?: Record<string, string[] | undefined>; ts?: number } | null;
 
-export class UserError extends Error {}
-
-/** Converts known error types into a form state; rethrows anything else (incl. Next.js redirects). */
-export function handleError(err: unknown): ActionState {
-  if (err instanceof z.ZodError) {
-    return { ok: false, message: "Please correct the highlighted fields.", errors: z.flattenError(err).fieldErrors as Record<string, string[]>, ts: Date.now() };
+/** A user-facing error identified by a translation key (see messages/*.json → errors.*). */
+export class UserError extends Error {
+  constructor(public key: string, public values?: Record<string, string | number>) {
+    super(key);
   }
-  if (err instanceof AuthError || err instanceof PayrollError || err instanceof UserError) {
-    return { ok: false, message: err.message, ts: Date.now() };
+}
+
+/** Zod issue → translated message. Schemas use translation keys (validation namespace) as custom messages. */
+function issueMessage(t: Awaited<ReturnType<typeof getTranslations>>, issue: z.core.$ZodIssue) {
+  if (issue.message?.startsWith("validation.")) return t(issue.message as never);
+  switch (issue.code) {
+    case "invalid_type":
+      return t("validation.required");
+    case "too_small":
+      return issue.origin === "string" ? t("validation.tooShort", { min: Number(issue.minimum) }) : t("validation.tooSmall", { min: Number(issue.minimum) });
+    case "too_big":
+      return issue.origin === "string" ? t("validation.tooLong", { max: Number(issue.maximum) }) : t("validation.tooBig", { max: Number(issue.maximum) });
+    case "invalid_format":
+      return issue.format === "email" ? t("validation.email") : t("validation.invalid");
+    default:
+      return t("validation.invalid");
+  }
+}
+
+/** Converts known error types into a translated form state; rethrows anything else (incl. Next.js redirects). */
+export async function handleError(err: unknown): Promise<ActionState> {
+  const ts = Date.now();
+  if (err instanceof z.ZodError) {
+    const t = await getTranslations();
+    const errors: Record<string, string[]> = {};
+    for (const issue of err.issues) {
+      const field = String(issue.path[0] ?? "_");
+      (errors[field] ??= []).push(issueMessage(t, issue));
+    }
+    return { ok: false, message: t("validation.fixFields"), errors, ts };
+  }
+  if (err instanceof UserError || err instanceof PayrollError || err instanceof AuthError) {
+    const t = await getTranslations();
+    // Values written as "@key|row" are themselves translation keys (used for nested messages).
+    const values: Record<string, string | number> = {};
+    for (const [k, v] of Object.entries(("values" in err ? err.values : undefined) ?? {})) {
+      if (typeof v === "string" && v.startsWith("@")) {
+        const [key, row] = v.slice(1).split("|");
+        values[k] = t(key as never, (row ? { row: Number(row) } : {}) as never);
+      } else values[k] = v;
+    }
+    return { ok: false, message: t(err.key as never, values as never), ts };
+  }
+  if (err instanceof MissingRateError) {
+    const t = await getTranslations();
+    return { ok: false, message: t("errors.missingRates", { pairs: `${err.from}→${err.to}` }), ts };
   }
   if (typeof err === "object" && err && "code" in err && (err as { code: string }).code === "P2002") {
-    return { ok: false, message: "A record with these details already exists.", ts: Date.now() };
+    const t = await getTranslations();
+    return { ok: false, message: t("errors.duplicate"), ts };
   }
   throw err;
 }

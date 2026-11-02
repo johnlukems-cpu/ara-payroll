@@ -1,35 +1,40 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
+import type { Locale } from "@/i18n/config";
+import en from "../../../messages/en.json";
+import nl from "../../../messages/nl.json";
 
-const SRD = (v: number) => Math.round(v * 100);
-
-/** Default configuration for a new Surinamese company. Everything is editable afterwards. */
-export async function seedCompanyDefaults(tx: Prisma.TransactionClient, companyId: string) {
+/**
+ * Default configuration for a new Surinamese company, named in the creator's language.
+ * Everything is editable afterwards (names are company data, not interface text).
+ */
+export async function seedCompanyDefaults(tx: Prisma.TransactionClient, companyId: string, locale: Locale = "nl") {
+  const d = (locale === "en" ? en : nl).defaults;
+  const c = d.components as Record<string, string>;
   await tx.payComponent.createMany({
     data: [
-      { companyId, code: "KB", name: "Child allowance (kinderbijslag)", kind: "ALLOWANCE", taxTreatment: "CHILD_ALLOWANCE" },
-      { companyId, code: "TRANS", name: "Transport allowance", kind: "ALLOWANCE", taxTreatment: "TAXABLE" },
-      { companyId, code: "HOUSE", name: "Housing allowance", kind: "ALLOWANCE", taxTreatment: "TAXABLE" },
-      { companyId, code: "REPR", name: "Representation allowance", kind: "ALLOWANCE", taxTreatment: "EXEMPT_UP_TO_LIMIT", exemptLimit: SRD(0) },
-      { companyId, code: "ADJ+", name: "Other allowance (one-off)", kind: "ALLOWANCE", taxTreatment: "TAXABLE" },
-      { companyId, code: "BZV", name: "Health insurance (basiszorgverzekering)", kind: "DEDUCTION" },
-      { companyId, code: "LOAN", name: "Loan repayment", kind: "DEDUCTION" },
-      { companyId, code: "ADV", name: "Salary advance", kind: "DEDUCTION" },
-      { companyId, code: "UNION", name: "Union dues", kind: "DEDUCTION" },
-      { companyId, code: "ADJ-", name: "Other deduction (one-off)", kind: "DEDUCTION" },
+      { companyId, code: "KB", name: c.KB, kind: "ALLOWANCE", taxTreatment: "CHILD_ALLOWANCE" },
+      { companyId, code: "TRANS", name: c.TRANS, kind: "ALLOWANCE", taxTreatment: "TAXABLE" },
+      { companyId, code: "HOUSE", name: c.HOUSE, kind: "ALLOWANCE", taxTreatment: "TAXABLE" },
+      { companyId, code: "REPR", name: c.REPR, kind: "ALLOWANCE", taxTreatment: "EXEMPT_UP_TO_LIMIT", exemptLimit: 0 },
+      { companyId, code: "ADJ+", name: c["ADJ+"], kind: "ALLOWANCE", taxTreatment: "TAXABLE" },
+      { companyId, code: "BZV", name: c.BZV, kind: "DEDUCTION" },
+      { companyId, code: "LOAN", name: c.LOAN, kind: "DEDUCTION" },
+      { companyId, code: "ADV", name: c.ADV, kind: "DEDUCTION" },
+      { companyId, code: "UNION", name: c.UNION, kind: "DEDUCTION" },
+      { companyId, code: "ADJ-", name: c["ADJ-"], kind: "DEDUCTION" },
     ],
   });
+  const l = d.leave as Record<string, string>;
   await tx.leaveType.createMany({
     data: [
-      { companyId, code: "VAC", name: "Annual leave (vakantie)", isPaid: true, annualEntitlementDays: 12 },
-      { companyId, code: "SICK", name: "Sick leave", isPaid: true, annualEntitlementDays: 0 },
-      { companyId, code: "MAT", name: "Maternity leave", isPaid: true, annualEntitlementDays: 0 },
-      { companyId, code: "PAT", name: "Paternity leave", isPaid: true, annualEntitlementDays: 0 },
-      { companyId, code: "CAL", name: "Special / calamity leave", isPaid: true, annualEntitlementDays: 0 },
-      { companyId, code: "UNP", name: "Unpaid leave", isPaid: false, annualEntitlementDays: 0 },
+      { companyId, code: "VAC", name: l.VAC, isPaid: true, annualEntitlementDays: 12 },
+      { companyId, code: "SICK", name: l.SICK, isPaid: true, annualEntitlementDays: 0 },
+      { companyId, code: "MAT", name: l.MAT, isPaid: true, annualEntitlementDays: 0 },
+      { companyId, code: "PAT", name: l.PAT, isPaid: true, annualEntitlementDays: 0 },
+      { companyId, code: "CAL", name: l.CAL, isPaid: true, annualEntitlementDays: 0 },
+      { companyId, code: "UNP", name: l.UNP, isPaid: false, annualEntitlementDays: 0 },
     ],
   });
-  await tx.department.createMany({
-    data: ["Administration", "Operations", "Sales"].map((name) => ({ companyId, name })),
-  });
+  await tx.department.createMany({ data: Object.values(d.departments).map((name) => ({ companyId, name })) });
 }

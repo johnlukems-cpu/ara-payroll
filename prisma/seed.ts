@@ -50,13 +50,13 @@ async function demo() {
       bankName: "De Surinaamsche Bank (DSB)", bankAccount: "1234567890",
     },
   });
-  await db.$transaction((tx) => seedCompanyDefaults(tx, company.id));
+  await db.$transaction((tx) => seedCompanyDefaults(tx, company.id, "nl"));
   const second = await db.company.create({ data: { organizationId: org.id, name: "Nickerie Agro B.V.", district: "Nickerie" } });
-  await db.$transaction((tx) => seedCompanyDefaults(tx, second.id));
+  await db.$transaction((tx) => seedCompanyDefaults(tx, second.id, "nl"));
 
-  const owner = await db.user.create({ data: { email, name: "Demo Owner", passwordHash: hash } });
+  const owner = await db.user.create({ data: { email, name: "Demo Owner", passwordHash: hash, isPlatformAdmin: true } });
   const payroll = await db.user.create({ data: { email: "payroll@demo.ara.sr", name: "Petra Payroll", passwordHash: hash } });
-  const accountant = await db.user.create({ data: { email: "accountant@demo.ara.sr", name: "Andre Accountant", passwordHash: hash } });
+  const accountant = await db.user.create({ data: { email: "accountant@demo.ara.sr", name: "Andre Accountant", passwordHash: hash, locale: "en" } });
   const empUser = await db.user.create({ data: { email: "employee@demo.ara.sr", name: "Rajesh Ramdin", passwordHash: hash } });
   await db.membership.createMany({
     data: [
@@ -92,10 +92,10 @@ async function demo() {
       },
     });
     const start = new Date(Date.UTC(year - 1, 0, 1));
-    const assigns: Prisma.EmployeePayComponentCreateManyInput[] = [{ employeeId: e.id, componentId: comp("TRANS").id, amount: SRD(600), startDate: start }];
-    if (e.numberOfChildren > 0) assigns.push({ employeeId: e.id, componentId: comp("KB").id, amount: SRD(125 * e.numberOfChildren), startDate: start });
-    if (!hourly) assigns.push({ employeeId: e.id, componentId: comp("BZV").id, amount: SRD(350), startDate: start });
-    if (i % 5 === 0) assigns.push({ employeeId: e.id, componentId: comp("LOAN").id, amount: SRD(500), startDate: start });
+    const assigns: Prisma.EmployeePayComponentCreateManyInput[] = [{ employeeId: e.id, componentId: comp("TRANS").id, amount: SRD(600), currency: "SRD", startDate: start }];
+    if (e.numberOfChildren > 0) assigns.push({ employeeId: e.id, componentId: comp("KB").id, amount: SRD(125 * e.numberOfChildren), currency: "SRD", startDate: start });
+    if (!hourly) assigns.push({ employeeId: e.id, componentId: comp("BZV").id, amount: SRD(350), currency: "SRD", startDate: start });
+    if (i % 5 === 0) assigns.push({ employeeId: e.id, componentId: comp("LOAN").id, amount: SRD(500), currency: "SRD", startDate: start });
     await db.employeePayComponent.createMany({ data: assigns });
   }
 
@@ -132,10 +132,55 @@ async function demo() {
   console.log("Demo data created. Sign in with owner@demo.ara.sr / Demo12345! (also payroll@, accountant@, employee@demo.ara.sr)");
 }
 
+/**
+ * Multicurrency demo (idempotent): approved USD/EUR→SRD rates and two employees moved to
+ * foreign-currency contracts from the current month. Earlier (paid) payroll stays in SRD,
+ * demonstrating that history keeps its original currency.
+ */
+async function demoMulticurrency() {
+  const company = await db.company.findFirst({ where: { name: "Paramaribo Trading N.V." } });
+  const owner = await db.user.findUnique({ where: { email: "owner@demo.ara.sr" } });
+  if (!company || !owner) return;
+  await db.user.update({ where: { id: owner.id }, data: { isPlatformAdmin: true } });
+  if (await db.exchangeRate.count({ where: { companyId: company.id } })) {
+    console.log("Multicurrency demo already present.");
+    return;
+  }
+  const year = new Date().getUTCFullYear();
+  const month = new Date().getUTCMonth() + 1;
+  const approved = { status: "APPROVED" as const, source: "MANUAL" as const, createdById: owner.id, approvedById: owner.id, approvedAt: new Date() };
+  await db.exchangeRate.createMany({
+    data: [
+      { companyId: company.id, baseCurrency: "USD", quoteCurrency: "SRD", rate: "36.2500000000", effectiveDate: new Date(Date.UTC(year, 0, 1)), notes: "CBvS (demo)", ...approved },
+      { companyId: company.id, baseCurrency: "USD", quoteCurrency: "SRD", rate: "36.5000000000", effectiveDate: new Date(Date.UTC(year, month - 1, 1)), notes: "CBvS (demo)", ...approved },
+      { companyId: company.id, baseCurrency: "EUR", quoteCurrency: "SRD", rate: "39.8000000000", effectiveDate: new Date(Date.UTC(year, month - 1, 1)), notes: "CBvS (demo)", ...approved },
+      { companyId: null, baseCurrency: "USD", quoteCurrency: "GYD", rate: "209.0000000000", effectiveDate: new Date(Date.UTC(year, 0, 1)), notes: "Platform (demo)", ...approved },
+      { companyId: company.id, baseCurrency: "USD", quoteCurrency: "SRD", rate: "36.6000000000", effectiveDate: new Date(Date.UTC(year, month - 1, 2)), notes: "Awaiting approval (demo)", status: "PENDING", source: "MANUAL", createdById: owner.id },
+    ],
+  });
+  const start = new Date(Date.UTC(year, month - 1, 1));
+  const usd = await db.employee.findFirst({ where: { companyId: company.id, employeeNumber: "1002" } });
+  const eur = await db.employee.findFirst({ where: { companyId: company.id, employeeNumber: "1004" } });
+  if (usd) {
+    await db.contract.create({ data: { employeeId: usd.id, contractType: "PERMANENT", payType: "MONTHLY", salaryCurrency: "USD", baseSalary: SRD(1200), startDate: start, hoursPerWeek: 40, pensionEmployeeBp: 300, pensionEmployerBp: 500, notes: "USD contract (demo)" } });
+    await db.employee.update({ where: { id: usd.id }, data: { paymentCurrency: "USD" } });
+  }
+  if (eur) {
+    await db.contract.create({ data: { employeeId: eur.id, contractType: "PERMANENT", payType: "MONTHLY", salaryCurrency: "EUR", baseSalary: SRD(950), startDate: start, hoursPerWeek: 40, pensionEmployeeBp: 300, pensionEmployerBp: 500, notes: "EUR contract, paid in SRD (demo)" } });
+    await db.employee.update({ where: { id: eur.id }, data: { paymentCurrency: "SRD" } });
+  }
+  const run = await db.payrollRun.findFirst({ where: { companyId: company.id, year, month, status: { in: ["DRAFT", "CALCULATED"] } } });
+  if (run) await calculateRun(run.id);
+  console.log("Multicurrency demo created (USD and EUR employees, approved rates).");
+}
+
 async function main() {
   await ensureDefaultRules();
   console.log("Platform default tax rule set ensured.");
-  if (process.argv.includes("--demo")) await demo();
+  if (process.argv.includes("--demo")) {
+    await demo();
+    await demoMulticurrency();
+  }
 }
 
 main().finally(() => db.$disconnect());

@@ -3,7 +3,7 @@
 **Cloud-based payroll management for Suriname**
 *Developed by ARA Intelligent Solutions — part of the ARA software ecosystem (ARA Payroll · ARA Accounting · ARA Tax · ARA HR).*
 
-ARA Payroll lets Surinamese employers and accounting firms run complete monthly payroll in the cloud: employee administration, contracts and salary history, allowances and deductions, Loonbelasting / AOV calculation, payslips, leave, reports, bank payment files and employee self-service.
+ARA Payroll lets Surinamese employers and accounting firms run complete monthly payroll in the cloud — in **Dutch or English** and in **multiple currencies**: employee administration, contracts and salary history, allowances and deductions, Loonbelasting / AOV calculation, payslips, leave, reports, bank payment files and employee self-service.
 
 ## Features
 
@@ -18,8 +18,18 @@ ARA Payroll lets Surinamese employers and accounting firms run complete monthly 
 | **Leave** | Leave types and entitlements, requests and approvals, balances, working-day calculation that skips weekends and fixed Surinamese public holidays |
 | **Reports** | Monthly wage tax & AOV remittance summary, annual statements per employee, department cost, payroll journal CSV, bank payment CSV |
 | **Self-service** | Employees view their payslips, download PDFs, request leave, see balances, change password |
+| **Bilingual (NL / EN)** | Complete Dutch and English interface, payslips, PDFs, CSV exports and validation messages. Dutch is the default; the choice is saved per user (all devices) and in a cookie for visitors. Locale-aware dates and numbers (nl-SR / en-GB), independent of currency |
+| **Multicurrency** | ISO 4217 currency register (SRD, USD, EUR, GYD, TTD, GBP, CAD, XCD), company base currency with a controlled change process, per-employee salary currency and payment currency, currency per allowance/deduction/adjustment, exchange-rate management (manual, approval workflow, external provider, full history), every conversion recorded on the payslip |
 | **Multi-company** | One login for several employers (groups, accounting firms), company switcher, per-company roles |
 | **Security** | Role-based access (Owner, Admin, Payroll manager, HR manager, Accountant read-only, Employee), hashed DB sessions, rate-limited login, audit log, tenant-scoped queries, security headers |
+
+## Multicurrency in short
+
+- Statutory amounts (loonbelasting, AOV) are calculated in the tax rule set's currency (SRD). Salary, allowances, deductions and bonuses in other currencies are converted into it first.
+- Net pay is converted into the employee's **payment currency**; run totals and reports use the company **base currency**.
+- Only **approved** rates effective on the last day of the period are used; payroll refuses to calculate when a rate is missing — it never guesses.
+- Each payslip stores every conversion: original amount and currency, rate, rate date, source and converted amount.
+- Historical payroll keeps its original currency and rates; changing the base currency requires confirmation, a reason, no open runs, and is audited.
 
 ## ⚠️ Statutory rates must be verified
 
@@ -41,13 +51,20 @@ npm run db:demo               # platform defaults + demo company (or `npm run db
 npm run dev
 ```
 
-Open http://localhost:3000. Demo logins (password `Demo12345!`): `owner@demo.ara.sr`, `payroll@demo.ara.sr`, `accountant@demo.ara.sr`, `employee@demo.ara.sr`.
+Open http://localhost:3000. Demo logins (password `Demo12345!`): `owner@demo.ara.sr` (also platform administrator), `payroll@demo.ara.sr`, `accountant@demo.ara.sr` (English UI), `employee@demo.ara.sr`. The demo includes a USD-salaried employee paid in USD and a EUR-salaried employee paid in SRD.
+
+Useful scripts:
+
+```bash
+npm run admin:grant -- you@example.com   # make a user platform administrator (currencies, rate provider)
+npm run payroll:recalc                   # recalculate all open (draft/calculated) payroll runs
+```
 
 ## Tests
 
 ```bash
-npm test                  # unit tests — payroll engine, leave calendar
-npm run test:integration  # payroll service against PostgreSQL
+npm test                  # unit tests — payroll engine, currency maths, formatting, translation completeness
+npm run test:integration  # payroll service (incl. multicurrency) against PostgreSQL
 npm run build && npm run test:e2e   # Playwright end-to-end (needs demo data)
 npm run lint && npm run typecheck
 ```

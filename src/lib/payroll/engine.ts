@@ -121,20 +121,21 @@ export function progressiveTax(amount: number, brackets: Bracket[]): number {
   return round(tax);
 }
 
-export function validateBrackets(brackets: Bracket[]): string | null {
-  if (brackets.length === 0) return "At least one bracket is required";
+/** Returns null when valid, otherwise an error code (translation key under "bracket.") and the 1-based row. */
+export function validateBrackets(brackets: Bracket[]): { code: "required" | "rate" | "openOnlyLast" | "increase" | "lastOpen"; row?: number } | null {
+  if (brackets.length === 0) return { code: "required" };
   let prev = 0;
   for (let i = 0; i < brackets.length; i++) {
     const b = brackets[i];
-    if (b.rateBp < 0 || b.rateBp > 10000) return `Bracket ${i + 1}: rate must be between 0% and 100%`;
+    if (b.rateBp < 0 || b.rateBp > 10000) return { code: "rate", row: i + 1 };
     if (b.upTo === null) {
-      if (i !== brackets.length - 1) return "Only the last bracket may be open-ended";
+      if (i !== brackets.length - 1) return { code: "openOnlyLast" };
     } else {
-      if (b.upTo <= prev) return `Bracket ${i + 1}: upper bound must increase`;
+      if (b.upTo <= prev) return { code: "increase", row: i + 1 };
       prev = b.upTo;
     }
   }
-  if (brackets[brackets.length - 1].upTo !== null) return "The last bracket must be open-ended";
+  if (brackets[brackets.length - 1].upTo !== null) return { code: "lastOpen" };
   return null;
 }
 
@@ -213,7 +214,7 @@ export function calculatePayslip(
     exempt = Math.max(0, exempt);
     exemptAllowances += exempt;
     taxableAllowances += amount - exempt;
-    lines.push({ type: "EARNING", code: c.code, description: exempt > 0 ? `${c.name}${exempt === amount ? " (tax-free)" : " (partly tax-free)"}` : c.name, amount });
+    lines.push({ type: "EARNING", code: c.code, description: c.name, amount });
   }
   trace.taxableAllowances = taxableAllowances;
   trace.exemptAllowances = exemptAllowances;
