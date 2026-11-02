@@ -231,8 +231,24 @@ export async function approveRunAction(_: ActionState, fd: FormData): Promise<Ac
     // Statutory rules not (yet) legally validated: approval requires an explicit acknowledgement and is recorded as such.
     const pending = run.legalStatus !== "VALIDATED";
     if (pending && fd.get("acknowledgePending") !== "on") throw new UserError("errors.acknowledgeLegalPending");
-    await db.payrollRun.update({ where: { id: run.id }, data: { status: "APPROVED", approvedById: ctx.user.id, approvedAt: new Date(), legalAcknowledgedById: pending ? ctx.user.id : null } });
-    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "payroll.approve", entity: "PayrollRun", entityId: run.id, details: { totalNet: run.totalNet, legalStatus: run.legalStatus } });
+    // Contracts, leave, exchange rates, tax rules or components may have changed since the calculation.
+    // Recalculate first and refuse approval when anything changed, so the approver always approves current figures.
+    const fingerprint = async () => {
+      const slips = await db.payslip.findMany({ where: { runId: run.id }, select: { employeeId: true, grossPay: true, totalDeductions: true, netPay: true, netPayPayment: true, legalStatus: true }, orderBy: { employeeId: "asc" } });
+      return JSON.stringify(slips);
+    };
+    const before = await fingerprint();
+    await calculateRun(run.id);
+    if ((await fingerprint()) !== before) {
+      revalidatePath(`/app/payroll/${run.id}`, "layout");
+      throw new UserError("errors.changedSinceCalculation");
+    }
+    const fresh = await db.payrollRun.findUniqueOrThrow({ where: { id: run.id } });
+    if (fresh.legalStatus !== "VALIDATED" && fd.get("acknowledgePending") !== "on") throw new UserError("errors.acknowledgeLegalPending");
+    // Conditional update: only a still-CALCULATED run is approved (guards against concurrent changes).
+    const approved = await db.payrollRun.updateMany({ where: { id: run.id, status: "CALCULATED" }, data: { status: "APPROVED", approvedById: ctx.user.id, approvedAt: new Date(), legalAcknowledgedById: fresh.legalStatus !== "VALIDATED" ? ctx.user.id : null } });
+    if (approved.count !== 1) throw new UserError("errors.onlyCalculatedApprove");
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "payroll.approve", entity: "PayrollRun", entityId: run.id, details: { totalNet: fresh.totalNet, legalStatus: fresh.legalStatus } });
     // Automatic preparation of the LB/AOV declaration draft for this period.
     await prepareMonthlyDeclaration(ctx.company.id, run.year, run.month, ctx.user.id);
     runId = run.id;

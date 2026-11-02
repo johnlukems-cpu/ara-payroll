@@ -69,6 +69,7 @@ export function ComponentAssignmentForm(props: {
   const [freq, setFreq] = React.useState(initial?.frequency ?? opt?.frequency ?? "MONTHLY");
   const [tax, setTax] = React.useState(initial?.tax ?? "CONFIG");
   const [selected, setSelected] = React.useState<string[]>([]);
+  const [aov, setAov] = React.useState<boolean | null>(null);
 
   const select = (v: string) => {
     setValue(v);
@@ -76,6 +77,7 @@ export function ComponentAssignmentForm(props: {
     setCalc(o && FOUR.has(o.calcType) ? o.calcType : "COMPONENT");
     setFreq(o?.frequency ?? "MONTHLY");
     setTax("CONFIG");
+    setAov(null);
   };
   const effectiveCalc = calc === "COMPONENT" ? opt?.calcType ?? "FIXED" : calc;
   const months = React.useMemo(() => Array.from({ length: 12 }, (_, i) => new Intl.DateTimeFormat(locale, { month: "long", timeZone: "UTC" }).format(new Date(Date.UTC(2026, i, 1)))), [locale]);
@@ -187,7 +189,7 @@ export function ComponentAssignmentForm(props: {
 
           {mode !== "incidental" && (
             <>
-              <Field label={t("assign.f.frequency")} htmlFor={`${p}-freq`} hint={t(`assign.hint.${freq}` as never)} className="lg:col-span-2">
+              <Field label={t("assign.f.frequency")} htmlFor={`${p}-freq`} hint={`${t(`assign.hint.${freq}` as never)}${freq === "ANNUAL" && effectiveCalc === "PERCENT_OF_BASE" ? ` ${t("assign.hint.annualPercent")}` : ""}`} className="lg:col-span-2">
                 <Select id={`${p}-freq`} name="frequency" value={freq} onChange={(e) => setFreq(e.target.value as typeof freq)}>
                   {FREQUENCIES.map((f) => <option key={f} value={f}>{t(`enums.assignmentFrequency.${f}`)}</option>)}
                 </Select>
@@ -225,8 +227,11 @@ export function ComponentAssignmentForm(props: {
                 <FieldError name="tax" />
               </Field>
               <label className="flex items-center gap-2 self-end pb-2 text-sm">
-                <input type="checkbox" name="aovIncluded" defaultChecked={initial?.aovIncluded ?? opt.aovIncluded} /> {t("assign.f.aov")}
+                <input type="checkbox" name="aovIncluded" checked={aov ?? initial?.aovIncluded ?? opt.aovIncluded} onChange={(e) => setAov(e.target.checked)} /> {t("assign.f.aov")}
               </label>
+              {!(aov ?? initial?.aovIncluded ?? opt.aovIncluded) && tax !== "EXEMPT" && (
+                <p className="text-xs text-warning sm:col-span-2 lg:col-span-4">{t("assign.aovExcludedWarning")}</p>
+              )}
               <label className="flex items-center gap-2 self-end pb-2 text-sm">
                 <input type="checkbox" name="pensionIncluded" defaultChecked={initial?.pensionIncluded ?? opt.pensionIncluded} /> {t("assign.f.pension")}
               </label>

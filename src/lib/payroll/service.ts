@@ -237,13 +237,15 @@ export async function calculateRun(runId: string) {
       amount: number; currency: string | null; rateBp: number; quantity: number | null;
       label?: string | null; calcType?: ComponentInput["calcType"] | null; baseComponentCode?: string | null;
       taxOverride?: ComponentInput["taxTreatment"] | null; aovIncluded?: boolean | null; pensionIncluded?: boolean | null;
+      /** An explicit amount (per-payslip override): 0 means 0, never the component default. */
+      explicit?: boolean;
     };
     // Per-employee / per-payslip settings override the component configuration; null = component setting.
     const toInput = (c: Comp, src: Src, source: "FIXED" | "INCIDENTAL"): ComponentInput => {
       if (c.legalStatus === "PENDING_VERIFICATION" || c.legalStatus === "CONFLICT") componentsLegal = false;
       const calcType = src.calcType ?? c.calcType;
       const label = src.label || c.name;
-      const useDefault = src.amount === 0 && (calcType === "FIXED" || calcType === "MANUAL");
+      const useDefault = !src.explicit && src.amount === 0 && (calcType === "FIXED" || calcType === "MANUAL");
       return {
         code: c.code,
         name: label,
@@ -271,14 +273,17 @@ export async function calculateRun(runId: string) {
     const components: ComponentInput[] = [];
     // Fixed components: active, within their validity and due in this period according to their frequency.
     for (const a of e.components) {
-      const decision = scheduleFor(a, run.year, run.month);
+      // Termination ends every fixed component, so accrued amounts (e.g. holiday allowance) are paid out on exit.
+      const endDate = e.terminationDate && (!a.endDate || e.terminationDate < a.endDate) ? e.terminationDate : a.endDate;
+      const decision = scheduleFor({ ...a, endDate }, run.year, run.month);
       if (decision === "skip") continue;
       // A per-payslip override replaces the fixed amount for this run only (never added on top).
       const override = empAdjustments.find((x) => x.assignmentId === a.id);
       const input = override
-        ? toInput(a.component, { ...a, calcType: "FIXED", amount: override.amount, currency: override.currency, label: override.description || a.label }, "FIXED")
+        ? toInput(a.component, { ...a, calcType: "FIXED", amount: override.amount, currency: override.currency, label: override.description || a.label, explicit: true }, "FIXED")
         : toInput(a.component, a, "FIXED");
-      if (decision === "accrue" || decision === "accrueAndPay") input.accrual = { id: a.id, prior: priorAccrual(earlierOfEmployee, a.id), pay: decision === "accrueAndPay" };
+      // An override in the payout period is the total amount paid (it replaces the accrued balance as well).
+      if (decision === "accrue" || decision === "accrueAndPay") input.accrual = { id: a.id, prior: override && decision === "accrueAndPay" ? 0 : priorAccrual(earlierOfEmployee, a.id), pay: decision === "accrueAndPay" };
       components.push(input);
     }
     // Incidental components added to this payslip only.
@@ -381,6 +386,9 @@ export async function calculateRun(runId: string) {
   const sum = (k: "grossBase" | "netBase" | "wageTaxBase" | "aovBase" | "employerCostBase") => results.reduce((s, r) => s + (r[k] as number), 0);
 
   await db.$transaction(async (tx) => {
+    // Lock the run row and re-check its status: an approved/paid run is never overwritten, even under concurrency.
+    const [locked] = await tx.$queryRaw<{ status: string }[]>`SELECT "status"::text AS status FROM "PayrollRun" WHERE "id" = ${runId} FOR UPDATE`;
+    if (!locked || (locked.status !== "DRAFT" && locked.status !== "CALCULATED")) throw new PayrollError("errors.runLocked");
     await tx.payslip.deleteMany({ where: { runId } });
     for (const data of results) await tx.payslip.create({ data });
     await tx.payrollRun.update({

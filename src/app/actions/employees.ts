@@ -7,7 +7,8 @@ import bcrypt from "bcryptjs";
 import { z } from "zod";
 import { getLocale, getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
-import { requirePermission } from "@/lib/server/auth";
+import { AuthError, requirePermission } from "@/lib/server/auth";
+import { can } from "@/lib/permissions";
 import { audit } from "@/lib/server/audit";
 import { storage } from "@/lib/server/storage";
 import { formObject, handleError, ok, UserError, type ActionState } from "@/lib/server/action";
@@ -53,6 +54,13 @@ const contractSchema = z.object({
   notes: optionalText(500),
 }).refine((c) => (c.payType === "HOURLY" ? c.hourlyRate > 0 : c.baseSalary > 0), { message: "validation.salaryRequired", path: ["baseSalary"] })
   .refine((c) => !c.endDate || c.endDate >= c.startDate, { message: "validation.endAfterStart", path: ["endDate"] });
+
+/** Salary data (contracts, fixed components) may only be changed by roles that may also see it. */
+async function requireSalaryEdit() {
+  const ctx = await requirePermission("employees.edit");
+  if (!can(ctx.role, "employees.viewSalary")) throw new AuthError("errors.forbidden");
+  return ctx;
+}
 
 /** The Art. 17a regime may only be linked once a verified rule set for it exists (its legal scope must be confirmed). */
 async function ensureRegimeAllowed(companyId: string, regime: string) {
@@ -120,7 +128,7 @@ export async function updateEmployeeAction(_: ActionState, fd: FormData): Promis
 
 export async function addContractAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
-    const ctx = await requirePermission("employees.edit");
+    const ctx = await requireSalaryEdit();
     const raw = formObject(fd);
     const employeeId = z.string().parse(raw.employeeId);
     const emp = await db.employee.findFirst({ where: { id: employeeId, companyId: ctx.company.id } });
@@ -155,7 +163,7 @@ const assignmentSchema = z.object({
  */
 export async function saveAssignmentAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
-    const ctx = await requirePermission("employees.edit");
+    const ctx = await requireSalaryEdit();
     const raw = formObject(fd);
     const t = await getTranslations();
     const d = assignmentSchema.parse(raw);
@@ -194,7 +202,7 @@ export async function saveAssignmentAction(_: ActionState, fd: FormData): Promis
 /** Assigns a component to several employees at once (e.g. a gratuity for a group, or a new standard allowance). */
 export async function bulkAssignAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
-    const ctx = await requirePermission("employees.edit");
+    const ctx = await requireSalaryEdit();
     const t = await getTranslations();
     const raw = formObject(fd);
     const ids = fd.getAll("employeeIds").map(String).filter(Boolean);
@@ -231,11 +239,14 @@ export async function bulkAssignAction(_: ActionState, fd: FormData): Promise<Ac
 
 export async function removeComponentAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
-    const ctx = await requirePermission("employees.edit");
+    const ctx = await requireSalaryEdit();
     const id = z.string().parse(fd.get("id"));
     const a = await db.employeePayComponent.findFirst({ where: { id, employee: { companyId: ctx.company.id } } });
     if (!a) throw new UserError("errors.notFound");
-    // Payslips keep their own copy of every line, so removing a fixed component never changes historical payslips.
+    // A component that was part of approved payroll stays as history: end or deactivate it instead of deleting it.
+    const finalRuns = await db.payrollRun.findMany({ where: { status: { in: ["APPROVED", "PAID"] }, payslips: { some: { employeeId: a.employeeId } } }, select: { year: true, month: true } });
+    const ym = (dt: Date) => dt.getUTCFullYear() * 12 + dt.getUTCMonth();
+    if (finalRuns.some((r) => { const p = r.year * 12 + r.month - 1; return p >= ym(a.startDate) && (!a.endDate || p <= ym(a.endDate)); })) throw new UserError("errors.assignmentInUse");
     await db.employeePayComponent.delete({ where: { id } });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.component_removed", entity: "Employee", entityId: a.employeeId });
     await recalcOpenRuns(ctx.company.id, a.employeeId, calculateRun);

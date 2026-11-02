@@ -99,6 +99,19 @@ describe("engine: accruals and line sources", () => {
   });
 });
 
+describe("engine: AOV base flag", () => {
+  it("honours an explicit AOV exclusion of a taxable allowance under the taxable-wage base", () => {
+    const rules = SB_2024_2.rules;
+    const aov = AOV_RESEARCH.rules; // base = TAXABLE_WAGE
+    const incl = calculatePayslip(emp(), period(), [comp({ code: "ALW005", amount: SRD(1_000), aovIncluded: true })], rules, aov);
+    const excl = calculatePayslip(emp(), period(), [comp({ code: "ALW005", amount: SRD(1_000), aovIncluded: false })], rules, aov);
+    expect(incl.aovBase - excl.aovBase).toBe(SRD(1_000));
+    expect(incl.aov - excl.aov).toBe(SRD(40)); // 4%
+    expect(excl.wageTax).toBe(incl.wageTax); // wage tax is unaffected by the AOV flag
+    expect((excl.trace.aov as { excludedAllowances: number }).excludedAllowances).toBe(SRD(1_000));
+  });
+});
+
 describe("payslip summary", () => {
   const rules = SB_2024_2.rules;
   const aov = AOV_RESEARCH.rules;

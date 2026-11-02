@@ -97,8 +97,8 @@ export default async function ComponentsPage() {
         {missing.length > 0 && (
           <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {missing.map((l) => (
-              <div key={l.code} className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm">
-                <span className="min-w-0"><span className="font-mono text-xs text-muted-foreground">{l.code}</span> <span className="truncate">{name({ nameNl: l.nameNl, nameEn: l.nameEn })}</span></span>
+              <div key={l.code} className="flex min-w-0 items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm">
+                <span className="min-w-0 truncate"><span className="font-mono text-xs text-muted-foreground">{l.code}</span> {name({ nameNl: l.nameNl, nameEn: l.nameEn })}</span>
                 <ActionButton action={adoptLibraryAction} fields={{ code: l.code }} size="sm" variant="ghost">{t("common.add")}</ActionButton>
               </div>
             ))}

@@ -387,6 +387,8 @@ export function calculatePayslip(
   let taxableAllowances = 0;
   let exemptAllowances = 0;
   let aovAllowances = 0;
+  // Taxable allowance amounts explicitly excluded from the AOV base (component/employee setting "AOV base: no").
+  let aovExcluded = 0;
   let pensionAllowances = 0;
   let benefitsInKind = 0;
   let employerContributions = 0;
@@ -422,6 +424,7 @@ export function calculatePayslip(
         if (c.netEffect !== "NONE") exemptPaidAllowances += exempt;
         taxableAllowances += amount - exempt;
         if (c.aovIncluded ?? c.taxTreatment === "TAXABLE") aovAllowances += amount - exempt;
+        else if (c.aovIncluded === false) aovExcluded += amount - exempt;
       }
     }
     if (c.pensionIncluded) pensionAllowances += amount;
@@ -494,8 +497,9 @@ export function calculatePayslip(
 
   // 7. AOV
   const aovExempt = aovRules.exemptFromAge != null && emp.age != null && emp.age >= aovRules.exemptFromAge;
+  // The AOV flag of an allowance is honoured for both bases (exclusion only; exempt parts are never part of the base).
   const aovBaseRaw = aovRules.base === "TAXABLE_WAGE"
-    ? monthlyTaxable + overtimePay + taxableBonus
+    ? Math.max(0, monthlyTaxable - aovExcluded) + overtimePay + taxableBonus
     : basePay + aovAllowances + overtimePay + rewards;
   const aovBase = aovExempt ? 0 : Math.max(0, aovBaseRaw - aovRules.franchiseMonthly);
   let aovTotal = applyBp(aovBase, aovRules.rateBp);
@@ -503,7 +507,7 @@ export function calculatePayslip(
   if (aovRules.maxMonthly != null) aovTotal = Math.min(aovTotal, aovRules.maxMonthly);
   const aov = applyBp(aovTotal, aovRules.employeeShareBp);
   const aovEmployer = aovTotal - aov;
-  trace.aov = { base: aovRules.base, baseAmount: aovBase, rateBp: aovRules.rateBp, franchise: aovRules.franchiseMonthly, employeeShareBp: aovRules.employeeShareBp, exempt: aovExempt, total: aovTotal };
+  trace.aov = { base: aovRules.base, baseAmount: aovBase, excludedAllowances: aovExcluded, rateBp: aovRules.rateBp, franchise: aovRules.franchiseMonthly, employeeShareBp: aovRules.employeeShareBp, exempt: aovExempt, total: aovTotal };
   trace.aovBase = aovBase;
 
   if (wageTax > 0) lines.push({ type: "DEDUCTION", source: "STATUTORY", code: "LB", description: "Wage tax (loonbelasting)", amount: wageTax });

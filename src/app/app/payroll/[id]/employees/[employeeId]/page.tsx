@@ -75,7 +75,7 @@ export default async function ComposePayslipPage({ params }: { params: Promise<{
     const pensionBp = contract?.pensionEmployeeBp ?? 0;
     return (
       <Card data-testid={`compose-fixed-${kind}`}>
-        <CardHeader className="flex-row items-start justify-between gap-4">
+        <CardHeader className="flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
           <div><CardTitle>{t(`compose.fixed.${kind}`)}</CardTitle><CardDescription>{t("compose.fixedSub")}</CardDescription></div>
           <Link href={`/app/employees/${e.id}?tab=pay`} className="whitespace-nowrap text-sm text-primary hover:underline">{t("compose.manageFixed")}</Link>
         </CardHeader>

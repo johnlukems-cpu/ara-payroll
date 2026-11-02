@@ -644,7 +644,8 @@
       "netSalary": "Nettosalaris",
       "exemptReimbursements": "Onbelaste kostenvergoedingen",
       "totalPayable": "Totaal uit te betalen"
-    }
+    },
+    "continued": "vervolg"
   },
   "leave": {
     "title": "Verlofbeheer",
@@ -1168,7 +1169,9 @@
     "duplicateIncidental": "{name} staat al op deze loonstrook.",
     "duplicateOfFixed": "{name} wordt al als vaste component verwerkt in deze periode. Pas het vaste bedrag aan voor deze loonstrook, of bevestig dat het om een extra bedrag gaat.",
     "pensionViaContract": "Pensioen wordt al via het percentage in de arbeidsovereenkomst ingehouden; een vast pensioenbedrag zou dubbel worden ingehouden.",
-    "statutoryAutomatic": "Wettelijke inhoudingen (loonbelasting, AOV, pensioen) worden automatisch berekend en kunnen niet handmatig worden toegevoegd."
+    "statutoryAutomatic": "Wettelijke inhoudingen (loonbelasting, AOV, pensioen) worden automatisch berekend en kunnen niet handmatig worden toegevoegd.",
+    "changedSinceCalculation": "De gegevens zijn gewijzigd sinds de laatste berekening. De loonrun is opnieuw berekend; controleer de nieuwe uitkomst en keur daarna opnieuw goed.",
+    "assignmentInUse": "Deze component is al verwerkt in een goedgekeurde loonrun en blijft bewaard als historie. Vul een einddatum in of zet de component op inactief."
   },
   "bracket": {
     "required": "er is ten minste één schijf vereist",
@@ -1865,7 +1868,8 @@
       "ONE_OFF": "Eenmalig: uitbetaald in de loonperiode van de uitbetalingsdatum.",
       "ANNUAL": "Jaarlijks: uitbetaald in de uitbetalingsmaand (standaard de maand van de ingangsdatum).",
       "ACCRUAL": "Opbouw: wordt elke maand opgebouwd en in de uitbetalingsmaand (of bij einddatum) in één keer uitbetaald. De opbouw is gebaseerd op berekende loonstroken.",
-      "variable": "Variabel: het bedrag kan per loonstrook worden aangepast; dit bedrag is de standaardwaarde."
+      "variable": "Variabel: het bedrag kan per loonstrook worden aangepast; dit bedrag is de standaardwaarde.",
+      "annualPercent": "Bij jaarlijks is het percentage van één maandsalaris; kies 'Opbouw' voor een percentage van het jaarsalaris."
     },
     "payMonthDefaultAnnual": "Maand van de ingangsdatum",
     "payMonthDefaultAccrual": "Standaard ({month})",
@@ -1899,7 +1903,8 @@
     "ofComponent": "{pct} van {code}",
     "accrued": "Opgebouwd: {amount} (t/m {period})",
     "inMonth": "in {month}",
-    "openEnded": "doorlopend"
+    "openEnded": "doorlopend",
+    "aovExcludedWarning": "Let op: volgens de ingestelde AOV-regeling is de grondslag het belastbaar loon. Sluit een belaste toelage alleen uit als dit wettelijk vaststaat."
   },
   "compose": {
     "title": "Loonstrook opstellen — {name}",

@@ -133,6 +133,53 @@ describe("fixed components on payslips", () => {
   });
 });
 
+describe("audit fixes", () => {
+  it("an override of 0 removes the fixed amount for that payslip (it does not fall back to the default)", async () => {
+    const r = await db.payrollRun.findFirstOrThrow({ where: { companyId, month: 4 } });
+    const phone = await db.employeePayComponent.findFirstOrThrow({ where: { employeeId, label: "Telefoon (zakelijk)" } });
+    await db.payrollAdjustment.updateMany({ where: { runId: r.id, assignmentId: phone.id }, data: { amount: 0 } });
+    await calculateRun(r.id);
+    expect((await slipOf(r.id)).lines.find((l) => l.code === "ALW002")).toBeUndefined();
+  });
+
+  it("pays out the accrued holiday allowance when the employee leaves", async () => {
+    const leaver = await db.employee.create({
+      data: {
+        companyId, employeeNumber: "F2", firstName: "Leaving", lastName: "Employee", hireDate: d("2020-01-01"), terminationDate: d("2026-05-15"),
+        contracts: { create: { contractType: "PERMANENT", payType: "MONTHLY", startDate: d("2020-01-01"), baseSalary: SRD(10_000), salaryCurrency: "SRD" } },
+      },
+    });
+    const holiday = await db.payComponent.findFirstOrThrow({ where: { companyId, code: "BON006" } });
+    await db.employeePayComponent.create({ data: { employeeId: leaver.id, componentId: holiday.id, calcType: "PERCENT_OF_BASE", rateBp: 800, startDate: d("2026-05-01"), frequency: "ACCRUAL" } });
+    const r = await run(5);
+    const slip = await db.payslip.findFirstOrThrow({ where: { runId: r.id, employeeId: leaver.id }, include: { lines: true } });
+    // Half a month employed: 8% of the prorated base (15/31 × 10,000), paid out in the leaving month.
+    const line = slip.lines.find((l) => l.code === "BON006");
+    expect(line).toBeDefined();
+    expect(line!.amount).toBe(Math.round(Math.round(SRD(10_000) * 15 / 31) * 0.08));
+  });
+});
+
+describe("currencies of fixed components", () => {
+  it("requires an approved rate and converts a EUR allowance into SRD at the period-end rate", async () => {
+    const fx = await db.employee.create({
+      data: {
+        companyId, employeeNumber: "F3", firstName: "Euro", lastName: "Allowance", hireDate: d("2020-01-01"),
+        contracts: { create: { contractType: "PERMANENT", payType: "MONTHLY", startDate: d("2020-01-01"), baseSalary: SRD(10_000), salaryCurrency: "SRD" } },
+      },
+    });
+    const housing = await resolveComponent(companyId, "lib:ALW005", "nl");
+    await db.employeePayComponent.create({ data: { employeeId: fx.id, componentId: housing.id, amount: SRD(100), currency: "EUR", startDate: d("2026-01-01") } });
+    const r = await db.payrollRun.create({ data: { companyId, year: 2026, month: 6, payDate: d("2026-06-25") } });
+    await expect(calculateRun(r.id)).rejects.toMatchObject({ key: "errors.missingRates" });
+    await db.exchangeRate.create({ data: { companyId, baseCurrency: "EUR", quoteCurrency: "SRD", rate: "40.25", effectiveDate: d("2026-06-01"), status: "APPROVED" } });
+    await calculateRun(r.id);
+    const slip = await db.payslip.findFirstOrThrow({ where: { runId: r.id, employeeId: fx.id }, include: { lines: true } });
+    expect(slip.lines.find((l) => l.code === "ALW005")?.amount).toBe(SRD(4_025));
+    expect((slip.conversions as { from: string; to: string; rate: number }[]).some((c) => c.from === "EUR" && c.to === "SRD")).toBe(true);
+  });
+});
+
 describe("duplicate prevention", () => {
   it("rejects the same fixed component twice for overlapping periods", async () => {
     const phone = await db.payComponent.findFirstOrThrow({ where: { companyId, code: "ALW002" } });

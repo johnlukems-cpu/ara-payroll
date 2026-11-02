@@ -644,7 +644,8 @@
       "netSalary": "Net salary",
       "exemptReimbursements": "Tax-free reimbursements",
       "totalPayable": "Total payable"
-    }
+    },
+    "continued": "continued"
   },
   "leave": {
     "title": "Leave management",
@@ -1168,7 +1169,9 @@
     "duplicateIncidental": "{name} is already on this payslip.",
     "duplicateOfFixed": "{name} is already processed as a fixed component in this period. Adjust the fixed amount for this payslip, or confirm that this is an additional amount.",
     "pensionViaContract": "Pension is already deducted via the percentage in the employment contract; a fixed pension amount would be deducted twice.",
-    "statutoryAutomatic": "Statutory deductions (wage tax, AOV, pension) are calculated automatically and cannot be added by hand."
+    "statutoryAutomatic": "Statutory deductions (wage tax, AOV, pension) are calculated automatically and cannot be added by hand.",
+    "changedSinceCalculation": "Data has changed since the last calculation. The payroll run has been recalculated; review the new result and approve again.",
+    "assignmentInUse": "This component was processed in an approved payroll run and is kept as history. Set an end date or make it inactive instead."
   },
   "bracket": {
     "required": "at least one bracket is required",
@@ -1865,7 +1868,8 @@
       "ONE_OFF": "One-off: paid in the pay period of the payment date.",
       "ANNUAL": "Annual: paid in the payment month (default: the month of the start date).",
       "ACCRUAL": "Accrual: built up every month and paid out at once in the payment month (or at the end date). Accrual is based on calculated payslips.",
-      "variable": "Variable: the amount can be adjusted per payslip; this amount is the default."
+      "variable": "Variable: the amount can be adjusted per payslip; this amount is the default.",
+      "annualPercent": "With annual frequency the percentage applies to one monthly salary; choose 'Accrual' for a percentage of the annual salary."
     },
     "payMonthDefaultAnnual": "Month of the start date",
     "payMonthDefaultAccrual": "Default ({month})",
@@ -1899,7 +1903,8 @@
     "ofComponent": "{pct} of {code}",
     "accrued": "Accrued: {amount} (up to {period})",
     "inMonth": "in {month}",
-    "openEnded": "ongoing"
+    "openEnded": "ongoing",
+    "aovExcludedWarning": "Note: under the configured AOV rules the base is the taxable wage. Only exclude a taxable allowance when this is legally established."
   },
   "compose": {
     "title": "Compose payslip — {name}",

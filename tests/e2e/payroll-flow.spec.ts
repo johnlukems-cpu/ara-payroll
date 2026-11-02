@@ -340,4 +340,25 @@ test("fixed and extra allowances/deductions via dropdowns, duplicate checks and 
 
   const pdf = await page.request.get((await page.getByRole("link", { name: /PDF/ }).first().getAttribute("href"))!);
   expect(pdf.status()).toBe(200);
+  const composeUrl = page.url();
+
+  // A salary change after calculation: approval recalculates first and refuses to approve outdated figures.
+  await page.goto(composeUrl.replace(/\/app\/payroll\/[^/]+\/employees\/([^/?]+).*/, "/app/employees/$1?tab=contracts"));
+  await page.fill("#baseSalary", "21000");
+  await page.fill("#startDate", "2026-03-01");
+  await page.getByRole("button", { name: "Overeenkomst opslaan" }).click();
+  await expect(page.getByText("Nieuwe overeenkomst / salariswijziging vastgelegd.")).toBeVisible();
+  await page.goto(composeUrl);
+  await page.getByLabel(/Ik bevestig dat de wettelijke regels/).check();
+  await page.getByRole("button", { name: "Goedkeuren", exact: true }).click();
+  await expect(page.getByText(/De gegevens zijn gewijzigd sinds de laatste berekening/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId("compose-calculation").getByRole("row", { name: /^Brutosalaris/ })).toContainText("24.280,00"); // 21,000 + fuel 600 + holiday 8% × 21,000 + gratuity 1,000
+  await page.getByLabel(/Ik bevestig dat de wettelijke regels/).check();
+  await page.getByRole("button", { name: "Goedkeuren", exact: true }).click();
+  await expect(page.getByText(/Salarisadministratie goedgekeurd en vergrendeld/)).toBeVisible();
+  // Approved: the compose page is read-only and no longer offers changes.
+  await page.goto(composeUrl);
+  await expect(page.getByText(/Deze loonrun is definitief/)).toBeVisible();
+  await expect(page.getByTestId("extra-ALLOWANCE-component")).toHaveCount(0);
 });
