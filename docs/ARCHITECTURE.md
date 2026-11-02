@@ -51,7 +51,7 @@ All parameters live in the tax rule set — none are hard-coded in the engine.
 ## Production notes / next steps
 
 - The login rate limiter is in-memory; use Redis for multi-instance deployments.
-- Implement an S3-compatible `StorageDriver` (interface in `src/lib/server/storage.ts`) for cloud object storage.
+- Documents use the S3-compatible driver when `S3_BUCKET` is set (required on Vercel), otherwise local disk.
 - Add email delivery (invitations, payslip notifications, password reset) — temporary passwords are currently shown once to the administrator.
 - Bank file is a generic CSV; add bank-specific formats (DSB, Hakrinbank, Finabank, Republic Bank) once their import specifications are confirmed.
 - Movable public holidays (Holi Phagwa, Eid ul-Fitr, Diwali, Easter, Chinese New Year) are not in the working-day calendar yet.

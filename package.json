@@ -13,9 +13,12 @@
     "db:migrate": "prisma migrate deploy",
     "db:seed": "tsx --conditions=react-server prisma/seed.ts",
     "db:demo": "tsx --conditions=react-server prisma/seed.ts --demo",
-    "test:integration": "vitest run tests/integration"
+    "test:integration": "vitest run tests/integration",
+    "postinstall": "prisma generate",
+    "vercel-build": "prisma generate && prisma migrate deploy && tsx --conditions=react-server prisma/seed.ts && next build"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1161.0",
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
     "class-variance-authority": "^0.7.1",
@@ -46,5 +49,8 @@
   },
   "prisma": {
     "seed": "tsx --conditions=react-server prisma/seed.ts"
+  },
+  "engines": {
+    "node": ">=22"
   }
 }

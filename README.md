@@ -60,4 +60,14 @@ POSTGRES_PASSWORD=<strong-password> docker compose up -d --build
 
 The `migrate` service applies migrations and ensures the default tax rule set before the app starts. Uploaded documents are stored in the `storage` volume. Serve behind TLS (session cookies are `Secure` in production). Health check: `GET /api/health`.
 
+### Vercel
+
+1. **Database** — create a PostgreSQL database (Vercel Marketplace → Neon, or Supabase). Copy its connection string.
+2. **Document storage** — create an S3-compatible bucket (Cloudflare R2, AWS S3 or Supabase Storage) with an access key. Vercel's filesystem is not persistent, so uploads need this.
+3. **Import** the GitHub repository in Vercel (*Add New → Project*). Framework preset: Next.js. Vercel automatically runs `npm run vercel-build`, which applies migrations, ensures the default tax rule set and builds the app.
+4. **Environment variables** (Project → Settings → Environment Variables): `DATABASE_URL`, `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT` (R2/Supabase only), `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`. See `.env.example`.
+5. Deploy, then register your first account at `/register`. (Optional demo data: run `npm run db:demo` locally with `DATABASE_URL` pointing at the production database — not recommended for a live system.)
+
+Note: the login rate limiter is in-memory, i.e. per serverless instance; add Redis/Upstash for strict limits.
+
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for architecture, calculation rules and production notes.
