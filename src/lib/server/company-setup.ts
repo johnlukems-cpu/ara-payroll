@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import type { Locale } from "@/i18n/config";
 import { COMPONENT_LIBRARY, libraryDefaults } from "@/lib/payroll/library";
+import { DEFAULT_SCHEMES } from "@/lib/payroll/contributions";
 import en from "../../../messages/en.json";
 import nl from "../../../messages/nl.json";
 
@@ -21,6 +22,15 @@ export async function seedCompanyDefaults(tx: Prisma.TransactionClient, companyI
         kind: e.kind, category: e.category, legalReference: e.legalReference ?? null, ...libraryDefaults(e),
       })),
     ],
+  });
+  // Contribution schemes: inactive and without rates until an administrator configures them.
+  const company = await tx.company.findUniqueOrThrow({ where: { id: companyId }, select: { currency: true } });
+  const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
+  await tx.contributionScheme.createMany({
+    data: DEFAULT_SCHEMES.map((s) => ({
+      companyId, type: s.type, name: locale === "en" ? s.nameEn : s.nameNl, basis: s.basis, base: s.base, employeeTax: s.employeeTax,
+      legalStatus: s.legalStatus, legalReference: s.legalReference, currency: company.currency, effectiveFrom: yearStart, isActive: false,
+    })),
   });
   const l = d.leave as Record<string, string>;
   await tx.leaveType.createMany({

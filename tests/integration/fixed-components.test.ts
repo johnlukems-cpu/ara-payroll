@@ -208,11 +208,15 @@ describe("duplicate prevention", () => {
   it("never offers statutory deductions and blocks a fixed pension amount next to the contract percentage", async () => {
     await expect(resolveComponent(companyId, "lib:DED001", "nl")).rejects.toMatchObject({ key: "errors.statutoryAutomatic" });
     await expect(resolveComponent(companyId, "lib:DED011", "nl")).rejects.toMatchObject({ key: "errors.statutoryAutomatic" });
-    const pension = await resolveComponent(companyId, "lib:DED013", "nl");
+    // Health insurance, pension and FVO components are replaced by contribution schemes.
+    await expect(resolveComponent(companyId, "lib:DED013", "nl")).rejects.toMatchObject({ key: "errors.useContributionScheme" });
+    await expect(resolveComponent(companyId, "lib:DED004", "nl")).rejects.toMatchObject({ key: "errors.useContributionScheme" });
+    const pension = await db.payComponent.findFirstOrThrow({ where: { companyId, libraryCode: "DED013" } });
     await expect(assertPensionNotDouble(employeeId, pension)).rejects.toMatchObject({ key: "errors.pensionViaContract" });
     // Selecting a library entry twice reuses the adopted component instead of creating a duplicate.
-    const again = await resolveComponent(companyId, "lib:DED013", "nl");
-    expect(again.id).toBe(pension.id);
+    const a = await resolveComponent(companyId, "lib:ALW003", "nl");
+    const b = await resolveComponent(companyId, "lib:ALW003", "nl");
+    expect(b.id).toBe(a.id);
   });
 });
 

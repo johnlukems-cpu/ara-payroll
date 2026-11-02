@@ -1,7 +1,7 @@
 import { Download } from "lucide-react";
 import { requirePage } from "@/lib/server/auth";
 import { getI18n } from "@/lib/server/i18n";
-import { annualStatements, departmentCosts, yearlySummary } from "@/lib/server/reports";
+import { annualStatements, contributionReport, departmentCosts, yearlySummary } from "@/lib/server/reports";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/form";
@@ -22,11 +22,24 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const now = new Date().getUTCFullYear();
   const year = Number((await searchParams).year) || now;
   const base = ctx.company.currency;
-  const [runs, statements, depts] = await Promise.all([
+  const [runs, statements, depts, contrib] = await Promise.all([
     yearlySummary(ctx.company.id, year),
     annualStatements(ctx.company.id, year),
     departmentCosts(ctx.company.id, year, base, t("reports.unassigned")),
+    contributionReport(ctx.company.id, year),
   ]);
+  const cKeys = ["healthEmployee", "healthEmployer", "pensionEmployee", "pensionEmployer", "fvoEmployee", "fvoEmployer", "employerCosts", "employmentCost"] as const;
+  const contribHead = (
+    <THead>
+      <TR>
+        <TH rowSpan={2} />
+        {(["health", "pension", "fvo"] as const).map((k) => <TH key={k} colSpan={2} className="text-center">{t(`reports.contrib.${k}`)}</TH>)}
+        <TH rowSpan={2} className="text-right">{t("reports.contrib.employerCosts")}</TH>
+        <TH rowSpan={2} className="text-right">{t("reports.contrib.employmentCost")}</TH>
+      </TR>
+      <TR>{[0, 1, 2].flatMap((i) => [<TH key={`e${i}`} className="text-right">{t("reports.contrib.employee")}</TH>, <TH key={`r${i}`} className="text-right">{t("reports.contrib.employer")}</TH>])}</TR>
+    </THead>
+  );
   const currencies = [...new Set(runs.map((r) => r.currency))];
   const baseRuns = runs.filter((r) => r.currency === base);
   const sum = (rs: typeof runs, k: "totalGross" | "totalWageTax" | "totalAov" | "totalNet" | "totalEmployer") => rs.reduce((s, r) => s + r[k], 0);
@@ -97,6 +110,41 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             })}
           </TBody>
         </Table>
+      </Card>
+
+      <Card className="mt-6" data-testid="report-contributions">
+        <CardHeader className="flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div><CardTitle>{t("reports.contrib.title")}</CardTitle><CardDescription>{t("reports.contrib.sub")}</CardDescription></div>
+          <a className={buttonVariants({ variant: "outline", size: "sm" })} href={`/api/reports/contributions?year=${year}`}><Download /> {t("common.csv")}</a>
+        </CardHeader>
+        {contrib.months.length === 0 ? <EmptyState title={t("reports.annualEmpty")} /> : (
+          <>
+            <CardContent className="pb-2 text-sm font-medium">{t("reports.contrib.perPeriod")}</CardContent>
+            <Table>
+              {contribHead}
+              <TBody>
+                {contrib.months.map((m) => (
+                  <TR key={`${m.month}-${m.currency}`}>
+                    <TD className="whitespace-nowrap font-medium">{f.period(year, m.month)}<span className="block text-xs font-normal text-muted-foreground">{m.currency} · {t("reports.contrib.employees", { count: m.employees })}</span></TD>
+                    {cKeys.map((k) => <TD key={k} className={`tabular text-right ${k === "employmentCost" ? "font-semibold" : ""}`}>{f.amount(m[k])}</TD>)}
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+            <CardContent className="pb-2 pt-6 text-sm font-medium">{t("reports.contrib.perEmployee")}</CardContent>
+            <Table>
+              {contribHead}
+              <TBody>
+                {contrib.employees.map((e) => (
+                  <TR key={`${e.employeeId}-${e.currency}`}>
+                    <TD className="font-medium">{e.name}<span className="block text-xs font-normal text-muted-foreground">#{e.number} · {e.currency}</span></TD>
+                    {cKeys.map((k) => <TD key={k} className={`tabular text-right ${k === "employmentCost" ? "font-semibold" : ""}`}>{f.amount(e[k])}</TD>)}
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          </>
+        )}
       </Card>
 
       <Card className="mt-6">

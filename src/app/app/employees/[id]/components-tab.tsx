@@ -12,6 +12,12 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/misc";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { removeComponentAction, saveAssignmentAction } from "@/app/actions/employees";
+import { removeEnrollmentAction, saveEnrollmentAction } from "@/app/actions/contributions";
+import { CONTRIBUTION_TYPES, effectiveShares, schemeApplies, type ContributionType } from "@/lib/payroll/contributions";
+import { describeBase, describeShare } from "@/lib/contribution-format";
+import { ActionForm, FieldError } from "@/components/action-form";
+import { SubmitButton } from "@/components/submit-button";
+import { Field, Input } from "@/components/ui/form";
 
 type Assignment = EmployeePayComponent & { component: PayComponent };
 type I18n = Awaited<ReturnType<typeof getI18n>>;
@@ -69,6 +75,7 @@ export async function EmployeeComponentsTab(props: {
   currencies: CurrencyOption[];
   salaryCur: string;
   canEdit: boolean;
+  canManageSchemes?: boolean;
 }) {
   const i18n = await getI18n();
   const { t, f, locale } = i18n;
@@ -98,7 +105,20 @@ export async function EmployeeComponentsTab(props: {
     legalStatus: a.component.legalStatus, legalReference: a.component.legalReference, fromLibrary: false,
   });
 
-  const formProps = { currencies: props.currencies, defaultCurrency: salaryCur, baseOptions, today, options };
+  // Contribution schemes (health insurance, pension, FVO) and this employee's participation.
+  const [schemes, enrollments] = await Promise.all([
+    db.contributionScheme.findMany({ where: { companyId: props.companyId }, orderBy: [{ type: "asc" }, { effectiveFrom: "desc" }] }),
+    db.employeeContribution.findMany({ where: { employeeId: props.employeeId } }),
+  ]);
+  const periodStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const periodEnd = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0));
+  const applying = schemes.filter((sch) => schemeApplies(sch, enrollments.find((e) => e.schemeId === sch.id), periodStart, periodEnd));
+  const pensionScheme = applying.find((sch) => sch.type === "PENSION");
+  const schemeOptions = CONTRIBUTION_TYPES.map((type) => {
+    const sch = applying.find((x) => x.type === type) ?? schemes.find((x) => x.type === type);
+    return sch ? { type, name: sch.name, active: applying.includes(sch) } : null;
+  }).filter((x): x is { type: ContributionType; name: string; active: boolean } => !!x);
+  const formProps = { currencies: props.currencies, defaultCurrency: salaryCur, baseOptions, today, options, schemes: schemeOptions, canManageSchemes: props.canManageSchemes };
 
   const section = (kind: "ALLOWANCE" | "DEDUCTION" | "EMPLOYER", letter: string) => {
     const rows = assignments.filter((a) => a.component.kind === kind);
@@ -125,7 +145,7 @@ export async function EmployeeComponentsTab(props: {
                       <TD><Badge variant="accent">{t("assign.status.automatic")}</Badge></TD><TD />
                     </TR>
                   ))}
-                  {pensionBp > 0 && (
+                  {pensionBp > 0 && !pensionScheme && (
                     <TR className="bg-muted/30">
                       <TD className="font-medium">{t("assign.statutoryName.PENS")}</TD>
                       <TD className="text-xs text-muted-foreground" colSpan={4}>{t("assign.pensionViaContract", { pct: f.pct(pensionBp) })}</TD>
@@ -180,7 +200,73 @@ export async function EmployeeComponentsTab(props: {
       <p className="text-sm text-muted-foreground">{t("assign.intro")}</p>
       {section("ALLOWANCE", "A")}
       {section("DEDUCTION", "B")}
-      {assignments.some((a) => a.component.kind === "EMPLOYER") && section("EMPLOYER", "C")}
+      <Card id="contributions" data-testid="section-CONTRIBUTIONS">
+        <CardHeader>
+          <CardTitle>C. {t("contrib.employeeTabTitle")}</CardTitle>
+          <CardDescription>{t("contrib.employeeTabSub")}</CardDescription>
+        </CardHeader>
+        {pensionScheme && (props.contract?.pensionEmployeeBp || props.contract?.pensionEmployerBp) ? (
+          <CardContent><p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs">{t("contrib.contractPensionIgnored", { name: pensionScheme.name })}</p></CardContent>
+        ) : null}
+        <Table>
+          <THead><TR>
+            <TH>{t("contrib.cols.name")}</TH><TH className="text-right">{t("contrib.employeeShare")}</TH><TH className="text-right">{t("contrib.employerShare")}</TH>
+            <TH>{t("contrib.cols.base")}</TH><TH>{t("contrib.cols.participation")}</TH>
+          </TR></THead>
+          <TBody>
+            {schemes.filter((sch) => sch.isActive && (!sch.effectiveTo || sch.effectiveTo >= periodStart)).length === 0 && (
+              <TR><TD colSpan={5} className="text-sm text-muted-foreground">{t("contrib.noneActive")}</TD></TR>
+            )}
+            {schemes.filter((sch) => sch.isActive && (!sch.effectiveTo || sch.effectiveTo >= periodStart)).map((sch) => {
+              const en = enrollments.find((e) => e.schemeId === sch.id);
+              const shares = { ...sch, ...effectiveShares(sch, en) };
+              const applies = applying.includes(sch);
+              const state = !sch.appliesToAll ? (en?.participates ? "enrolled" : "notEnrolled") : en && !en.participates ? "optedOut" : "all";
+              return (
+                <TR key={sch.id} data-testid={`contribution-${sch.type}`}>
+                  <TD className="align-top">
+                    <p className="font-medium">{t(`enums.contributionType.${sch.type}`)} — {sch.name}</p>
+                    <p className="text-xs text-muted-foreground">{t(`enums.contributionBasis.${sch.basis}`)} · {f.date(sch.effectiveFrom)}{sch.effectiveTo ? ` – ${f.date(sch.effectiveTo)}` : ""}</p>
+                    {props.canEdit && (
+                      <details className="mt-2">
+                        <summary className="cursor-pointer text-xs text-primary hover:underline">{t("contrib.editParticipation")}</summary>
+                        <ActionForm action={saveEnrollmentAction} notify="toast" className="mt-3 grid min-w-[min(80vw,40rem)] gap-3 rounded-lg border bg-muted/30 p-4 sm:grid-cols-2">
+                          <input type="hidden" name="employeeId" value={props.employeeId} />
+                          <input type="hidden" name="schemeId" value={sch.id} />
+                          <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="participates" defaultChecked={en ? en.participates : sch.appliesToAll} /> {t("contrib.f.participates")}</label>
+                          {sch.method === "PERCENTAGE" ? (
+                            <>
+                              <Field label={t("contrib.f.employeeRateOverride")} htmlFor={`er-${sch.id}`} hint={t("contrib.f.overrideHint", { value: f.pct(sch.employeeRateBp) })}><Input id={`er-${sch.id}`} name="employeeRate" inputMode="decimal" defaultValue={en?.employeeRateBp != null ? String(en.employeeRateBp / 100) : ""} /><FieldError name="employeeRate" /></Field>
+                              <Field label={t("contrib.f.employerRateOverride")} htmlFor={`wr-${sch.id}`} hint={t("contrib.f.overrideHint", { value: f.pct(sch.employerRateBp) })}><Input id={`wr-${sch.id}`} name="employerRate" inputMode="decimal" defaultValue={en?.employerRateBp != null ? String(en.employerRateBp / 100) : ""} /><FieldError name="employerRate" /></Field>
+                            </>
+                          ) : (
+                            <>
+                              <Field label={t("contrib.f.employeeAmountOverride")} htmlFor={`ea-${sch.id}`} hint={t("contrib.f.overrideHint", { value: f.money(sch.employeeAmount, sch.currency) })}><Input id={`ea-${sch.id}`} name="employeeAmount" inputMode="decimal" defaultValue={en?.employeeAmount != null ? (en.employeeAmount / 100).toFixed(2) : ""} /><FieldError name="employeeAmount" /></Field>
+                              <Field label={t("contrib.f.employerAmountOverride")} htmlFor={`wa-${sch.id}`} hint={t("contrib.f.overrideHint", { value: f.money(sch.employerAmount, sch.currency) })}><Input id={`wa-${sch.id}`} name="employerAmount" inputMode="decimal" defaultValue={en?.employerAmount != null ? (en.employerAmount / 100).toFixed(2) : ""} /><FieldError name="employerAmount" /></Field>
+                            </>
+                          )}
+                          <Field label={t("assign.f.startDate")} htmlFor={`es-${sch.id}`}><Input id={`es-${sch.id}`} name="startDate" type="date" defaultValue={en?.startDate ? toDateInput(en.startDate) : ""} /></Field>
+                          <Field label={t("assign.f.endDate")} htmlFor={`ee-${sch.id}`}><Input id={`ee-${sch.id}`} name="endDate" type="date" defaultValue={en?.endDate ? toDateInput(en.endDate) : ""} /><FieldError name="endDate" /></Field>
+                          <Field label={t("assign.f.note")} htmlFor={`en-${sch.id}`} className="sm:col-span-2"><Input id={`en-${sch.id}`} name="note" defaultValue={en?.note ?? ""} maxLength={300} /></Field>
+                          <div className="flex justify-end gap-2 sm:col-span-2">
+                            <SubmitButton size="sm">{t("common.save")}</SubmitButton>
+                          </div>
+                        </ActionForm>
+                        {en && <div className="mt-2"><ActionButton action={removeEnrollmentAction} fields={{ id: en.id }} variant="ghost" size="sm">{t("contrib.resetParticipation")}</ActionButton></div>}
+                      </details>
+                    )}
+                  </TD>
+                  <TD className="tabular text-right align-top">{describeShare(shares, "employee", f)}{en?.employeeRateBp != null || en?.employeeAmount != null ? <Badge variant="accent" className="ml-1">{t("contrib.individual")}</Badge> : null}</TD>
+                  <TD className="tabular text-right align-top">{describeShare(shares, "employer", f)}{en?.employerRateBp != null || en?.employerAmount != null ? <Badge variant="accent" className="ml-1">{t("contrib.individual")}</Badge> : null}</TD>
+                  <TD className="align-top text-xs">{describeBase(sch, t as never, f)}</TD>
+                  <TD className="align-top"><Badge variant={applies ? "success" : "muted"}>{t(`contrib.participation.${state}`)}</Badge></TD>
+                </TR>
+              );
+            })}
+          </TBody>
+        </Table>
+      </Card>
+      {assignments.some((a) => a.component.kind === "EMPLOYER") && section("EMPLOYER", "D")}
     </div>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import type { ActionState } from "@/lib/server/action";
 import type { ComponentOption } from "@/lib/server/pay-components";
@@ -59,6 +60,9 @@ export function ComponentAssignmentForm(props: {
   today: string;
   idPrefix: string;
   submitLabel?: string;
+  /** Contribution schemes of the company (employee shares are listed in the deductions dropdown). */
+  schemes?: { type: string; name: string; active: boolean }[];
+  canManageSchemes?: boolean;
 }) {
   const t = useTranslations();
   const locale = useLocale();
@@ -81,9 +85,10 @@ export function ComponentAssignmentForm(props: {
   };
   const effectiveCalc = calc === "COMPONENT" ? opt?.calcType ?? "FIXED" : calc;
   const months = React.useMemo(() => Array.from({ length: 12 }, (_, i) => new Intl.DateTimeFormat(locale, { month: "long", timeZone: "UTC" }).format(new Date(Date.UTC(2026, i, 1)))), [locale]);
-  const company = props.options.filter((o) => o.kind === kind && !o.fromLibrary);
-  const library = props.options.filter((o) => o.kind === kind && o.fromLibrary);
+  const choices = props.options.filter((o) => o.kind === kind);
   const placeholder = t(`assign.placeholder.${kind}`);
+  const schemeType = value.startsWith("scheme:") ? (value.slice(7) as "HEALTH" | "PENSION" | "FVO") : null;
+  const scheme = schemeType ? props.schemes?.find((x) => x.type === schemeType && x.active) ?? props.schemes?.find((x) => x.type === schemeType) : undefined;
 
   return (
     <ActionForm action={props.action} className="space-y-4" resetOnSuccess={!initial} notify={initial ? "toast" : "inline"}>
@@ -96,24 +101,25 @@ export function ComponentAssignmentForm(props: {
         <Field label={t(`assign.select.${kind}`)} htmlFor={`${p}-component`}>
           <Select id={`${p}-component`} name="component" value={value} onChange={(e) => select(e.target.value)} data-testid={`${p}-component`}>
             <option value="">{placeholder}</option>
-            {company.length > 0 && (
-              <optgroup label={t("assign.groupCompany")}>
-                {company.map((o) => <option key={o.value} value={o.value}>{o.name}</option>)}
-              </optgroup>
-            )}
-            {library.length > 0 && (
-              <optgroup label={t("assign.groupLibrary")}>
-                {library.map((o) => <option key={o.value} value={o.value}>{o.name}</option>)}
-              </optgroup>
-            )}
-            {kind === "DEDUCTION" && (
-              <optgroup label={t("assign.groupStatutory")}>
-                {(["LB", "AOV", "PENS"] as const).map((c) => <option key={c} value={`statutory:${c}`} disabled>{t(`assign.statutory.${c}`)}</option>)}
-              </optgroup>
-            )}
+            {kind === "ALLOWANCE" && <option value="statutory:BASE" disabled>{t("assign.statutory.BASE")}</option>}
+            {kind === "DEDUCTION" && (["LB", "AOV"] as const).map((c) => <option key={c} value={`statutory:${c}`} disabled>{t(`assign.statutory.${c}`)}</option>)}
+            {kind === "DEDUCTION" && (["HEALTH", "PENSION", "FVO"] as const).map((c) => (
+              <option key={c} value={`scheme:${c}`} disabled={mode === "incidental"}>{t(`assign.scheme.${c}`)}{mode === "incidental" ? ` ${t("assign.viaScheme")}` : ""}</option>
+            ))}
+            {choices.map((o) => <option key={o.value} value={o.value}>{o.name}</option>)}
           </Select>
           <FieldError name="component" />
         </Field>
+      )}
+
+      {schemeType && (
+        <div className="rounded-lg border bg-muted/30 p-4 text-sm" data-testid={`${p}-scheme-info`}>
+          <p>{scheme ? t(scheme.active ? "assign.schemeInfo" : "assign.schemeInactive", { name: scheme.name }) : t("assign.schemeMissing")}</p>
+          <p className="mt-2 flex flex-wrap gap-4">
+            <a href="#contributions" className="text-primary hover:underline">{t("assign.schemeManageEmployee")}</a>
+            {props.canManageSchemes && <Link href="/app/settings/contributions" className="text-primary hover:underline">{t("assign.schemeManageSettings")}</Link>}
+          </p>
+        </div>
       )}
 
       {opt && (

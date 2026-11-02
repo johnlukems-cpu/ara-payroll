@@ -159,7 +159,7 @@ export default async function EmployeePage({ params, searchParams }: { params: P
       )}
 
       {tab === "pay" && canSalary && (
-        <EmployeeComponentsTab employeeId={e.id} companyId={ctx.company.id} assignments={e.components} contract={current} currencies={currencies} salaryCur={salaryCur} canEdit={canEdit} />
+        <EmployeeComponentsTab employeeId={e.id} companyId={ctx.company.id} assignments={e.components} contract={current} currencies={currencies} salaryCur={salaryCur} canEdit={canEdit} canManageSchemes={can(ctx.role, "settings.manage")} />
       )}
 
       {tab === "payslips" && canSalary && (

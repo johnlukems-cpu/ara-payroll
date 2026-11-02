@@ -60,6 +60,7 @@ export const COMPONENT_LIBRARY: LibraryEntry[] = [
   alw("ALW012", "Overige vergoeding", "Other allowance", { calcType: "MANUAL", frequency: "ONE_OFF" }),
   alw("ALW013", "Brandstoftoelage", "Fuel allowance"),
   alw("ALW014", "Koerscompensatie", "Exchange rate compensation", { legalReference: "Fiscale behandeling van koerscompensatie niet geverifieerd" }),
+  alw("ALW015", "Overige onbelaste kostenvergoedingen", "Other tax-free reimbursements", { taxTreatment: "EXEMPT", aovIncluded: false, legalStatus: "PENDING_VERIFICATION", legalReference: "Alleen voor werkelijk gemaakte, aantoonbare kosten; fiscale vrijstelling niet geverifieerd" }),
   // 1.3 Overtime and special working hours (percentages configurable; link to legislation or CAO)
   ovt("OVT001", "Overwerk 150%", "Overtime 150%", { multiplierBp: 15000, isSystem: true, systemCode: "OT1" }),
   ovt("OVT002", "Overwerk 200%", "Overtime 200%", { multiplierBp: 20000, isSystem: true, systemCode: "OT2" }),
@@ -82,24 +83,25 @@ export const COMPONENT_LIBRARY: LibraryEntry[] = [
   bon("BON010", "Retentiebonus", "Retention bonus"),
   // 1.5 Employee deductions
   ded("DED001", "Loonbelasting", "Payroll tax", { isSystem: true, systemCode: "LB", legalStatus: "PENDING_VERIFICATION", legalReference: "Wet Loonbelasting (S.B. 1981 no. 181, zoals gewijzigd); S.B. 2024 no. 2" }),
-  ded("DED002", "Werknemersbijdrage pensioen", "Employee pension contribution", { isSystem: true, systemCode: "PENS", preTax: true }),
+  ded("DED002", "Pensioen – werknemersaandeel", "Pension – Employee Contribution", { isSystem: true, systemCode: "PENS", preTax: true }),
   ded("DED003", "Sociale verzekering", "Social insurance", { calcType: "PERCENT_OF_BASE", legalStatus: "PENDING_VERIFICATION", legalReference: "Grondslag/verplichting niet geverifieerd (o.a. FVO-bijdrage ouderschapsverlof)" }),
-  ded("DED004", "Ziektekostenverzekering", "Health insurance"),
+  ded("DED004", "Ziektekostenverzekering – werknemersaandeel", "Health Insurance – Employee Contribution"),
   ded("DED005", "Salarisvoorschot", "Salary advance", { calcType: "MANUAL", frequency: "ONE_OFF" }),
   ded("DED006", "Personeelslening", "Employee loan"),
   ded("DED007", "Vakbondsbijdrage", "Union contribution"),
   ded("DED008", "Overige inhoudingen", "Other deductions", { calcType: "MANUAL", frequency: "ONE_OFF" }),
   ded("DED009", "Correctie vorige periode", "Previous period adjustment", { calcType: "MANUAL", frequency: "ONE_OFF" }),
   ded("DED010", "Onbetaald verlof", "Unpaid leave", { isSystem: true, systemCode: "UNPAID" }),
-  ded("DED012", "FVO-bijdrage", "FVO contribution", { calcType: "PERCENT_OF_BASE", legalStatus: "PENDING_VERIFICATION", legalReference: "Fonds ouderschapsverlof (Wet Arbeidsbescherming Gezin) — percentage en verdeling werkgever/werknemer niet geverifieerd" }),
+  ded("DED012", "FVO – werknemersaandeel", "FVO – Employee Contribution", { calcType: "PERCENT_OF_BASE", legalStatus: "PENDING_VERIFICATION", legalReference: "Fonds ouderschapsverlof (Wet Arbeidsbescherming Gezin) — percentage en verdeling werkgever/werknemer niet geverifieerd" }),
   ded("DED013", "Pensioenbijdrage (vast bedrag)", "Pension contribution (fixed amount)", { preTax: true, legalReference: "Alleen gebruiken als er geen pensioenpercentage in de arbeidsovereenkomst staat" }),
   ded("DED011", "AOV-premie", "AOV premium", { isSystem: true, systemCode: "AOV", legalStatus: "PENDING_VERIFICATION", legalReference: "Wet AOV — premie 4% van de heffingsgrondslag" }),
   // 1.6 Employer contributions (never deducted from net salary)
-  er("ER001", "Werkgeversbijdrage pensioen", "Employer pension contribution", { isSystem: true, systemCode: "PENS-ER" }),
-  er("ER002", "Werkgeversbijdrage ziektekosten", "Employer health contribution"),
+  er("ER001", "Pensioen – werkgeversaandeel", "Pension – Employer Contribution", { isSystem: true, systemCode: "PENS-ER" }),
+  er("ER002", "Ziektekostenverzekering – werkgeversaandeel", "Health Insurance – Employer Contribution"),
   er("ER003", "Werkgeversbijdrage sociale verzekering", "Employer social insurance contribution", { calcType: "PERCENT_OF_BASE", legalStatus: "PENDING_VERIFICATION" }),
   er("ER004", "Werkgeversbijdrage overige verzekeringen", "Other employer insurance contributions"),
   er("ER005", "Overige werkgeverslasten", "Other employer costs"),
+  er("ER007", "FVO – werkgeversaandeel", "FVO – Employer Contribution", { legalStatus: "PENDING_VERIFICATION", legalReference: "Fonds ouderschapsverlof (Wet Arbeidsbescherming Gezin) — percentage en verdeling werkgever/werknemer niet geverifieerd" }),
   er("ER006", "AOV werkgeversdeel", "AOV employer share", { isSystem: true, systemCode: "AOV-ER", legalStatus: "PENDING_VERIFICATION" }),
   // 1.7 Leave and absence (payroll lines generated from approved leave)
   lev("LEV001", "Jaarlijks verlof", "Annual leave"),
@@ -114,6 +116,16 @@ export const COMPONENT_LIBRARY: LibraryEntry[] = [
   lev("LEV010", "Afwezigheid zonder toestemming", "Unauthorized absence"),
 ];
 
+/**
+ * Library components replaced by contribution schemes (employee and employer share per scheme).
+ * They are no longer offered in the dropdowns; existing assignments keep working and are checked for double counting.
+ */
+export const CONTRIBUTION_LIBRARY: Record<"HEALTH" | "PENSION" | "FVO", string[]> = {
+  HEALTH: ["DED004", "ER002"],
+  PENSION: ["DED002", "DED013", "ER001"],
+  FVO: ["DED012", "ER007"],
+};
+
 export const SYSTEM_CODES = new Set(COMPONENT_LIBRARY.filter((c) => c.isSystem).map((c) => c.code));
 
 /** Engine line code → library code, so every payslip line traces back to a library component. */
@@ -121,6 +133,7 @@ export const LINE_TO_LIBRARY: Record<string, string> = {
   BASE: "SAL001", SAL001: "SAL001", SAL002: "SAL002", SAL003: "SAL003", SAL004: "SAL004",
   OT1: "OVT001", OT2: "OVT002", LB: "DED001", "LB-BB": "DED001", "LB-OT": "DED001",
   AOV: "DED011", "AOV-ER": "ER006", PENS: "DED002", "PENS-ER": "ER001", UNPAID: "DED010",
+  "HEALTH-EE": "DED004", "HEALTH-ER": "ER002", "PENSION-EE": "DED002", "PENSION-ER": "ER001", "FVO-EE": "DED012", "FVO-ER": "ER007",
 };
 
 export const LEAVE_CATEGORY_COMPONENT: Record<string, string> = {

@@ -362,3 +362,114 @@ test("fixed and extra allowances/deductions via dropdowns, duplicate checks and 
   await expect(page.getByText(/Deze loonrun is definitief/)).toBeVisible();
   await expect(page.getByTestId("extra-ALLOWANCE-component")).toHaveCount(0);
 });
+
+test("employee and employer contributions: scheme setup, payroll, payslip, reports (Dutch and English UI)", async ({ page }) => {
+  await page.goto("/register");
+  await page.fill("#name", "Bijdragen Beheerder");
+  await page.fill("#email", `contrib-${Date.now()}@e2e.test`);
+  await page.fill("#password", "E2ePassword1");
+  await page.fill("#organizationName", "Bijdragen Org");
+  await page.fill("#companyName", "Bijdragen N.V.");
+  await page.selectOption("#currency", "SRD");
+  await page.click("button[type=submit]");
+  await expect(page).toHaveURL(/\/app\?welcome=1/);
+
+  await page.goto("/app/employees/new");
+  await page.fill("#firstName", "Maya");
+  await page.fill("#lastName", "Sewdien");
+  await page.fill("#hireDate", "2024-01-01");
+  await page.selectOption("#salaryCurrency", "SRD");
+  await page.fill("#baseSalary", "20000");
+  await page.click("button:has-text('Werknemer aanmaken')");
+  await expect(page.getByText("Werknemer succesvol aangemaakt")).toBeVisible();
+  const employeeUrl = page.url().split("?")[0];
+
+  // Settings → Bijdragen: the three schemes exist, inactive and without rates.
+  await page.goto("/app/settings/contributions");
+  await expect(page.getByRole("link", { name: "Bijdragen", exact: true })).toBeVisible();
+  await expect(page.getByText(/vult geen percentages of bedragen vooraf in/)).toBeVisible();
+  for (const type of ["HEALTH", "PENSION", "FVO"]) await expect(page.getByTestId(`scheme-${type}`).getByText("Inactief")).toBeVisible();
+
+  // Activating without rates is refused.
+  await page.getByTestId("scheme-FVO").getByRole("link", { name: "Bewerken" }).click();
+  await page.getByLabel("Actief", { exact: false }).first().check();
+  await page.getByRole("button", { name: "Wijzigingen opslaan" }).click();
+  await expect(page.getByText("Vul een werknemers- of werkgeverstarief in voordat u de regeling activeert.").first()).toBeVisible();
+
+  // Health insurance 2% / 3% and pension 4% / 6% (pre-tax).
+  const configure = async (type: string, ee: string, er: string, preTax = false) => {
+    await page.goto("/app/settings/contributions");
+    await page.getByTestId(`scheme-${type}`).getByRole("link", { name: "Bewerken" }).click();
+    await page.fill("#employeeRate", ee);
+    await page.fill("#employerRate", er);
+    await page.fill("#effectiveFrom", "2026-01-01");
+    if (preTax) await page.selectOption("#employeeTax", "PRE_TAX");
+    await page.getByLabel("Actief", { exact: false }).first().check();
+    await page.getByRole("button", { name: "Wijzigingen opslaan" }).click();
+    await expect(page.getByText("Regeling opgeslagen.")).toBeVisible();
+  };
+  await configure("HEALTH", "2", "3");
+  await configure("PENSION", "4", "6", true);
+
+  // Employee profile: contributions section and the renamed dropdowns.
+  await page.goto(`${employeeUrl}?tab=pay`);
+  await expect(page.getByText("Componenten van het bedrijf")).toHaveCount(0);
+  await expect(page.getByTestId("section-ALLOWANCE").getByText("Toelagen", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("section-DEDUCTION").getByText("Inhoudingen", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("contribution-HEALTH")).toContainText("2%");
+  await expect(page.getByTestId("contribution-HEALTH")).toContainText("3%");
+  await expect(page.getByTestId("contribution-PENSION")).toContainText("Neemt deel");
+  const ded = page.getByTestId("add-DEDUCTION-component");
+  await expect(ded.locator("option", { hasText: "Loonbelasting (automatisch)" })).toBeDisabled();
+  await ded.selectOption({ label: "Pensioen – werknemersaandeel" });
+  await expect(page.getByTestId("add-DEDUCTION-scheme-info")).toContainText("Pensioenregeling");
+
+  // Individual employer rate for health insurance: 4% instead of 3%.
+  await page.getByTestId("contribution-HEALTH").getByText("Deelname of tarief aanpassen").click();
+  await page.getByTestId("contribution-HEALTH").getByLabel("Afwijkend werkgeverspercentage (%)").fill("4");
+  await page.getByTestId("contribution-HEALTH").getByRole("button", { name: "Opslaan" }).click();
+  await expect(page.getByText("Deelname aan Ziektekostenverzekering opgeslagen.")).toBeVisible();
+
+  // Payroll: employee shares deducted, employer shares only in employer costs.
+  await page.goto("/app/payroll/new");
+  await page.selectOption("#month", "3");
+  await page.fill("#year", "2026");
+  await page.click("button:has-text('Salarisrun aanmaken')");
+  await page.getByRole("button", { name: "Salarissen berekenen" }).click();
+  await expect(page.getByText(/1 loonstrook/).first()).toBeVisible();
+  await page.reload();
+  await page.getByRole("link", { name: "Bekijken" }).first().click();
+  await expect(page).toHaveURL(/\/app\/payslips\//);
+  const ded2 = page.getByTestId("payslip-deductions");
+  await expect(ded2.getByText("Ziektekostenverzekering werknemer")).toBeVisible();
+  await expect(ded2.getByText("Pensioen werknemer")).toBeVisible();
+  const er = page.getByTestId("payslip-employer");
+  await expect(er.getByText("Ziektekostenverzekering werkgever")).toBeVisible();
+  await expect(er).toContainText("800,00"); // 4% of 20,000 (individual employer rate)
+  await expect(er).toContainText("1.200,00"); // pension employer 6%
+  // Total employment costs = gross 20,000 + employer contributions 2,000.
+  await expect(page.getByTestId("payslip-employment-cost")).toContainText("22.000,00");
+  await expect(page.getByTestId("payslip-income").getByText("Basissalaris")).toBeVisible();
+  const pdf = await page.request.get((await page.getByRole("link", { name: /PDF/ }).first().getAttribute("href"))!);
+  expect(pdf.status()).toBe(200);
+
+  // Reports: totals per scheme, employee and employer side (includes calculated runs only after approval).
+  await page.goto("/app/reports");
+  await expect(page.getByTestId("report-contributions").getByText("Werknemers- en werkgeversbijdragen")).toBeVisible();
+  const csv = await page.request.get("/api/reports/contributions?year=2026");
+  expect(csv.status()).toBe(200);
+  expect(await csv.text()).toContain("Werkgeverslasten");
+
+  // English UI.
+  await page.getByLabel("Taal").first().selectOption("en");
+  await page.goto(`${employeeUrl}?tab=pay`);
+  await expect(page.getByTestId("section-ALLOWANCE").getByText("Allowances", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("section-DEDUCTION").getByText("Deductions", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("section-CONTRIBUTIONS").getByText("Employer Contribution").first()).toBeVisible();
+  await page.goBack();
+  await page.goto("/app/payroll");
+  await page.getByRole("link", { name: /March 2026/ }).first().click();
+  await page.goto((await page.locator("a[href^='/app/payslips/']").first().getAttribute("href"))!);
+  await expect(page.getByTestId("payslip-employer").getByText("Employer contributions", { exact: true })).toBeVisible();
+  await expect(page.getByTestId("payslip-employment-cost")).toContainText("Total Employment Costs");
+});

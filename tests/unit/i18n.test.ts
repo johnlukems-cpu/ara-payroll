@@ -77,6 +77,13 @@ describe("translations", () => {
 import { $Enums } from "@prisma/client";
 
 /** Every database enum value shown in the UI must have a translation in both languages. */
+describe("ICU syntax", () => {
+  it("never quotes a placeholder with an apostrophe (ICU treats '{x}' as literal text)", () => {
+    const bad = [...Object.entries(NL), ...Object.entries(EN)].filter(([, v]) => /'[{}]/.test(String(v))).map(([k]) => k);
+    expect(bad).toEqual([]);
+  });
+});
+
 describe("enum translations", () => {
   const map: [Record<string, string>, string[]][] = [
     [$Enums.TaxTreatment, ["enums.taxTreatment"]],
@@ -103,6 +110,11 @@ describe("enum translations", () => {
     [$Enums.RateSource, ["enums.rateSource"]],
     [$Enums.AssignmentFrequency, ["enums.assignmentFrequency", "assign.hint"]],
     [$Enums.LineSource, ["enums.lineSource"]],
+    [$Enums.ContributionType, ["enums.contributionType", "contrib.typeHint", "assign.scheme"]],
+    [$Enums.ContributionBasis, ["enums.contributionBasis", "contrib.basisHint"]],
+    [$Enums.ContributionMethod, ["enums.contributionMethod"]],
+    [$Enums.ContributionBase, ["enums.contributionBase"]],
+    [$Enums.ContributionTax, ["enums.contributionTax"]],
     [$Enums.LeaveUnit, ["leaveTypes.units"]],
   ];
   it("has a translation for every enum value", () => {

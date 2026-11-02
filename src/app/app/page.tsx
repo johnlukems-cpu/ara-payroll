@@ -66,7 +66,7 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
           <>
             <Stat label={t("dashboard.lastNet")} value={last ? f.money(last.totalNet, last.currency) : "—"} sub={last ? f.period(last.year, last.month) : t("dashboard.noRuns")} />
             <Stat label={t("dashboard.wageTaxLast")} value={last ? f.money(last.totalWageTax, last.currency) : "—"} sub={last ? t("dashboard.aovSub", { amount: f.money(last.totalAov, last.currency) }) : undefined} />
-            <Stat label={t("dashboard.employerCostLast")} value={last ? f.money(last.totalEmployer, last.currency) : "—"} />
+            <Stat label={t("dashboard.employerCostLast")} value={last ? f.money(last.totalEmployer, last.currency) : "—"} sub={last ? t("dashboard.employerCostsSub", { amount: f.money(last.totalEmployer - last.totalGross, last.currency) }) : undefined} />
           </>
         ) : (
           <Stat label={t("dashboard.pendingLeave")} value={pendingLeave} />

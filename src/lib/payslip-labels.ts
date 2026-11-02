@@ -21,6 +21,9 @@ export function lineLabel(line: Line, t: T, f: Fmt, overtimeRates: { ot1: number
   const labels = line.labels as { nl?: string; en?: string } | null | undefined;
   const label = labels?.[f.locale] ?? line.description;
   if (line.code.startsWith("LEV") && line.rate != null) return `${label} (${t("payslip.paidShare", { pct: f.pct(line.rate) })})`;
+  // Contribution schemes: "<scheme> – employee share" / "– employer share".
+  const share = /^(HEALTH|PENSION|FVO)-(EE|ER)$/.exec(line.code);
+  if (share) return `${label} – ${t(`payslip.share.${share[2]}`)}`;
   return label;
 }
 

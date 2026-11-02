@@ -25,6 +25,8 @@ import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { addAdjustmentAction, approveRunAction, calculateRunAction, overrideFixedAction, removeAdjustmentAction } from "@/app/actions/payroll";
 import { describeCalc } from "@/app/app/employees/[id]/components-tab";
+import { effectiveShares, schemeApplies } from "@/lib/payroll/contributions";
+import { describeShare } from "@/lib/contribution-format";
 
 type Assignment = EmployeePayComponent & { component: PayComponent };
 const DECISION_VARIANT: Record<ScheduleDecision, "success" | "accent" | "muted"> = { pay: "success", accrueAndPay: "success", accrue: "accent", skip: "muted" };
@@ -70,6 +72,15 @@ export default async function ComposePayslipPage({ params }: { params: Promise<{
   const overrideOf = (a: Assignment) => adjustments.find((x) => x.assignmentId === a.id);
   const incidental = adjustments.filter((a) => !a.assignmentId);
 
+  // Contribution schemes that apply to this employee in the period (employee share deducted, employer share is employer cost).
+  const [schemes, enrollments] = await Promise.all([
+    db.contributionScheme.findMany({ where: { companyId: ctx.company.id, isActive: true }, orderBy: { type: "asc" } }),
+    db.employeeContribution.findMany({ where: { employeeId: e.id } }),
+  ]);
+  const applying = schemes
+    .filter((sch) => schemeApplies(sch, enrollments.find((x) => x.schemeId === sch.id), start, end))
+    .map((sch) => ({ ...sch, ...effectiveShares(sch, enrollments.find((x) => x.schemeId === sch.id)) }));
+
   const fixedTable = (kind: "ALLOWANCE" | "DEDUCTION") => {
     const rows = relevant.filter((a) => a.component.kind === kind);
     const pensionBp = contract?.pensionEmployeeBp ?? 0;
@@ -85,7 +96,14 @@ export default async function ComposePayslipPage({ params }: { params: Promise<{
             {kind === "DEDUCTION" && (["LB", "AOV"] as const).map((c) => (
               <TR key={c} className="bg-muted/30"><TD className="font-medium">{t(`assign.statutoryName.${c}`)}</TD><TD colSpan={2} className="text-xs text-muted-foreground">{t("assign.statutoryAuto")}</TD><TD><Badge variant="accent">{t("assign.status.automatic")}</Badge></TD><TD /></TR>
             ))}
-            {kind === "DEDUCTION" && pensionBp > 0 && (
+            {kind === "DEDUCTION" && applying.map((sch) => (
+              <TR key={sch.id} className="bg-muted/30" data-testid={`compose-scheme-${sch.type}`}>
+                <TD className="font-medium">{t(`assign.scheme.${sch.type}`)}<span className="block text-xs font-normal text-muted-foreground">{sch.name}</span></TD>
+                <TD colSpan={2} className="text-xs text-muted-foreground">{t("contrib.sharesLine", { employee: describeShare(sch, "employee", f), employer: describeShare(sch, "employer", f) })}</TD>
+                <TD><Badge variant="accent">{t("contrib.viaScheme")}</Badge></TD><TD />
+              </TR>
+            ))}
+            {kind === "DEDUCTION" && pensionBp > 0 && !applying.some((x) => x.type === "PENSION") && (
               <TR className="bg-muted/30"><TD className="font-medium">{t("assign.statutoryName.PENS")}</TD><TD colSpan={2} className="text-xs text-muted-foreground">{t("assign.pensionViaContract", { pct: f.pct(pensionBp) })}</TD><TD><Badge variant="accent">{t("assign.status.automatic")}</Badge></TD><TD /></TR>
             )}
             {rows.length === 0 && kind === "ALLOWANCE" && <TR><TD colSpan={5} className="text-sm text-muted-foreground">{t("assign.empty.ALLOWANCE")}</TD></TR>}

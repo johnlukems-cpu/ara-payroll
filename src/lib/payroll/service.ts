@@ -7,6 +7,9 @@ import {
 } from "./engine";
 import { LEAVE_CATEGORY_COMPONENT } from "./library";
 import { priorAccrual, scheduleFor } from "./schedule";
+import { CONTRIBUTION_LIBRARY } from "./library";
+import { effectiveShares, schemeApplies } from "./contributions";
+import type { ContributionInput } from "./engine";
 import { workingDaysBetween } from "@/lib/leave";
 import { RateBook } from "@/lib/server/rates";
 import type { Conversion } from "@/lib/currency";
@@ -165,10 +168,16 @@ export async function calculateRun(runId: string) {
         orderBy: { createdAt: "asc" },
       },
       leaveRequests: { where: { status: "APPROVED", startDate: { lte: end }, endDate: { gte: start } }, include: { leaveType: true } },
+      contributions: true,
     },
   });
   const inputs = await db.payrollInput.findMany({ where: { runId } });
   const adjustments = await db.payrollAdjustment.findMany({ where: { runId }, include: { component: true }, orderBy: { createdAt: "asc" } });
+  // Contribution schemes (health insurance, pension, FVO) active in the period.
+  const schemes = await db.contributionScheme.findMany({
+    where: { companyId: run.companyId, isActive: true, effectiveFrom: { lte: end }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: start } }] },
+    orderBy: { effectiveFrom: "asc" },
+  });
 
   // Rule sets per tax regime (the Art. 17a regime is only used for employees explicitly linked to it).
   const regimeRules = new Map<TaxRegime, TaxRuleSet>([["STANDARD", ruleSet]]);
@@ -189,6 +198,7 @@ export async function calculateRun(runId: string) {
     pairs.push([sc, calcCur], [calcCur, e.paymentCurrency ?? sc]);
     for (const a of e.components) pairs.push([a.currency ?? sc, calcCur], [a.component.currency ?? sc, calcCur]);
     for (const a of adjustments.filter((x) => x.employeeId === e.id)) pairs.push([a.currency ?? sc, calcCur], [a.component.currency ?? sc, calcCur]);
+    for (const sch of schemes) pairs.push([sch.currency, calcCur]);
   }
   await book.prepare(pairs);
   if (book.missing.size) throw new PayrollError("errors.missingRates", { pairs: [...book.missing].join(", ") });
@@ -266,6 +276,8 @@ export async function calculateRun(runId: string) {
         pensionIncluded: src.pensionIncluded ?? c.pensionIncluded,
         netEffect: c.netEffect,
         source,
+        libraryCode: c.libraryCode,
+        category: c.category,
       };
     };
     const empAdjustments = adjustments.filter((a) => a.employeeId === e.id);
@@ -290,6 +302,27 @@ export async function calculateRun(runId: string) {
     for (const a of empAdjustments) {
       if (a.assignmentId) continue;
       components.push(toInput(a.component, { ...a, label: a.description }, "INCIDENTAL"));
+    }
+
+    // Contribution schemes that apply to this employee: at most one per type, and never together with a
+    // component that already deducts the same contribution (no double deduction).
+    const contributions: ContributionInput[] = [];
+    for (const sch of schemes) {
+      const enrollment = e.contributions.find((c) => c.schemeId === sch.id);
+      if (!schemeApplies(sch, enrollment, start, e.terminationDate && e.terminationDate < end ? e.terminationDate : end)) continue;
+      if (contributions.some((c) => c.type === sch.type)) throw new PayrollError("errors.contributionMultiple", { employee: name, type: sch.type });
+      const clash = components.find((c) => CONTRIBUTION_LIBRARY[sch.type].includes(c.libraryCode ?? c.code));
+      if (clash) throw new PayrollError("errors.contributionDuplicate", { employee: name, scheme: sch.name, component: clash.name });
+      if (sch.legalStatus === "PENDING_VERIFICATION" || sch.legalStatus === "CONFLICT") componentsLegal = false;
+      const shares = effectiveShares(sch, enrollment);
+      contributions.push({
+        id: sch.id, type: sch.type, name: sch.name, labels: { nl: sch.name, en: sch.name }, method: sch.method, base: sch.base,
+        employeeRateBp: shares.employeeRateBp, employerRateBp: shares.employerRateBp,
+        employeeAmount: toCalc(shares.employeeAmount, sch.currency, `${sch.name} (werknemer)`),
+        employerAmount: toCalc(shares.employerAmount, sch.currency, `${sch.name} (werkgever)`),
+        maxBase: sch.maxBaseMonthly != null ? toCalc(sch.maxBaseMonthly, sch.currency, `${sch.name} (max.)`) : null,
+        preTax: sch.employeeTax === "PRE_TAX", showEmployer: sch.showOnPayslip,
+      });
     }
 
     let r;
@@ -321,6 +354,7 @@ export async function calculateRun(runId: string) {
         components,
         toRules(empRuleSet),
         aovRules,
+        contributions,
       );
     } catch (err) {
       if (err instanceof ComponentError) throw new PayrollError("errors.componentCalc", { employee: name, code: err.code, error: err.message });
@@ -373,7 +407,7 @@ export async function calculateRun(runId: string) {
       } as Prisma.InputJsonValue,
       lines: {
         create: r.lines.map((l, i) => ({
-          sortOrder: i, type: l.type, source: l.source ?? null, code: l.code, description: l.description, quantity: l.quantity ?? null, rate: l.rate ?? null, amount: l.amount,
+          sortOrder: i, type: l.type, source: l.source ?? null, group: l.group ?? null, showOnPayslip: l.showOnPayslip ?? true, code: l.code, description: l.description, quantity: l.quantity ?? null, rate: l.rate ?? null, amount: l.amount,
           labels: l.labels ? (l.labels as Prisma.InputJsonValue) : undefined,
           ...(["SAL001", "SAL002", "SAL008"].includes(l.code) && salaryCur !== calcCur
             ? { originalAmount: Math.round(contract.baseSalary * (contract.payType === "MONTHLY" ? fraction : 1)), originalCurrency: salaryCur }

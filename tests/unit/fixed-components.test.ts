@@ -125,7 +125,7 @@ describe("payslip summary", () => {
     ], rules, aov);
     const lines = r.lines.map((l) => ({ ...l, source: l.source ?? null }));
     const s = payslipSummary({ grossPay: r.grossPay, taxableWage: r.taxableWage, wageTax: r.totalTax, aov: r.aov, totalDeductions: r.totalDeductions, netPay: r.netPay, trace: r.trace }, lines);
-    expect(SUMMARY_ROWS).toHaveLength(12);
+    expect(SUMMARY_ROWS).toHaveLength(14);
     expect(s.baseSalary).toBe(SRD(15_000));
     expect(s.fixedAllowances).toBe(SRD(700));
     expect(s.incidentalAllowances).toBe(SRD(1_000));

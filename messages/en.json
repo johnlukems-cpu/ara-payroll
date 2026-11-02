@@ -161,7 +161,31 @@
       "FIXED": "Fixed",
       "INCIDENTAL": "Incidental",
       "STATUTORY": "Statutory",
-      "LEAVE": "Leave"
+      "LEAVE": "Leave",
+      "CONTRIBUTION": "Contribution scheme"
+    },
+    "contributionType": {
+      "HEALTH": "Health Insurance",
+      "PENSION": "Pension Contribution",
+      "FVO": "FVO Contribution"
+    },
+    "contributionBasis": {
+      "STATUTORY": "Statutory obligation",
+      "VOLUNTARY": "Employment condition"
+    },
+    "contributionMethod": {
+      "PERCENTAGE": "Percentage",
+      "FIXED": "Fixed amount"
+    },
+    "contributionBase": {
+      "BASE_SALARY": "Base salary",
+      "PENSION_BASE": "Pension base (base salary + pensionable allowances)",
+      "REGULAR_WAGE": "Taxable regular wage (before deductions)",
+      "GROSS_WAGE": "Gross wage"
+    },
+    "contributionTax": {
+      "PRE_TAX": "Deductible before wage tax",
+      "AFTER_TAX": "Not deductible (after tax)"
     }
   },
   "auth": {
@@ -258,7 +282,8 @@
     "attention": "Attention",
     "attentionSub": "Items awaiting action",
     "payrollPeriod": "Payroll {period}",
-    "payBy": "Pay {period} by {date}"
+    "payBy": "Pay {period} by {date}",
+    "employerCostsSub": "of which employer costs {amount}"
   },
   "charts": {
     "net": "Net pay",
@@ -643,9 +668,67 @@
       "totalDeductions": "Total deductions",
       "netSalary": "Net salary",
       "exemptReimbursements": "Tax-free reimbursements",
-      "totalPayable": "Total payable"
+      "totalPayable": "Total payable",
+      "employerContributions": "Employer Costs",
+      "totalEmploymentCost": "Total Employment Costs"
     },
-    "continued": "continued"
+    "continued": "continued",
+    "income": "Income",
+    "employeeDeductions": "Employee deductions",
+    "employerContributions": "Employer contributions",
+    "employerTotal": "Employer Costs",
+    "totalEmploymentCost": "Total Employment Costs",
+    "employmentCostTitle": "Employer's cost of employment",
+    "otherEmployerCosts": "Other employer costs",
+    "employerNote": "Employer contributions are paid by the employer and never deducted from net pay.",
+    "share": {
+      "EE": "employee contribution",
+      "ER": "employer contribution"
+    },
+    "groups": {
+      "earning": {
+        "BASE": "Base salary",
+        "FIXED": "Fixed allowances",
+        "VARIABLE": "Variable allowances",
+        "HOLIDAY": "Holiday allowance",
+        "BONUS": "Gratuity and bonus",
+        "REIMBURSEMENT": "Other reimbursements",
+        "WAGE_TAX": "Wage tax",
+        "AOV": "AOV",
+        "HEALTH": "Health insurance",
+        "PENSION": "Pension",
+        "FVO": "FVO",
+        "OTHER": "Other"
+      },
+      "deduction": {
+        "WAGE_TAX": "Wage tax",
+        "AOV": "AOV",
+        "HEALTH": "Health insurance (employee)",
+        "PENSION": "Pension (employee)",
+        "FVO": "FVO (employee)",
+        "OTHER": "Other deductions",
+        "BASE": "Base salary",
+        "FIXED": "Fixed deductions",
+        "VARIABLE": "Variable deductions",
+        "HOLIDAY": "Holiday allowance",
+        "BONUS": "Bonus",
+        "REIMBURSEMENT": "Reimbursements"
+      },
+      "employer": {
+        "HEALTH": "Health insurance (employer)",
+        "PENSION": "Pension (employer)",
+        "FVO": "FVO (employer)",
+        "AOV": "AOV (employer)",
+        "OTHER": "Other employer contributions",
+        "WAGE_TAX": "Wage tax",
+        "BASE": "Base salary",
+        "FIXED": "Fixed",
+        "VARIABLE": "Variable",
+        "HOLIDAY": "Holiday allowance",
+        "BONUS": "Bonus",
+        "REIMBURSEMENT": "Reimbursements"
+      }
+    }
   },
   "leave": {
     "title": "Leave management",
@@ -728,7 +811,21 @@
       "net": "Net"
     },
     "unassigned": "Unassigned",
-    "mixedCurrencies": "The base currency changed during this year; totals are shown per currency."
+    "mixedCurrencies": "The base currency changed during this year; totals are shown per currency.",
+    "contrib": {
+      "title": "Employee and employer contributions",
+      "sub": "Health insurance, pension and FVO, employer costs and total employment costs (approved and paid payroll runs).",
+      "perPeriod": "Per pay period",
+      "perEmployee": "Per employee",
+      "health": "Health Insurance",
+      "pension": "Pension Contribution",
+      "fvo": "FVO Contribution",
+      "employee": "Employee Contribution",
+      "employer": "Employer Contribution",
+      "employerCosts": "Employer Costs",
+      "employmentCost": "Total Employment Costs",
+      "employees": "{count, plural, one {# employee} other {# employees}}"
+    }
   },
   "csv": {
     "employeeNo": "Employee no.",
@@ -779,7 +876,8 @@
     "amount": "Amount",
     "reference": "Reference",
     "executionDate": "Execution date",
-    "salaryRef": "SAL"
+    "salaryRef": "SAL",
+    "period": "Period"
   },
   "settings": {
     "title": "Settings",
@@ -791,7 +889,8 @@
       "tax": "Tax rules",
       "leave": "Leave types",
       "departments": "Departments",
-      "users": "Users & roles"
+      "users": "Users & roles",
+      "contributions": "Contributions"
     },
     "company": {
       "employer": "Employer details",
@@ -1171,7 +1270,17 @@
     "pensionViaContract": "Pension is already deducted via the percentage in the employment contract; a fixed pension amount would be deducted twice.",
     "statutoryAutomatic": "Statutory deductions (wage tax, AOV, pension) are calculated automatically and cannot be added by hand.",
     "changedSinceCalculation": "Data has changed since the last calculation. The payroll run has been recalculated; review the new result and approve again.",
-    "assignmentInUse": "This component was processed in an approved payroll run and is kept as history. Set an end date or make it inactive instead."
+    "assignmentInUse": "This component was processed in an approved payroll run and is kept as history. Set an end date or make it inactive instead.",
+    "contributionDuplicate": "{employee}: the scheme “{scheme}” and the component “{component}” deduct the same contribution. End the component or opt the employee out of the scheme.",
+    "contributionDuplicateComponent": "This employee already has the component “{component}” for the same contribution. End it first (no double deduction).",
+    "contributionMultiple": "{employee}: more than one scheme of the same type ({type}) applies.",
+    "schemeConflictsAssignments": "Activating for all employees would deduct twice: {names} already have a fixed component for this contribution. End those components first.",
+    "schemeOverlap": "The scheme “{name}” of the same type already applies in this period.",
+    "schemeTypeLocked": "The type of a scheme cannot be changed.",
+    "schemeUsedNewVersion": "This scheme was used in an approved payroll run. Change rates via 'Create new version' so historical payslips stay unchanged.",
+    "schemeNoRates": "Enter an employee or employer rate before activating the scheme.",
+    "useContributionScheme": "Health insurance, pension and FVO contributions are processed through the contribution scheme (employee and employer contribution).",
+    "versionAfterStart": "The new version must start after the start date of the current version."
   },
   "bracket": {
     "required": "at least one bracket is required",
@@ -1795,9 +1904,9 @@
       "EMPLOYER": "— Select an employer contribution —"
     },
     "select": {
-      "ALLOWANCE": "Allowance",
-      "DEDUCTION": "Deduction",
-      "EMPLOYER": "Employer contribution"
+      "ALLOWANCE": "Allowances",
+      "DEDUCTION": "Deductions",
+      "EMPLOYER": "Employer contributions"
     },
     "section": {
       "ALLOWANCE": "Fixed allowances",
@@ -1819,13 +1928,10 @@
       "DEDUCTION": "Add fixed deduction",
       "EMPLOYER": "Add employer contribution"
     },
-    "groupCompany": "Company components",
-    "groupLibrary": "Central library (added automatically when selected)",
-    "groupStatutory": "Statutory — calculated automatically",
     "statutory": {
       "LB": "Wage tax (automatic)",
-      "AOV": "AOV premium (automatic)",
-      "PENS": "Pension (automatic via employment contract)"
+      "AOV": "AOV (automatic)",
+      "BASE": "Base salary — via the employment contract"
     },
     "statutoryName": {
       "LB": "Wage tax",
@@ -1904,7 +2010,18 @@
     "accrued": "Accrued: {amount} (up to {period})",
     "inMonth": "in {month}",
     "openEnded": "ongoing",
-    "aovExcludedWarning": "Note: under the configured AOV rules the base is the taxable wage. Only exclude a taxable allowance when this is legally established."
+    "aovExcludedWarning": "Note: under the configured AOV rules the base is the taxable wage. Only exclude a taxable allowance when this is legally established.",
+    "scheme": {
+      "HEALTH": "Health Insurance – Employee Contribution",
+      "PENSION": "Pension – Employee Contribution",
+      "FVO": "FVO – Employee Contribution"
+    },
+    "viaScheme": "(automatic via scheme)",
+    "schemeInfo": "The employee and employer contributions are calculated automatically through the scheme “{name}”. Record this employee's participation and individual rates under C. Employee and employer contributions.",
+    "schemeInactive": "The scheme “{name}” is not active (yet) or does not apply to this employee. Activate it and configure the rates in the settings first.",
+    "schemeMissing": "No scheme has been set up yet. Configure it first under Settings → Contributions.",
+    "schemeManageEmployee": "Go to this employee's participation",
+    "schemeManageSettings": "Set up scheme"
   },
   "compose": {
     "title": "Compose payslip — {name}",
@@ -1947,5 +2064,97 @@
     "periodInputs": "Period inputs",
     "inputsLine": "Overtime {ot1} + {ot2} h · unpaid {unpaid} d · bonus {bonus}",
     "finaliseText": "A payslip becomes final when the payroll run is approved. After that amounts can no longer be changed and historical payslips remain unchanged."
+  },
+  "contrib": {
+    "intro": "For each scheme you record an employee contribution (deducted from salary) and an employer contribution (employer costs, never deducted from net pay). Change rates from a date with a new version so historical payslips stay unchanged.",
+    "noInventedRates": "ARA Payroll never prefills percentages or amounts. Configure the rates, base and legal applicability yourself and have statutory schemes verified.",
+    "typeHint": {
+      "HEALTH": "Employee and employer contribution to health insurance.",
+      "PENSION": "Employee and employer contribution to the pension scheme. An active scheme replaces the pension percentage of the employment contract (never both).",
+      "FVO": "Employee and employer FVO contribution."
+    },
+    "basisHint": {
+      "STATUTORY": "Statutory obligation: rates and base must be legally verified.",
+      "VOLUNTARY": "Employment-condition scheme under contract, collective agreement or rules."
+    },
+    "newScheme": "New scheme",
+    "newSchemeFor": "New scheme — {type}",
+    "none": "No scheme yet.",
+    "noneActive": "There are no active schemes. An administrator can set them up under Settings → Contributions.",
+    "back": "Back to contributions",
+    "saved": "Scheme saved.",
+    "allEmployees": "All employees",
+    "enrolledOnly": "Enrolled employees only ({count})",
+    "employeeShare": "Employee Contribution",
+    "employerShare": "Employer Contribution",
+    "employeeShareHint": "Deducted from salary; reduces net pay.",
+    "employerShareHint": "Added to employer costs; never deducted from net pay.",
+    "fixedPerMonth": "Fixed amount per month",
+    "maxBaseShort": "max. {amount}",
+    "cols": {
+      "name": "Scheme",
+      "basis": "Type",
+      "base": "Base",
+      "validity": "Validity",
+      "legal": "Legal",
+      "status": "Status",
+      "participation": "Participation"
+    },
+    "status": {
+      "ended": "Ended",
+      "future": "Future"
+    },
+    "f": {
+      "name": "Scheme name",
+      "basis": "Statutory or employment condition",
+      "method": "Fixed amount or percentage",
+      "employeeRate": "Employee percentage (%)",
+      "employerRate": "Employer percentage (%)",
+      "employeeAmount": "Employee amount per month",
+      "employerAmount": "Employer amount per month",
+      "base": "Calculation base",
+      "maxBase": "Maximum monthly base (optional)",
+      "maxBaseHint": "Empty = no maximum",
+      "currency": "Currency",
+      "currencyHint": "Currency of fixed amounts and the maximum base",
+      "effectiveFrom": "Start date",
+      "effectiveTo": "End date (optional)",
+      "employeeTax": "Tax treatment of the employee contribution",
+      "active": "Active",
+      "activeHint": "Only active schemes are processed in payroll.",
+      "appliesToAll": "Applies to all employees",
+      "appliesToAllHint": "Off = only individually enrolled employees.",
+      "showOnPayslip": "Show the employer contribution on the payslip",
+      "showOnPayslipHint": "The employee contribution is always on the payslip; the employer contribution always counts towards employer costs.",
+      "notes": "Note",
+      "participates": "Participates in this scheme",
+      "employeeRateOverride": "Individual employee percentage (%)",
+      "employerRateOverride": "Individual employer percentage (%)",
+      "employeeAmountOverride": "Individual employee amount",
+      "employerAmountOverride": "Individual employer amount",
+      "overrideHint": "Empty = scheme ({value})"
+    },
+    "statutoryWarning": "Statutory scheme: rates, base and split are not verified in ARA Payroll. A payroll run with an unverified scheme is marked 'pending legal validation'.",
+    "versionTitle": "Change rates from a date",
+    "versionSub": "Creates a new version; the current version ends the day before. Approved payslips remain unchanged.",
+    "newVersion": "Create new version",
+    "versionCreated": "New version created. Adjust the rates and save.",
+    "employeeTabTitle": "Employee and employer contributions",
+    "employeeTabSub": "Health insurance, pension and FVO: the employee contribution is deducted, the employer contribution is added to employer costs.",
+    "contractPensionIgnored": "The pension percentage of the employment contract is not applied while the scheme “{name}” applies (no double deduction).",
+    "editParticipation": "Change participation or rate",
+    "resetParticipation": "Remove individual arrangement",
+    "individual": "individual",
+    "participation": {
+      "all": "Participates",
+      "optedOut": "Opted out",
+      "enrolled": "Enrolled",
+      "notEnrolled": "Not enrolled"
+    },
+    "enrollmentSaved": "Participation in {name} saved.",
+    "enrollmentRemoved": "Individual arrangement removed; the scheme default applies again.",
+    "sharesLine": "Employee {employee} · employer {employer}",
+    "viaScheme": "Via scheme",
+    "lookalikes": "Check these custom components: they look like health insurance, pension or FVO and are not recognised automatically as the same contribution: {list}. End them when the scheme deducts the same contribution, to avoid double deductions."
   }
 }

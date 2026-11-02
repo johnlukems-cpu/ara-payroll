@@ -161,7 +161,31 @@
       "FIXED": "Vast",
       "INCIDENTAL": "Incidenteel",
       "STATUTORY": "Wettelijk",
-      "LEAVE": "Verlof"
+      "LEAVE": "Verlof",
+      "CONTRIBUTION": "Bijdrageregeling"
+    },
+    "contributionType": {
+      "HEALTH": "Ziektekostenverzekering",
+      "PENSION": "Pensioenbijdrage",
+      "FVO": "FVO-bijdrage"
+    },
+    "contributionBasis": {
+      "STATUTORY": "Wettelijke verplichting",
+      "VOLUNTARY": "Arbeidsvoorwaardelijk"
+    },
+    "contributionMethod": {
+      "PERCENTAGE": "Percentage",
+      "FIXED": "Vast bedrag"
+    },
+    "contributionBase": {
+      "BASE_SALARY": "Basissalaris",
+      "PENSION_BASE": "Pensioengrondslag (basissalaris + pensioengevende toelagen)",
+      "REGULAR_WAGE": "Belastbaar regulier loon (vóór inhoudingen)",
+      "GROSS_WAGE": "Brutoloon"
+    },
+    "contributionTax": {
+      "PRE_TAX": "Aftrekbaar vóór loonbelasting",
+      "AFTER_TAX": "Niet aftrekbaar (na belasting)"
     }
   },
   "auth": {
@@ -258,7 +282,8 @@
     "attention": "Aandacht",
     "attentionSub": "Punten die actie vereisen",
     "payrollPeriod": "Salarisadministratie {period}",
-    "payBy": "{period} uitbetalen vóór {date}"
+    "payBy": "{period} uitbetalen vóór {date}",
+    "employerCostsSub": "waarvan werkgeverslasten {amount}"
   },
   "charts": {
     "net": "Nettoloon",
@@ -643,9 +668,67 @@
       "totalDeductions": "Totale inhoudingen",
       "netSalary": "Nettosalaris",
       "exemptReimbursements": "Onbelaste kostenvergoedingen",
-      "totalPayable": "Totaal uit te betalen"
+      "totalPayable": "Totaal uit te betalen",
+      "employerContributions": "Werkgeverslasten",
+      "totalEmploymentCost": "Totale loonkosten"
     },
-    "continued": "vervolg"
+    "continued": "vervolg",
+    "income": "Inkomsten",
+    "employeeDeductions": "Inhoudingen werknemer",
+    "employerContributions": "Werkgeversbijdragen",
+    "employerTotal": "Werkgeverslasten",
+    "totalEmploymentCost": "Totale loonkosten",
+    "employmentCostTitle": "Loonkosten werkgever",
+    "otherEmployerCosts": "Overige werkgeverslasten",
+    "employerNote": "Werkgeversbijdragen worden door de werkgever betaald en niet op het nettoloon ingehouden.",
+    "share": {
+      "EE": "werknemersaandeel",
+      "ER": "werkgeversaandeel"
+    },
+    "groups": {
+      "earning": {
+        "BASE": "Basissalaris",
+        "FIXED": "Vaste toelagen",
+        "VARIABLE": "Variabele toelagen",
+        "HOLIDAY": "Vakantietoelage",
+        "BONUS": "Gratificatie en bonus",
+        "REIMBURSEMENT": "Overige vergoedingen",
+        "WAGE_TAX": "Loonbelasting",
+        "AOV": "AOV",
+        "HEALTH": "Ziektekostenverzekering",
+        "PENSION": "Pensioen",
+        "FVO": "FVO",
+        "OTHER": "Overige"
+      },
+      "deduction": {
+        "WAGE_TAX": "Loonbelasting",
+        "AOV": "AOV",
+        "HEALTH": "Ziektekostenverzekering werknemer",
+        "PENSION": "Pensioen werknemer",
+        "FVO": "FVO werknemer",
+        "OTHER": "Overige inhoudingen",
+        "BASE": "Basissalaris",
+        "FIXED": "Vaste inhoudingen",
+        "VARIABLE": "Variabele inhoudingen",
+        "HOLIDAY": "Vakantietoelage",
+        "BONUS": "Bonus",
+        "REIMBURSEMENT": "Vergoedingen"
+      },
+      "employer": {
+        "HEALTH": "Ziektekostenverzekering werkgever",
+        "PENSION": "Pensioen werkgever",
+        "FVO": "FVO werkgever",
+        "AOV": "AOV werkgever",
+        "OTHER": "Overige werkgeversbijdragen",
+        "WAGE_TAX": "Loonbelasting",
+        "BASE": "Basissalaris",
+        "FIXED": "Vast",
+        "VARIABLE": "Variabel",
+        "HOLIDAY": "Vakantietoelage",
+        "BONUS": "Bonus",
+        "REIMBURSEMENT": "Vergoedingen"
+      }
+    }
   },
   "leave": {
     "title": "Verlofbeheer",
@@ -728,7 +811,21 @@
       "net": "Netto"
     },
     "unassigned": "Niet toegewezen",
-    "mixedCurrencies": "De basisvaluta is dit jaar gewijzigd; totalen worden per valuta getoond."
+    "mixedCurrencies": "De basisvaluta is dit jaar gewijzigd; totalen worden per valuta getoond.",
+    "contrib": {
+      "title": "Werknemers- en werkgeversbijdragen",
+      "sub": "Ziektekostenverzekering, pensioen en FVO, werkgeverslasten en totale loonkosten (goedgekeurde en betaalde loonruns).",
+      "perPeriod": "Per salarisperiode",
+      "perEmployee": "Per medewerker",
+      "health": "Ziektekostenverzekering",
+      "pension": "Pensioenbijdrage",
+      "fvo": "FVO-bijdrage",
+      "employee": "Werknemersaandeel",
+      "employer": "Werkgeversaandeel",
+      "employerCosts": "Werkgeverslasten",
+      "employmentCost": "Totale loonkosten",
+      "employees": "{count, plural, one {# medewerker} other {# medewerkers}}"
+    }
   },
   "csv": {
     "employeeNo": "Personeelsnr.",
@@ -779,7 +876,8 @@
     "amount": "Bedrag",
     "reference": "Omschrijving",
     "executionDate": "Uitvoeringsdatum",
-    "salaryRef": "SAL"
+    "salaryRef": "SAL",
+    "period": "Periode"
   },
   "settings": {
     "title": "Instellingen",
@@ -791,7 +889,8 @@
       "tax": "Belastingregels",
       "leave": "Verlofsoorten",
       "departments": "Afdelingen",
-      "users": "Gebruikers en rollen"
+      "users": "Gebruikers en rollen",
+      "contributions": "Bijdragen"
     },
     "company": {
       "employer": "Werkgeversgegevens",
@@ -1171,7 +1270,17 @@
     "pensionViaContract": "Pensioen wordt al via het percentage in de arbeidsovereenkomst ingehouden; een vast pensioenbedrag zou dubbel worden ingehouden.",
     "statutoryAutomatic": "Wettelijke inhoudingen (loonbelasting, AOV, pensioen) worden automatisch berekend en kunnen niet handmatig worden toegevoegd.",
     "changedSinceCalculation": "De gegevens zijn gewijzigd sinds de laatste berekening. De loonrun is opnieuw berekend; controleer de nieuwe uitkomst en keur daarna opnieuw goed.",
-    "assignmentInUse": "Deze component is al verwerkt in een goedgekeurde loonrun en blijft bewaard als historie. Vul een einddatum in of zet de component op inactief."
+    "assignmentInUse": "Deze component is al verwerkt in een goedgekeurde loonrun en blijft bewaard als historie. Vul een einddatum in of zet de component op inactief.",
+    "contributionDuplicate": "{employee}: de regeling “{scheme}” en de component “{component}” houden dezelfde bijdrage in. Beëindig de component of meld de medewerker af voor de regeling.",
+    "contributionDuplicateComponent": "Deze medewerker heeft al de component “{component}” voor dezelfde bijdrage. Beëindig die eerst (geen dubbele inhouding).",
+    "contributionMultiple": "{employee}: er zijn meerdere regelingen van hetzelfde type ({type}) van toepassing.",
+    "schemeConflictsAssignments": "Activeren voor alle medewerkers zou dubbel inhouden: {names} hebben al een vaste component voor deze bijdrage. Beëindig die componenten eerst.",
+    "schemeOverlap": "De regeling “{name}” van hetzelfde type geldt al in deze periode.",
+    "schemeTypeLocked": "Het type van een regeling kan niet worden gewijzigd.",
+    "schemeUsedNewVersion": "Deze regeling is al gebruikt in een goedgekeurde loonrun. Wijzig tarieven via 'Nieuwe versie maken', zodat historische loonstroken ongewijzigd blijven.",
+    "schemeNoRates": "Vul een werknemers- of werkgeverstarief in voordat u de regeling activeert.",
+    "useContributionScheme": "Ziektekosten-, pensioen- en FVO-bijdragen worden via de bijdrageregeling verwerkt (werknemers- en werkgeversaandeel).",
+    "versionAfterStart": "De nieuwe versie moet na de ingangsdatum van de huidige versie beginnen."
   },
   "bracket": {
     "required": "er is ten minste één schijf vereist",
@@ -1795,9 +1904,9 @@
       "EMPLOYER": "— Kies een werkgeversbijdrage —"
     },
     "select": {
-      "ALLOWANCE": "Toelage",
-      "DEDUCTION": "Inhouding",
-      "EMPLOYER": "Werkgeversbijdrage"
+      "ALLOWANCE": "Toelagen",
+      "DEDUCTION": "Inhoudingen",
+      "EMPLOYER": "Werkgeversbijdragen"
     },
     "section": {
       "ALLOWANCE": "Vaste toelagen",
@@ -1819,13 +1928,10 @@
       "DEDUCTION": "Vaste inhouding toevoegen",
       "EMPLOYER": "Werkgeversbijdrage toevoegen"
     },
-    "groupCompany": "Componenten van het bedrijf",
-    "groupLibrary": "Centrale bibliotheek (wordt bij keuze automatisch toegevoegd)",
-    "groupStatutory": "Wettelijk — automatisch berekend",
     "statutory": {
       "LB": "Loonbelasting (automatisch)",
-      "AOV": "AOV-premie (automatisch)",
-      "PENS": "Pensioen (automatisch via arbeidsovereenkomst)"
+      "AOV": "AOV (automatisch)",
+      "BASE": "Basissalaris — via de arbeidsovereenkomst"
     },
     "statutoryName": {
       "LB": "Loonbelasting",
@@ -1904,7 +2010,18 @@
     "accrued": "Opgebouwd: {amount} (t/m {period})",
     "inMonth": "in {month}",
     "openEnded": "doorlopend",
-    "aovExcludedWarning": "Let op: volgens de ingestelde AOV-regeling is de grondslag het belastbaar loon. Sluit een belaste toelage alleen uit als dit wettelijk vaststaat."
+    "aovExcludedWarning": "Let op: volgens de ingestelde AOV-regeling is de grondslag het belastbaar loon. Sluit een belaste toelage alleen uit als dit wettelijk vaststaat.",
+    "scheme": {
+      "HEALTH": "Ziektekostenverzekering – werknemersaandeel",
+      "PENSION": "Pensioen – werknemersaandeel",
+      "FVO": "FVO – werknemersaandeel"
+    },
+    "viaScheme": "(automatisch via regeling)",
+    "schemeInfo": "Het werknemers- en werkgeversaandeel worden automatisch berekend via de regeling “{name}”. Deelname en afwijkende tarieven voor deze medewerker legt u vast onder C. Werknemers- en werkgeversbijdragen.",
+    "schemeInactive": "De regeling “{name}” is (nog) niet actief of niet van toepassing op deze medewerker. Activeer en configureer de tarieven eerst in de instellingen.",
+    "schemeMissing": "Er is nog geen regeling ingesteld. Configureer de regeling eerst onder Instellingen → Bijdragen.",
+    "schemeManageEmployee": "Naar deelname van deze medewerker",
+    "schemeManageSettings": "Regeling instellen"
   },
   "compose": {
     "title": "Loonstrook opstellen — {name}",
@@ -1947,5 +2064,97 @@
     "periodInputs": "Periode-invoer",
     "inputsLine": "Overwerk {ot1} + {ot2} uur · onbetaald {unpaid} d · bonus {bonus}",
     "finaliseText": "Een loonstrook wordt definitief wanneer de loonrun wordt goedgekeurd. Daarna kunnen bedragen niet meer worden gewijzigd en blijven historische loonstroken ongewijzigd."
+  },
+  "contrib": {
+    "intro": "Per regeling legt u een werknemersaandeel (inhouding op het salaris) en een werkgeversaandeel (werkgeverslasten, nooit ingehouden op het nettoloon) vast. Wijzig tarieven met ingang van een datum via een nieuwe versie, zodat historische loonstroken ongewijzigd blijven.",
+    "noInventedRates": "ARA Payroll vult geen percentages of bedragen vooraf in. Stel de tarieven, grondslag en wettelijke toepasselijkheid zelf in en laat wettelijke regelingen verifiëren.",
+    "typeHint": {
+      "HEALTH": "Werknemers- en werkgeversdeel van de ziektekostenverzekering.",
+      "PENSION": "Werknemers- en werkgeversdeel van de pensioenregeling. Een actieve regeling vervangt het pensioenpercentage uit de arbeidsovereenkomst (nooit beide).",
+      "FVO": "Werknemers- en werkgeversdeel van de FVO-bijdrage."
+    },
+    "basisHint": {
+      "STATUTORY": "Wettelijke verplichting: tarieven en grondslag moeten juridisch geverifieerd zijn.",
+      "VOLUNTARY": "Arbeidsvoorwaardelijke regeling volgens contract, cao of reglement."
+    },
+    "newScheme": "Nieuwe regeling",
+    "newSchemeFor": "Nieuwe regeling — {type}",
+    "none": "Nog geen regeling.",
+    "noneActive": "Er zijn geen actieve regelingen. Een beheerder kan ze inrichten onder Instellingen → Bijdragen.",
+    "back": "Terug naar bijdragen",
+    "saved": "Regeling opgeslagen.",
+    "allEmployees": "Alle medewerkers",
+    "enrolledOnly": "Alleen aangemelde medewerkers ({count})",
+    "employeeShare": "Werknemersaandeel",
+    "employerShare": "Werkgeversaandeel",
+    "employeeShareHint": "Wordt ingehouden op het salaris en verlaagt het nettoloon.",
+    "employerShareHint": "Komt bij de werkgeverslasten; wordt nooit op het nettoloon ingehouden.",
+    "fixedPerMonth": "Vast bedrag per maand",
+    "maxBaseShort": "max. {amount}",
+    "cols": {
+      "name": "Regeling",
+      "basis": "Soort",
+      "base": "Grondslag",
+      "validity": "Geldigheid",
+      "legal": "Juridisch",
+      "status": "Status",
+      "participation": "Deelname"
+    },
+    "status": {
+      "ended": "Beëindigd",
+      "future": "Toekomstig"
+    },
+    "f": {
+      "name": "Naam van de regeling",
+      "basis": "Wettelijk of arbeidsvoorwaardelijk",
+      "method": "Vast bedrag of percentage",
+      "employeeRate": "Werknemerspercentage (%)",
+      "employerRate": "Werkgeverspercentage (%)",
+      "employeeAmount": "Werknemersbedrag per maand",
+      "employerAmount": "Werkgeversbedrag per maand",
+      "base": "Berekeningsgrondslag",
+      "maxBase": "Maximumgrondslag per maand (optioneel)",
+      "maxBaseHint": "Leeg = geen maximum",
+      "currency": "Valuta",
+      "currencyHint": "Valuta van vaste bedragen en de maximumgrondslag",
+      "effectiveFrom": "Ingangsdatum",
+      "effectiveTo": "Einddatum (optioneel)",
+      "employeeTax": "Fiscale behandeling werknemersaandeel",
+      "active": "Actief",
+      "activeHint": "Alleen actieve regelingen worden in de salarisberekening verwerkt.",
+      "appliesToAll": "Van toepassing op alle medewerkers",
+      "appliesToAllHint": "Uit = alleen medewerkers die individueel zijn aangemeld.",
+      "showOnPayslip": "Werkgeversaandeel op de loonstrook tonen",
+      "showOnPayslipHint": "Het werknemersaandeel staat altijd op de loonstrook; het werkgeversaandeel telt altijd mee in de werkgeverslasten.",
+      "notes": "Opmerking",
+      "participates": "Neemt deel aan deze regeling",
+      "employeeRateOverride": "Afwijkend werknemerspercentage (%)",
+      "employerRateOverride": "Afwijkend werkgeverspercentage (%)",
+      "employeeAmountOverride": "Afwijkend werknemersbedrag",
+      "employerAmountOverride": "Afwijkend werkgeversbedrag",
+      "overrideHint": "Leeg = regeling ({value})"
+    },
+    "statutoryWarning": "Wettelijke regeling: tarieven, grondslag en verdeling zijn in ARA Payroll niet geverifieerd. Een loonrun met een niet-geverifieerde regeling krijgt de status 'wettelijke validatie in behandeling'.",
+    "versionTitle": "Tarief wijzigen met ingang van een datum",
+    "versionSub": "Maakt een nieuwe versie; de huidige versie eindigt de dag ervoor. Goedgekeurde loonstroken blijven ongewijzigd.",
+    "newVersion": "Nieuwe versie maken",
+    "versionCreated": "Nieuwe versie aangemaakt. Pas de tarieven aan en sla op.",
+    "employeeTabTitle": "Werknemers- en werkgeversbijdragen",
+    "employeeTabSub": "Ziektekostenverzekering, pensioen en FVO: het werknemersaandeel wordt ingehouden, het werkgeversaandeel komt bij de werkgeverslasten.",
+    "contractPensionIgnored": "Het pensioenpercentage uit de arbeidsovereenkomst wordt niet toegepast zolang de regeling “{name}” van toepassing is (geen dubbele inhouding).",
+    "editParticipation": "Deelname of tarief aanpassen",
+    "resetParticipation": "Individuele afspraak verwijderen",
+    "individual": "individueel",
+    "participation": {
+      "all": "Neemt deel",
+      "optedOut": "Afgemeld",
+      "enrolled": "Aangemeld",
+      "notEnrolled": "Niet aangemeld"
+    },
+    "enrollmentSaved": "Deelname aan {name} opgeslagen.",
+    "enrollmentRemoved": "Individuele afspraak verwijderd; de standaard van de regeling geldt weer.",
+    "sharesLine": "Werknemer {employee} · werkgever {employer}",
+    "viaScheme": "Via regeling",
+    "lookalikes": "Controleer deze eigen componenten: ze lijken op ziektekosten, pensioen of FVO en worden niet automatisch als dezelfde bijdrage herkend: {list}. Beëindig ze wanneer de regeling dezelfde bijdrage inhoudt, om dubbele inhouding te voorkomen."
   }
 }

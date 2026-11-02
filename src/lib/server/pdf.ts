@@ -5,7 +5,7 @@ import type { Fmt } from "@/lib/format";
 import type { Conversion } from "@/lib/currency";
 import { conversionLabel, lineLabel } from "@/lib/payslip-labels";
 import { BRAND_ICON_PNG_BASE64 } from "./brand-icon";
-import { payslipSummary, SUMMARY_ROWS } from "@/lib/payroll/summary";
+import { payslipSections, payslipSummary, SUMMARY_ROWS } from "@/lib/payroll/summary";
 
 type Slip = Payslip & { lines: PayslipLine[] };
 type T = (key: string, values?: Record<string, string | number>) => string;
@@ -14,8 +14,8 @@ const NAVY = rgb(11 / 255, 61 / 255, 145 / 255);
 const MUTED = rgb(0.36, 0.4, 0.48);
 const LINE = rgb(0.88, 0.9, 0.93);
 
-// Standard PDF fonts only support WinAnsi; strip anything outside it.
-const safe = (s: string | null | undefined) => (s ?? "").replace(/ | /g, " ").replace(/[^\x20-\x7E\xA0-\xFF€]/g, "?");
+// Standard PDF fonts only support WinAnsi (incl. – — ‘ ’ “ ” • …); strip anything outside it.
+const safe = (s: string | null | undefined) => (s ?? "").replace(/ | /g, " ").replace(/[^\x20-\x7E\xA0-\xFF€–—‘’“”•…]/g, "?");
 
 export async function renderPayslipsPdf(company: Company, run: PayrollRun, slips: Slip[], t: T, f: Fmt) {
   const pdf = await PDFDocument.create();
@@ -92,39 +92,54 @@ function drawSlip(addPage: () => PDFPage, fonts: { font: PDFFont; bold: PDFFont;
   const colW = (width - 2 * M - 24) / 2;
   const xL = M;
   const xR = M + colW + 24;
-  const earnings = slip.lines.filter((l) => l.type === "EARNING");
-  const deductionLines = slip.lines.filter((l) => l.type === "DEDUCTION");
-  const rowHeight = (l?: PayslipLine) => (l ? (l.originalCurrency ? 25 : 14) : 0);
-  const cell = (l: PayslipLine, x: number, yy: number) => {
-    const base = lineLabel(l, t, f, ot);
-    const label = l.quantity != null ? `${base} x ${f.number(l.quantity, 4)}` : base;
-    text(label.slice(0, 50), x, yy, { size: 9 });
-    text(f.amount(l.amount), x + colW, yy, { size: 9, right: true });
-    if (l.originalCurrency) text(f.money(l.originalAmount, l.originalCurrency), x + 8, yy - 11, { size: 7.5, color: MUTED });
+  // Rows per payslip section: a bold group line with its subtotal, followed by its lines when they add detail.
+  type Row = { label: string; amount: number; bold?: boolean; indent?: boolean; sub?: string };
+  const sections = payslipSections(slip, slip.lines);
+  const toRows = (secs: (typeof sections)["income"], kind: "earning" | "deduction" | "employer"): Row[] => secs.flatMap((sec) => {
+    const head = t(`payslip.groups.${kind}.${sec.group}`);
+    const detail = sec.lines.length > 1 || lineLabel(sec.lines[0], t, f, ot) !== head;
+    return [
+      { label: head, amount: sec.total, bold: true },
+      ...(detail ? sec.lines.map((l) => {
+        const base = lineLabel(l, t, f, ot);
+        return { label: l.quantity != null ? `${base} x ${f.number(l.quantity, 4)}` : base, amount: l.amount, indent: true, sub: l.originalCurrency ? f.money(l.originalAmount, l.originalCurrency) : undefined };
+      }) : []),
+    ];
+  });
+  const rowHeight = (r?: Row) => (r ? (r.sub ? 24 : r.bold ? 14 : 12) : 0);
+  const cell = (r: Row, x: number, yy: number) => {
+    const o = r.bold ? { size: 9, f: bold } : { size: 8.5, color: MUTED };
+    text(r.label.slice(0, r.indent ? 48 : 50), r.indent ? x + 8 : x, yy, o);
+    text(f.amount(r.amount), x + colW, yy, { ...o, right: true });
+    if (r.sub) text(r.sub, x + 16, yy - 10, { size: 7.5, color: MUTED });
   };
-  const heads = () => {
-    text(t("payslip.earnings").toUpperCase(), xL, y, { size: 8, f: bold, color: MUTED });
-    text(t("payslip.deductions").toUpperCase(), xR, y, { size: 8, f: bold, color: MUTED });
-    y -= 16;
+  const twoColumns = (left: Row[], right: Row[], headL: string, headR: string) => {
+    const heads = () => {
+      text(headL.toUpperCase(), xL, y, { size: 8, f: bold, color: MUTED });
+      if (headR) text(headR.toUpperCase(), xR, y, { size: 8, f: bold, color: MUTED });
+      y -= 16;
+    };
+    heads();
+    // Both columns are drawn row by row so a long payslip continues on the next page.
+    for (let i = 0; i < Math.max(left.length, right.length); i++) {
+      const h = Math.max(rowHeight(left[i]), rowHeight(right[i]));
+      if (y - h < BOTTOM) { ensure(h + 16); heads(); }
+      if (left[i]) cell(left[i], xL, y);
+      if (right[i]) cell(right[i], xR, y);
+      y -= h;
+    }
+  };
+  const totals = (l: [string, number] | null, r: [string, number] | null) => {
+    ensure(24);
+    if (l) page.drawLine({ start: { x: xL, y: y + 8 }, end: { x: xL + colW, y: y + 8 }, color: LINE, thickness: 1 });
+    if (r) page.drawLine({ start: { x: xR, y: y + 8 }, end: { x: xR + colW, y: y + 8 }, color: LINE, thickness: 1 });
+    y -= 6;
+    if (l) { text(l[0], xL, y, { size: 10, f: bold }); text(f.amount(l[1]), xL + colW, y, { size: 10, f: bold, right: true }); }
+    if (r) { text(r[0], xR, y, { size: 10, f: bold }); text(f.amount(r[1]), xR + colW, y, { size: 10, f: bold, right: true }); }
   };
   y -= 20;
-  heads();
-  // Both columns are drawn row by row so a long payslip continues on the next page.
-  for (let i = 0; i < Math.max(earnings.length, deductionLines.length); i++) {
-    const h = Math.max(rowHeight(earnings[i]), rowHeight(deductionLines[i]));
-    if (y - h < BOTTOM) { ensure(h + 16); heads(); }
-    if (earnings[i]) cell(earnings[i], xL, y);
-    if (deductionLines[i]) cell(deductionLines[i], xR, y);
-    y -= h;
-  }
-  ensure(24);
-  page.drawLine({ start: { x: xL, y: y + 8 }, end: { x: xL + colW, y: y + 8 }, color: LINE, thickness: 1 });
-  page.drawLine({ start: { x: xR, y: y + 8 }, end: { x: xR + colW, y: y + 8 }, color: LINE, thickness: 1 });
-  y -= 6;
-  text(t("payslip.grossPay"), xL, y, { size: 10, f: bold });
-  text(f.amount(slip.grossPay), xL + colW, y, { size: 10, f: bold, right: true });
-  text(t("payslip.totalDeductions"), xR, y, { size: 10, f: bold });
-  text(f.amount(slip.totalDeductions), xR + colW, y, { size: 10, f: bold, right: true });
+  twoColumns(toRows(sections.income, "earning"), toRows(sections.deductions, "deduction"), t("payslip.income"), t("payslip.employeeDeductions"));
+  totals([t("payslip.grossPay"), slip.grossPay], [t("payslip.totalDeductions"), slip.totalDeductions]);
   y -= 44;
   ensure(40);
 
@@ -134,31 +149,33 @@ function drawSlip(addPage: () => PDFPage, fonts: { font: PDFFont; bold: PDFFont;
   text(f.money(slip.netPayPayment, slip.paymentCurrency), width - M - 14, y + 2, { size: 15, f: bold, color: rgb(1, 1, 1), right: true });
   if (differs) text(`${f.money(slip.netPay, cur)} - ${t("payslip.netPaidIn", { currency: slip.paymentCurrency })}`, width - M - 14, y - 11, { size: 7.5, color: rgb(0.8, 0.85, 0.95), right: true });
 
-  // Summary: the 12 payslip totals in two columns.
+  // Employer side (never part of net pay): contributions and total employment costs.
   y -= differs ? 46 : 38;
-  ensure(14 + 6 * 13 + 30);
+  ensure(60);
+  const employerRows = toRows(sections.employer, "employer");
+  if (sections.hiddenEmployer > 0) employerRows.push({ label: t("payslip.otherEmployerCosts"), amount: sections.hiddenEmployer, bold: true });
+  const costRows: Row[] = [
+    { label: t("payslip.grossPay"), amount: slip.grossPay },
+    { label: t("payslip.employerTotal"), amount: sections.employerTotal },
+  ];
+  twoColumns(employerRows, costRows, t("payslip.employerContributions"), t("payslip.employmentCostTitle"));
+  totals([t("payslip.employerTotal"), sections.employerTotal], [t("payslip.totalEmploymentCost"), slip.employerCost]);
+
+  // Summary: the payslip totals in two columns.
+  const half = Math.ceil(SUMMARY_ROWS.length / 2);
+  y -= 30;
+  ensure(14 + half * 13 + 30);
   text(t("payslip.summaryTitle").toUpperCase(), M, y, { size: 8, f: bold, color: MUTED });
   const summary = payslipSummary(slip, slip.lines);
-  const strong = new Set(["grossPay", "totalDeductions", "totalPayable"]);
+  const strong = new Set(["grossPay", "totalDeductions", "totalPayable", "totalEmploymentCost"]);
   SUMMARY_ROWS.forEach((k, i) => {
-    const x = i < 6 ? M : M + colW + 24;
-    const yy = y - 14 - (i % 6) * 13;
+    const x = i < half ? M : M + colW + 24;
+    const yy = y - 14 - (i % half) * 13;
     const o = strong.has(k) ? { size: 9, f: bold } : { size: 9 };
     text(t(`payslip.summary.${k}`), x, yy, o);
     text(f.money(summary[k], cur), x + colW, yy, { ...o, right: true });
   });
-  y -= 14 + 6 * 13 + 4;
-  const employer = slip.lines.filter((x) => x.type === "EMPLOYER");
-  if (employer.length) {
-    y -= 10;
-    ensure(24);
-    employer.slice(0, 4).forEach((l, i) => {
-      const x = M + i * ((width - 2 * M) / 4);
-      text(lineLabel(l, t, f, ot).slice(0, 34), x, y, { size: 7.5, color: MUTED });
-      text(f.money(l.amount, cur), x, y - 11, { size: 8.5, f: bold });
-    });
-    y -= 12;
-  }
+  y -= 14 + half * 13 + 4;
 
   const conversions = (slip.conversions as unknown as Conversion[]) ?? [];
   if (conversions.length) {

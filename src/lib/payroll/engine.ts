@@ -18,6 +18,8 @@
  */
 
 import { evaluateFormula, formulaVariables, FormulaError } from "./formula";
+import { lineGroup, type LineGroup } from "./summary";
+import { employeeCode, employerCode, type ContributionType } from "./contributions";
 
 export type Bracket = { upTo: number | null; rateBp: number; fixed?: number };
 
@@ -81,6 +83,32 @@ export interface ComponentInput {
    * resolved and recorded in trace.accruals[id]; it is only paid (with the prior balance) when pay is true.
    */
   accrual?: { id: string; prior: number; pay: boolean };
+  /** Used to place the line in the right payslip section (holiday allowance, bonus, reimbursement, …). */
+  libraryCode?: string | null;
+  category?: string | null;
+}
+
+/**
+ * A contribution scheme applying to the employee: the employee share is deducted, the employer share is an
+ * employer cost only. Amounts are monthly, in the calculation currency.
+ */
+export interface ContributionInput {
+  id: string;
+  type: ContributionType;
+  name: string;
+  labels?: { nl?: string; en?: string };
+  method: "PERCENTAGE" | "FIXED";
+  base: "BASE_SALARY" | "PENSION_BASE" | "REGULAR_WAGE" | "GROSS_WAGE";
+  employeeRateBp: number;
+  employerRateBp: number;
+  employeeAmount: number;
+  employerAmount: number;
+  /** Maximum monthly base (calculation currency); null = no maximum. */
+  maxBase: number | null;
+  /** Employee share deducted before wage tax. */
+  preTax: boolean;
+  /** Print the employer share on the payslip (it always counts as employer cost). */
+  showEmployer: boolean;
 }
 
 export interface LeaveInput {
@@ -127,7 +155,9 @@ export type LineSource = "BASE" | "FIXED" | "INCIDENTAL" | "STATUTORY" | "LEAVE"
 
 export interface PayslipLineResult {
   type: "EARNING" | "DEDUCTION" | "EMPLOYER";
-  source?: LineSource;
+  source?: LineSource | "CONTRIBUTION";
+  group?: LineGroup;
+  showOnPayslip?: boolean;
   code: string;
   description: string;
   labels?: { nl?: string; en?: string };
@@ -152,6 +182,8 @@ export interface PayrollResult {
   pensionEmployee: number;
   pensionEmployer: number;
   employerContributions: number;
+  /** Employee and employer share per contribution scheme type. */
+  contributions: { id: string; type: ContributionType; employee: number; employer: number }[];
   totalDeductions: number;
   netPay: number;
   employerCost: number;
@@ -305,6 +337,7 @@ export function calculatePayslip(
   components: ComponentInput[],
   rules: TaxRules,
   aovRules: AovRules = legacyAovRules(rules),
+  contributions: ContributionInput[] = [],
 ): PayrollResult {
   const lines: PayslipLineResult[] = [];
   const trace: Record<string, unknown> = {};
@@ -396,6 +429,7 @@ export function calculatePayslip(
   let exemptPaidAllowances = 0;
   const lineMeta = (c: ComponentInput, amount: number) => ({
     source: c.source ?? ("FIXED" as const),
+    group: lineGroup({ type: c.kind === "ALLOWANCE" ? "EARNING" : c.kind === "DEDUCTION" ? "DEDUCTION" : "EMPLOYER", code: c.code, amount, source: c.source ?? "FIXED", libraryCode: c.libraryCode, taxTreatment: c.taxTreatment, category: c.category }),
     code: c.code,
     description: c.name,
     labels: c.labels,
@@ -446,10 +480,33 @@ export function calculatePayslip(
 
   // 4. Pre-tax deductions
   const pensionBase = componentBase + pensionAllowances;
-  const pensionEmployee = applyBp(pensionBase, emp.pensionEmployeeBp);
-  const pensionEmployer = applyBp(pensionBase, emp.pensionEmployerBp);
+  // A pension scheme replaces the pension percentages of the employment contract (never both: no double deduction).
+  const pensionScheme = contributions.some((c) => c.type === "PENSION");
+  const pensionEmployee = pensionScheme ? 0 : applyBp(pensionBase, emp.pensionEmployeeBp);
+  const pensionEmployer = pensionScheme ? 0 : applyBp(pensionBase, emp.pensionEmployerBp);
+  trace.pensionSource = pensionScheme ? "SCHEME" : emp.pensionEmployeeBp || emp.pensionEmployerBp ? "CONTRACT" : "NONE";
+
+  // Contribution schemes: employee share (deduction) and employer share (employer cost), each on its own base.
+  const regularWageBeforeDeductions = basePay + taxableAllowances;
+  const schemeBase = (b: ContributionInput["base"]) =>
+    b === "BASE_SALARY" ? componentBase : b === "PENSION_BASE" ? pensionBase : b === "REGULAR_WAGE" ? regularWageBeforeDeductions : grossPay;
+  const contrib = contributions.map((c) => {
+    const raw = Math.max(0, schemeBase(c.base));
+    const base = c.maxBase != null ? Math.min(raw, c.maxBase) : raw;
+    const employee = Math.max(0, c.method === "FIXED" ? c.employeeAmount : applyBp(base, c.employeeRateBp));
+    const employer = Math.max(0, c.method === "FIXED" ? c.employerAmount : applyBp(base, c.employerRateBp));
+    return { c, base, capped: base < raw, employee, employer };
+  });
+  trace.contributions = contrib.map(({ c, base, capped, employee, employer }) => ({
+    id: c.id, type: c.type, name: c.name, method: c.method, base: c.base, baseAmount: base, capped, maxBase: c.maxBase,
+    employeeRateBp: c.employeeRateBp, employerRateBp: c.employerRateBp, employee, employer, preTax: c.preTax,
+  }));
+  const contribPreTax = contrib.filter((x) => x.c.preTax).reduce((s, x) => s + x.employee, 0);
+  const contribEmployee = contrib.reduce((s, x) => s + x.employee, 0);
+  const contribEmployer = contrib.reduce((s, x) => s + x.employer, 0);
+
   const deductions = components.map((c, i) => ({ c, amount: amounts[i] })).filter((d) => d.c.kind === "DEDUCTION");
-  const preTaxDeductions = pensionEmployee + deductions.filter((d) => d.c.preTax).reduce((s, d) => s + d.amount, 0);
+  const preTaxDeductions = pensionEmployee + contribPreTax + deductions.filter((d) => d.c.preTax).reduce((s, d) => s + d.amount, 0);
 
   // 5. Wage tax on the regular wage
   const regularWage = basePay + taxableAllowances;
@@ -515,6 +572,9 @@ export function calculatePayslip(
   if (overtimeTax > 0) lines.push({ type: "DEDUCTION", source: "STATUTORY", code: "LB-OT", description: "Wage tax on overtime", amount: overtimeTax });
   if (aov > 0) lines.push({ type: "DEDUCTION", source: "STATUTORY", code: "AOV", description: "AOV premium", rate: applyBp(aovRules.rateBp, aovRules.employeeShareBp), amount: aov });
   if (pensionEmployee > 0) lines.push({ type: "DEDUCTION", source: "STATUTORY", code: "PENS", description: "Pension contribution", rate: emp.pensionEmployeeBp, amount: pensionEmployee });
+  for (const x of contrib) {
+    if (x.employee > 0) lines.push({ type: "DEDUCTION", source: "CONTRIBUTION", group: x.c.type, code: employeeCode(x.c.type), description: x.c.name, labels: x.c.labels, rate: x.c.method === "PERCENTAGE" ? x.c.employeeRateBp : undefined, amount: x.employee });
+  }
 
   // 8. Other deductions
   let otherDeductions = 0;
@@ -525,7 +585,7 @@ export function calculatePayslip(
   }
 
   const totalTax = wageTax + bonusTax + overtimeTax;
-  const totalDeductions = totalTax + aov + pensionEmployee + otherDeductions;
+  const totalDeductions = totalTax + aov + pensionEmployee + contribEmployee + otherDeductions;
   const netPay = grossPay - totalDeductions - benefitsInKind;
 
   // Employer contributions: calculated separately, never deducted from net pay.
@@ -536,10 +596,16 @@ export function calculatePayslip(
     employerContributions += amounts[i];
     lines.push({ type: "EMPLOYER", ...lineMeta(c, amounts[i]) });
   });
+  // Employer shares of contribution schemes: employer cost only, never deducted from net pay.
+  for (const x of contrib) {
+    if (x.employer > 0) lines.push({ type: "EMPLOYER", source: "CONTRIBUTION", group: x.c.type, showOnPayslip: x.c.showEmployer, code: employerCode(x.c.type), description: x.c.name, labels: x.c.labels, rate: x.c.method === "PERCENTAGE" ? x.c.employerRateBp : undefined, amount: x.employer });
+  }
+  employerContributions += contribEmployer;
   const employerCost = grossPay + pensionEmployer + aovEmployer + employerContributions;
   trace.benefitsInKind = benefitsInKind;
   trace.employerContributions = employerContributions;
 
+  for (const l of lines) l.group ??= lineGroup(l);
   return {
     lines,
     grossPay,
@@ -554,6 +620,7 @@ export function calculatePayslip(
     pensionEmployee,
     pensionEmployer,
     employerContributions,
+    contributions: contrib.map((x) => ({ id: x.c.id, type: x.c.type, employee: x.employee, employer: x.employer })),
     totalDeductions,
     netPay,
     employerCost,

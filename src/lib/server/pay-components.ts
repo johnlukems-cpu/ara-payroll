@@ -1,7 +1,7 @@
 import "server-only";
 import type { AssignmentFrequency, PayComponent, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
-import { COMPONENT_LIBRARY, libraryDefaults, SYSTEM_CODES } from "@/lib/payroll/library";
+import { COMPONENT_LIBRARY, CONTRIBUTION_LIBRARY, libraryDefaults, SYSTEM_CODES } from "@/lib/payroll/library";
 import { scheduleFor } from "@/lib/payroll/schedule";
 import { periodBounds } from "@/lib/payroll/service";
 import { UserError } from "./errors";
@@ -32,6 +32,10 @@ export type ComponentOption = {
   fromLibrary: boolean;
 };
 
+/** Components replaced by contribution schemes (employee/employer share of health insurance, pension and FVO). */
+const CONTRIBUTION_CODES = new Set(Object.values(CONTRIBUTION_LIBRARY).flat());
+export const isContributionComponent = (c: { code: string; libraryCode?: string | null }) => CONTRIBUTION_CODES.has(c.libraryCode ?? "") || CONTRIBUTION_CODES.has(c.code);
+
 export function isStatutory(c: Pick<PayComponent, "code" | "libraryCode">) {
   return STATUTORY_CODES.has(c.code) || SYSTEM_CODES.has(c.code) || (!!c.libraryCode && SYSTEM_CODES.has(c.libraryCode));
 }
@@ -49,14 +53,14 @@ export async function componentOptions(companyId: string, locale: string): Promi
   const comps = await db.payComponent.findMany({ where: { companyId }, orderBy: [{ kind: "asc" }, { name: "asc" }] });
   const used = new Set(comps.flatMap((c) => [c.code, c.libraryCode ?? ""]));
   const out: ComponentOption[] = comps
-    .filter((c) => c.isActive && c.approvalStatus === "APPROVED" && c.availableToAll && !isStatutory(c) && c.category !== "LEAVE" && c.category !== "SALARY")
+    .filter((c) => c.isActive && c.approvalStatus === "APPROVED" && c.availableToAll && !isStatutory(c) && !isContributionComponent(c) && c.category !== "LEAVE" && c.category !== "SALARY")
     .map((c) => ({
       value: c.id, code: c.code, name: localName(c, locale), kind: c.kind, category: c.category, calcType: c.calcType, taxTreatment: c.taxTreatment,
       frequency: assignmentFrequencyOf(c.frequency), defaultAmount: c.defaultAmount, defaultRatePct: c.defaultRateBp ? String(c.defaultRateBp / 100) : "",
       currency: c.currency, aovIncluded: c.aovIncluded, pensionIncluded: c.pensionIncluded, legalStatus: c.legalStatus, legalReference: c.legalReference, fromLibrary: false,
     }));
   for (const e of COMPONENT_LIBRARY) {
-    if (e.isSystem || used.has(e.code) || e.category === "LEAVE" || e.category === "SALARY") continue;
+    if (e.isSystem || used.has(e.code) || CONTRIBUTION_CODES.has(e.code) || e.category === "LEAVE" || e.category === "SALARY") continue;
     const d = libraryDefaults(e);
     out.push({
       value: `lib:${e.code}`, code: e.code, name: locale === "en" ? e.nameEn : e.nameNl, kind: e.kind, category: e.category, calcType: d.calcType, taxTreatment: d.taxTreatment,
@@ -73,6 +77,7 @@ export async function resolveComponent(companyId: string, value: string, locale:
     const code = value.slice(4);
     const e = COMPONENT_LIBRARY.find((x) => x.code === code);
     if (!e || e.isSystem) throw new UserError("errors.statutoryAutomatic");
+    if (CONTRIBUTION_CODES.has(e.code)) throw new UserError("errors.useContributionScheme");
     const existing = await tx.payComponent.findFirst({ where: { companyId, OR: [{ code }, { libraryCode: code }] } });
     if (existing) return existing;
     return tx.payComponent.create({
@@ -85,6 +90,7 @@ export async function resolveComponent(companyId: string, value: string, locale:
   const c = await tx.payComponent.findFirst({ where: { id: value, companyId } });
   if (!c) throw new UserError("errors.invalidEmployeeOrComponent");
   if (isStatutory(c)) throw new UserError("errors.statutoryAutomatic");
+  if (isContributionComponent(c)) throw new UserError("errors.useContributionScheme");
   if (!c.isActive || c.approvalStatus !== "APPROVED") throw new UserError("errors.componentInactive", { name: c.name });
   return c;
 }
