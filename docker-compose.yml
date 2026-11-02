@@ -1,0 +1,40 @@
+# Local / single-server deployment: PostgreSQL + migrations + ARA Payroll.
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ara
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      POSTGRES_DB: ara_payroll
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ara -d ara_payroll"]
+      interval: 5s
+      retries: 10
+
+  migrate:
+    build: { context: ., target: migrator }
+    environment:
+      DATABASE_URL: postgresql://ara:${POSTGRES_PASSWORD:-change-me}@db:5432/ara_payroll
+    depends_on:
+      db: { condition: service_healthy }
+
+  app:
+    build: { context: ., target: runner }
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql://ara:${POSTGRES_PASSWORD:-change-me}@db:5432/ara_payroll
+      # Set to "true" only when serving over plain HTTP (e.g. local testing without TLS).
+      INSECURE_COOKIES: ${INSECURE_COOKIES:-false}
+    ports:
+      - "3000:3000"
+    volumes:
+      - storage:/data
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+
+volumes:
+  pgdata:
+  storage:

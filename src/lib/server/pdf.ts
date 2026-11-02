@@ -1,0 +1,99 @@
+import "server-only";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import type { Company, Payslip, PayslipLine, PayrollRun } from "@prisma/client";
+import { amount, date, periodLabel } from "@/lib/format";
+
+type Slip = Payslip & { lines: PayslipLine[] };
+
+const NAVY = rgb(11 / 255, 42 / 255, 91 / 255);
+const MUTED = rgb(0.36, 0.4, 0.48);
+const LINE = rgb(0.88, 0.9, 0.93);
+
+// Standard PDF fonts only support WinAnsi; strip anything outside it.
+const safe = (s: string | null | undefined) => (s ?? "").replace(/[^\x20-\x7E\xA0-\xFF]/g, "?");
+
+export async function renderPayslipsPdf(company: Company, run: PayrollRun, slips: Slip[]) {
+  const pdf = await PDFDocument.create();
+  pdf.setTitle(`Payslips ${periodLabel(run.year, run.month)} - ${company.name}`);
+  pdf.setProducer("ARA Payroll - ARA Intelligent Solutions");
+  pdf.setCreator("ARA Payroll");
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  for (const slip of slips) drawSlip(pdf.addPage([595.28, 841.89]), font, bold, company, run, slip);
+  return pdf.save();
+}
+
+function drawSlip(page: PDFPage, font: PDFFont, bold: PDFFont, company: Company, run: PayrollRun, slip: Slip) {
+  const { width } = page.getSize();
+  const M = 48;
+  let y = 790;
+  const text = (s: string, x: number, yy: number, o: { size?: number; f?: PDFFont; color?: ReturnType<typeof rgb>; right?: boolean } = {}) => {
+    const size = o.size ?? 10;
+    const f = o.f ?? font;
+    const t = safe(s);
+    const xx = o.right ? x - f.widthOfTextAtSize(t, size) : x;
+    page.drawText(t, { x: xx, y: yy, size, font: f, color: o.color ?? rgb(0.05, 0.08, 0.14) });
+  };
+
+  page.drawRectangle({ x: 0, y: 812, width, height: 30, color: NAVY });
+  text("ARA Payroll", M, 822, { size: 11, f: bold, color: rgb(1, 1, 1) });
+  text("Developed by ARA Intelligent Solutions", width - M, 822, { size: 8, color: rgb(0.8, 0.85, 0.95), right: true });
+
+  y = 770;
+  text(company.legalName ?? company.name, M, y, { size: 14, f: bold });
+  text("PAYSLIP", width - M, y, { size: 9, color: MUTED, right: true });
+  y -= 16;
+  text([company.address, company.district].filter(Boolean).join(", "), M, y, { size: 9, color: MUTED });
+  text(periodLabel(run.year, run.month), width - M, y, { size: 13, f: bold, right: true });
+  y -= 13;
+  if (company.taxNumber) text(`Tax no. ${company.taxNumber}${company.kkfNumber ? `  KKF ${company.kkfNumber}` : ""}`, M, y, { size: 8, color: MUTED });
+  text(`Pay date ${date(run.payDate)}`, width - M, y, { size: 9, color: MUTED, right: true });
+
+  y -= 22;
+  page.drawLine({ start: { x: M, y }, end: { x: width - M, y }, color: LINE, thickness: 1 });
+  y -= 18;
+  const cols = [["Employee", slip.employeeName], ["Employee no.", slip.employeeNumber], ["Position", slip.jobTitle ?? "-"], ["Bank account", slip.bankAccount ?? "-"]];
+  cols.forEach(([k, v], i) => {
+    const x = M + i * ((width - 2 * M) / 4);
+    text(k, x, y, { size: 8, color: MUTED });
+    text(v, x, y - 13, { size: 10, f: bold });
+  });
+  y -= 36;
+  page.drawLine({ start: { x: M, y }, end: { x: width - M, y }, color: LINE, thickness: 1 });
+
+  const colW = (width - 2 * M - 24) / 2;
+  const table = (title: string, lines: PayslipLine[], total: number, totalLabel: string, x: number) => {
+    let yy = y - 22;
+    text(title.toUpperCase(), x, yy, { size: 8, f: bold, color: MUTED });
+    yy -= 16;
+    for (const l of lines) {
+      const label = l.quantity != null ? `${l.description} x ${l.quantity}` : l.description;
+      text(label.slice(0, 48), x, yy, { size: 9 });
+      text(amount(l.amount), x + colW, yy, { size: 9, right: true });
+      yy -= 14;
+    }
+    page.drawLine({ start: { x, y: yy + 8 }, end: { x: x + colW, y: yy + 8 }, color: LINE, thickness: 1 });
+    yy -= 6;
+    text(totalLabel, x, yy, { size: 10, f: bold });
+    text(amount(total), x + colW, yy, { size: 10, f: bold, right: true });
+    return yy;
+  };
+  const y1 = table("Earnings", slip.lines.filter((l) => l.type === "EARNING"), slip.grossPay, "Gross pay", M);
+  const y2 = table("Deductions", slip.lines.filter((l) => l.type === "DEDUCTION"), slip.totalDeductions, "Total deductions", M + colW + 24);
+  y = Math.min(y1, y2) - 44;
+
+  page.drawRectangle({ x: M, y: y - 10, width: width - 2 * M, height: 36, color: NAVY });
+  text("NET PAY", M + 14, y + 4, { size: 10, f: bold, color: rgb(1, 1, 1) });
+  text(`${company.currency} ${amount(slip.netPay)}`, width - M - 14, y + 2, { size: 15, f: bold, color: rgb(1, 1, 1), right: true });
+
+  y -= 42;
+  const info: [string, number][] = [["Taxable wage", slip.taxableWage], ["Wage tax", slip.wageTax], ["AOV", slip.aov]];
+  for (const l of slip.lines.filter((x) => x.type === "EMPLOYER")) info.push([l.description, l.amount]);
+  info.forEach(([k, v], i) => {
+    const x = M + i * ((width - 2 * M) / 4);
+    text(k, x, y, { size: 8, color: MUTED });
+    text(amount(v), x, y - 12, { size: 9, f: bold });
+  });
+
+  text("Generated by ARA Payroll - Developed by ARA Intelligent Solutions", width / 2 - 140, 40, { size: 7.5, color: MUTED });
+}

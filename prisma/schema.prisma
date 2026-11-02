@@ -1,0 +1,428 @@
+// ARA Payroll — Developed by ARA Intelligent Solutions
+// All monetary values are stored as integer cents (SRD) to avoid floating point errors.
+// All rates are stored as basis points (1% = 100 bp).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  PAYROLL_MANAGER
+  HR_MANAGER
+  ACCOUNTANT
+  EMPLOYEE
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+enum ContractType {
+  PERMANENT
+  FIXED_TERM
+  TEMPORARY
+  PROBATION
+}
+
+enum PayType {
+  MONTHLY
+  HOURLY
+}
+
+enum ComponentKind {
+  ALLOWANCE
+  DEDUCTION
+}
+
+enum TaxTreatment {
+  TAXABLE
+  EXEMPT
+  EXEMPT_UP_TO_LIMIT
+  CHILD_ALLOWANCE
+}
+
+enum CalcType {
+  FIXED
+  PERCENT_OF_BASE
+}
+
+enum PayrollStatus {
+  DRAFT
+  CALCULATED
+  APPROVED
+  PAID
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum PayslipLineType {
+  EARNING
+  DEDUCTION
+  EMPLOYER
+}
+
+/// A customer account (e.g. a single business or an accounting firm managing several companies).
+model Organization {
+  id        String    @id @default(cuid())
+  name      String
+  createdAt DateTime  @default(now())
+  companies Company[]
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  name         String
+  passwordHash String
+  isActive     Boolean      @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  memberships  Membership[]
+  sessions     Session[]
+  employees    Employee[]
+  auditLogs    AuditLog[]
+}
+
+model Session {
+  id              String   @id // SHA-256 hash of the session token; the raw token only lives in the cookie
+  userId          String
+  activeCompanyId String?
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String
+  companyId String
+  role      Role
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, companyId])
+}
+
+model Company {
+  id                    String             @id @default(cuid())
+  organizationId        String
+  name                  String
+  legalName             String?
+  kkfNumber             String? // Kamer van Koophandel en Fabrieken registration
+  taxNumber             String? // Fiscaal identificatienummer (FIB)
+  address               String?
+  district              String?
+  phone                 String?
+  email                 String?
+  bankName              String?
+  bankAccount           String?
+  currency              String             @default("SRD")
+  defaultHoursPerWeek   Int                @default(40)
+  overtimeRate1Bp       Int                @default(15000) // 150%
+  overtimeRate2Bp       Int                @default(20000) // 200%
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  organization          Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  memberships           Membership[]
+  departments           Department[]
+  employees             Employee[]
+  payComponents         PayComponent[]
+  payrollRuns           PayrollRun[]
+  leaveTypes            LeaveType[]
+  auditLogs             AuditLog[]
+  taxRuleSets           TaxRuleSet[]
+}
+
+model Department {
+  id        String     @id @default(cuid())
+  companyId String
+  name      String
+  company   Company    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  employees Employee[]
+
+  @@unique([companyId, name])
+}
+
+model Employee {
+  id                String                 @id @default(cuid())
+  companyId         String
+  userId            String?
+  employeeNumber    String
+  firstName         String
+  lastName          String
+  idNumber          String? // Surinamese ID-kaart number
+  dateOfBirth       DateTime?
+  gender            String?
+  maritalStatus     String?
+  numberOfChildren  Int                    @default(0)
+  email             String?
+  phone             String?
+  address           String?
+  district          String?
+  bankName          String?
+  bankAccount       String?
+  departmentId      String?
+  jobTitle          String?
+  hireDate          DateTime
+  terminationDate   DateTime?
+  status            EmployeeStatus         @default(ACTIVE)
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+  company           Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user              User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
+  department        Department?            @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  contracts         Contract[]
+  components        EmployeePayComponent[]
+  payrollInputs     PayrollInput[]
+  payslips          Payslip[]
+  leaveRequests     LeaveRequest[]
+  documents         EmployeeDocument[]
+
+  @@unique([companyId, employeeNumber])
+  @@index([companyId, status])
+}
+
+model Contract {
+  id                  String       @id @default(cuid())
+  employeeId          String
+  contractType        ContractType
+  payType             PayType      @default(MONTHLY)
+  startDate           DateTime
+  endDate             DateTime?
+  baseSalary          Int          @default(0) // monthly salary in cents (MONTHLY)
+  hourlyRate          Int          @default(0) // cents per hour (HOURLY)
+  hoursPerWeek        Int          @default(40)
+  pensionEmployeeBp   Int          @default(0)
+  pensionEmployerBp   Int          @default(0)
+  notes               String?
+  createdAt           DateTime     @default(now())
+  employee            Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, startDate])
+}
+
+model PayComponent {
+  id               String                 @id @default(cuid())
+  companyId        String
+  code             String
+  name             String
+  kind             ComponentKind
+  calcType         CalcType               @default(FIXED)
+  taxTreatment     TaxTreatment           @default(TAXABLE)
+  exemptLimit      Int                    @default(0) // monthly exempt cap in cents for EXEMPT_UP_TO_LIMIT
+  preTax           Boolean                @default(false) // deductions only: reduces taxable wage
+  isActive         Boolean                @default(true)
+  company          Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignments      EmployeePayComponent[]
+  adjustments      PayrollAdjustment[]
+
+  @@unique([companyId, code])
+}
+
+model EmployeePayComponent {
+  id          String       @id @default(cuid())
+  employeeId  String
+  componentId String
+  amount      Int          @default(0) // cents (FIXED)
+  rateBp      Int          @default(0) // basis points (PERCENT_OF_BASE)
+  startDate   DateTime
+  endDate     DateTime?
+  employee    Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  component   PayComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+}
+
+/// Statutory parameters for Surinamese wage tax (Loonbelasting) and AOV.
+/// Versioned by effective date. companyId null = platform default.
+model TaxRuleSet {
+  id                       String   @id @default(cuid())
+  companyId                String?
+  name                     String
+  effectiveFrom            DateTime
+  brackets                 Json // [{ upTo: cents|null, rateBp }] annual taxable wage
+  taxCreditMonthly         Int // heffingskorting (cents/month)
+  lumpSumRateBp            Int // forfaitaire aftrek rate
+  lumpSumCapAnnual         Int // forfaitaire aftrek cap (cents/year)
+  aovRateBp                Int // AOV premium rate (employee)
+  aovFranchiseMonthly      Int // AOV franchise (cents/month)
+  overtimeBrackets         Json // [{ upTo: cents|null, rateBp }] monthly overtime pay
+  childAllowanceExempt     Int // exempt kinderbijslag per child per month (cents)
+  childAllowanceMaxChildren Int
+  bonusExemptAnnual        Int // exempt bijzondere beloning per year (cents)
+  isVerified               Boolean  @default(false)
+  notes                    String?
+  createdAt                DateTime @default(now())
+  company                  Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  payrollRuns              PayrollRun[]
+}
+
+model PayrollRun {
+  id            String         @id @default(cuid())
+  companyId     String
+  year          Int
+  month         Int
+  payDate       DateTime
+  status        PayrollStatus  @default(DRAFT)
+  taxRuleSetId  String?
+  totalGross    Int            @default(0)
+  totalNet      Int            @default(0)
+  totalWageTax  Int            @default(0)
+  totalAov      Int            @default(0)
+  totalEmployer Int            @default(0)
+  employeeCount Int            @default(0)
+  notes         String?
+  createdById   String?
+  approvedById  String?
+  approvedAt    DateTime?
+  paidAt        DateTime?
+  calculatedAt  DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  taxRuleSet    TaxRuleSet?    @relation(fields: [taxRuleSetId], references: [id])
+  inputs        PayrollInput[]
+  adjustments   PayrollAdjustment[]
+  payslips      Payslip[]
+
+  @@unique([companyId, year, month])
+}
+
+/// Variable, per-period inputs for an employee in a payroll run.
+model PayrollInput {
+  id              String     @id @default(cuid())
+  runId           String
+  employeeId      String
+  hoursWorked     Float? // hourly employees; null = contract hours
+  overtime1Hours  Float      @default(0)
+  overtime2Hours  Float      @default(0)
+  bonus           Int        @default(0) // bijzondere beloning (cents)
+  unpaidDays      Float      @default(0)
+  run             PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employee        Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, employeeId])
+}
+
+/// One-off component amounts for a single run (e.g. an advance repayment).
+model PayrollAdjustment {
+  id          String       @id @default(cuid())
+  runId       String
+  employeeId  String
+  componentId String
+  amount      Int
+  description String?
+  run         PayrollRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
+  component   PayComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+}
+
+model Payslip {
+  id              String        @id @default(cuid())
+  runId           String
+  employeeId      String
+  employeeName    String
+  employeeNumber  String
+  jobTitle        String?
+  department      String?
+  bankName        String?
+  bankAccount     String?
+  grossPay        Int
+  taxableWage     Int
+  wageTax         Int
+  aov             Int
+  totalDeductions Int
+  netPay          Int
+  employerCost    Int
+  trace           Json
+  createdAt       DateTime      @default(now())
+  run             PayrollRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  employee        Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  lines           PayslipLine[]
+
+  @@unique([runId, employeeId])
+}
+
+model PayslipLine {
+  id          String          @id @default(cuid())
+  payslipId   String
+  sortOrder   Int
+  type        PayslipLineType
+  code        String
+  description String
+  quantity    Float?
+  rate        Int?
+  amount      Int
+  payslip     Payslip         @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+}
+
+model LeaveType {
+  id                     String         @id @default(cuid())
+  companyId              String
+  code                   String
+  name                   String
+  isPaid                 Boolean        @default(true)
+  annualEntitlementDays  Float          @default(0)
+  company                Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  requests               LeaveRequest[]
+
+  @@unique([companyId, code])
+}
+
+model LeaveRequest {
+  id           String      @id @default(cuid())
+  employeeId   String
+  leaveTypeId  String
+  startDate    DateTime
+  endDate      DateTime
+  days         Float
+  reason       String?
+  status       LeaveStatus @default(PENDING)
+  decidedById  String?
+  decidedAt    DateTime?
+  createdAt    DateTime    @default(now())
+  employee     Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType    LeaveType   @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+}
+
+model EmployeeDocument {
+  id          String   @id @default(cuid())
+  employeeId  String
+  fileName    String
+  mimeType    String
+  size        Int
+  storageKey  String
+  uploadedBy  String?
+  createdAt   DateTime @default(now())
+  employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  companyId String?
+  userId    String?
+  action    String
+  entity    String
+  entityId  String?
+  details   Json?
+  createdAt DateTime @default(now())
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+}
