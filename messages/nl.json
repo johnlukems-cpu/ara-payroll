@@ -148,6 +148,20 @@
       "Livingtogether": "Samenwonend",
       "Divorced": "Gescheiden",
       "Widowed": "Weduwe/weduwnaar"
+    },
+    "assignmentFrequency": {
+      "MONTHLY": "Maandelijks",
+      "PER_PERIOD": "Per salarisperiode",
+      "ONE_OFF": "Eenmalig",
+      "ANNUAL": "Jaarlijks",
+      "ACCRUAL": "Opbouw, jaarlijkse uitbetaling"
+    },
+    "lineSource": {
+      "BASE": "Basissalaris",
+      "FIXED": "Vast",
+      "INCIDENTAL": "Incidenteel",
+      "STATUTORY": "Wettelijk",
+      "LEAVE": "Verlof"
     }
   },
   "auth": {
@@ -420,7 +434,12 @@
     "selfServiceExisting": "Selfservice ingeschakeld. {email} heeft al een ARA-account en kan aanmelden met het bestaande wachtwoord.",
     "taxRegime": "Belastingregime",
     "taxRegimeHint": "Art. 17a geldt alleen voor werknemers binnen het geverifieerde wettelijke toepassingsbereik.",
-    "taxRegimeLocked": "Art. 17a kan worden gekozen zodra er een geverifieerde regelset voor het toepassingsbereik is."
+    "taxRegimeLocked": "Art. 17a kan worden gekozen zodra er een geverifieerde regelset voor het toepassingsbereik is.",
+    "bulkAssigned": "{name} toegewezen aan {count, plural, one {# medewerker} other {# medewerkers}}.",
+    "bulkSkipped": "Overgeslagen (bestaat al of niet toegestaan): {list}.",
+    "componentUpdated": "{name} bijgewerkt.",
+    "recalculated": "{count, plural, one {# open loonrun} other {# open loonruns}} opnieuw berekend.",
+    "recalcFailed": "Een open loonrun kon niet opnieuw worden berekend en staat weer op concept."
   },
   "payroll": {
     "title": "Salarisruns",
@@ -488,7 +507,7 @@
     },
     "noContract": "Geen overeenkomst",
     "saveInputs": "Invoer opslaan",
-    "inputsSaved": "Invoer opgeslagen. Bereken de salarisadministratie opnieuw om de loonstroken bij te werken.",
+    "inputsSaved": "Invoer opgeslagen.",
     "adjTitle": "Eenmalige correcties",
     "adjSub": "Toelagen of inhoudingen die alleen voor deze periode gelden.",
     "adjCols": {
@@ -497,10 +516,10 @@
       "description": "Omschrijving",
       "amount": "Bedrag",
       "currency": "Valuta",
-      "quantity": "Aantal"
+      "quantity": "Aantal",
+      "type": "Soort"
     },
     "addAdjustment": "Correctie toevoegen",
-    "adjAdded": "Correctie toegevoegd.",
     "adjRemoved": "Correctie verwijderd.",
     "payslipsTitle": "Loonstroken",
     "payslipsSub": "{count, plural, one {# loonstrook} other {# loonstroken}} · wettelijke bedragen in {currency}",
@@ -534,7 +553,22 @@
     "acknowledge": "Ik bevestig dat de wettelijke regels nog juridisch moeten worden gevalideerd",
     "legalPending": "Deze salarisadministratie is berekend met wettelijke regels waarvan de juridische validatie nog ontbreekt. Goedkeuren kan alleen met een uitdrukkelijke bevestiging en geldt niet als juridisch goedgekeurd.",
     "acknowledged": "goedgekeurd met bevestiging",
-    "quantityHint": "Uren, dagen of eenheden"
+    "quantityHint": "Uren, dagen of eenheden",
+    "recalculated": "Nettoloon is opnieuw berekend.",
+    "recalcPending": "Herberekening nog niet mogelijk: {reason}",
+    "adjAddedCount": "{name} toegevoegd aan {count, plural, one {# loonstrook} other {# loonstroken}}.",
+    "overrideSaved": "Bedrag voor deze loonstrook aangepast.",
+    "overrideRemoved": "Vast bedrag hersteld.",
+    "composePayslip": "Opstellen",
+    "adjType": {
+      "incidental": "Incidenteel",
+      "additional": "Aanvullend op vast",
+      "override": "Aanpassing vast bedrag"
+    },
+    "addExtra": {
+      "ALLOWANCE": "Extra toelage toevoegen",
+      "DEDUCTION": "Extra inhouding toevoegen"
+    }
   },
   "payslip": {
     "title": "Loonstrook",
@@ -593,7 +627,24 @@
       "SAL008": "Pro-rata salaris",
       "AOV-ER": "AOV werkgeversdeel"
     },
-    "paidShare": "{pct} doorbetaald"
+    "paidShare": "{pct} doorbetaald",
+    "summaryTitle": "Overzicht",
+    "incidental": "incidenteel",
+    "accrualsTitle": "Opgebouwd, nog niet uitbetaald",
+    "summary": {
+      "baseSalary": "Basissalaris",
+      "fixedAllowances": "Vaste toelagen",
+      "incidentalAllowances": "Incidentele toelagen",
+      "grossPay": "Brutosalaris",
+      "taxableBase": "Belastbare grondslag",
+      "wageTax": "Loonbelasting",
+      "aov": "AOV",
+      "otherDeductions": "Overige inhoudingen",
+      "totalDeductions": "Totale inhoudingen",
+      "netSalary": "Nettosalaris",
+      "exemptReimbursements": "Onbelaste kostenvergoedingen",
+      "totalPayable": "Totaal uit te betalen"
+    }
   },
   "leave": {
     "title": "Verlofbeheer",
@@ -1111,7 +1162,13 @@
     "regimeNotVerified": "Art. 17a kan pas worden gekoppeld als er een geverifieerde regelset voor het toepassingsbereik is.",
     "manualPerRun": "Componenten met handmatige invoer worden per salarisrun als correctie ingevoerd.",
     "childBirthDateRequired": "Vul de (verwachte) geboorte- of aankomstdatum van het kind in.",
-    "partTimeNotAllowed": "Deze verlofsoort staat geen deeltijdverlof toe."
+    "partTimeNotAllowed": "Deze verlofsoort staat geen deeltijdverlof toe.",
+    "componentInactive": "{name} is niet actief of niet goedgekeurd.",
+    "duplicateFixed": "{name} is al als vaste component toegewezen voor (een deel van) deze periode. Pas de bestaande component aan of gebruik een andere naam.",
+    "duplicateIncidental": "{name} staat al op deze loonstrook.",
+    "duplicateOfFixed": "{name} wordt al als vaste component verwerkt in deze periode. Pas het vaste bedrag aan voor deze loonstrook, of bevestig dat het om een extra bedrag gaat.",
+    "pensionViaContract": "Pensioen wordt al via het percentage in de arbeidsovereenkomst ingehouden; een vast pensioenbedrag zou dubbel worden ingehouden.",
+    "statutoryAutomatic": "Wettelijke inhoudingen (loonbelasting, AOV, pensioen) worden automatisch berekend en kunnen niet handmatig worden toegevoegd."
   },
   "bracket": {
     "required": "er is ten minste één schijf vereist",
@@ -1143,7 +1200,12 @@
     "selectEmployee": "Kies een werknemer",
     "selectComponent": "Kies een component",
     "selectLeaveType": "Kies een verlofsoort",
-    "confirmRequired": "Bevestiging vereist"
+    "confirmRequired": "Bevestiging vereist",
+    "amountRequired": "Vul een bedrag groter dan 0 in",
+    "percentRequired": "Vul een percentage groter dan 0 in",
+    "selfReference": "Een component kan niet naar zichzelf verwijzen",
+    "treatmentNotAllowed": "Niet toegestaan voor deze categorie",
+    "unknownComponent": "Onbekende component"
   },
   "defaults": {
     "components": {
@@ -1573,7 +1635,25 @@
       "approval": "Goedkeuringsstatus",
       "legalStatus": "Juridische status",
       "legalReference": "Wettelijke verwijzing",
-      "active": "Actief"
+      "active": "Actief",
+      "availableToAll": "Standaard beschikbaar voor alle medewerkers",
+      "availableToAllHint": "Verschijnt in de keuzelijsten bij medewerkers en loonstroken."
+    },
+    "bulkTitle": "Toewijzen aan medewerkers",
+    "bulkSub": "Wijs deze component in één keer toe aan één of meerdere medewerkers, bijvoorbeeld een gratificatie of een nieuwe vaste toelage.",
+    "bulkSubmit": "Toewijzen",
+    "inDropdowns": "In keuzelijsten",
+    "deactivate": "Deactiveren",
+    "activate": "Activeren",
+    "toggled": {
+      "isActive": {
+        "on": "{name} geactiveerd.",
+        "off": "{name} gedeactiveerd."
+      },
+      "availableToAll": {
+        "on": "{name} staat in de keuzelijsten.",
+        "off": "{name} staat niet meer in de keuzelijsten."
+      }
     }
   },
   "parental": {
@@ -1703,5 +1783,164 @@
     "aovRules": "AOV-regels",
     "method": "Methode",
     "calculatedAt": "Berekend"
+  },
+  "assign": {
+    "intro": "Vaste toelagen en inhoudingen worden automatisch op elke loonstrook meegenomen zolang ze actief zijn en binnen de geldigheidsperiode vallen. Wettelijke inhoudingen (loonbelasting, AOV, pensioen volgens overeenkomst) berekent het systeem zelf.",
+    "placeholder": {
+      "ALLOWANCE": "— Kies een toelage —",
+      "DEDUCTION": "— Kies een inhouding —",
+      "EMPLOYER": "— Kies een werkgeversbijdrage —"
+    },
+    "select": {
+      "ALLOWANCE": "Toelage",
+      "DEDUCTION": "Inhouding",
+      "EMPLOYER": "Werkgeversbijdrage"
+    },
+    "section": {
+      "ALLOWANCE": "Vaste toelagen",
+      "DEDUCTION": "Vaste inhoudingen",
+      "EMPLOYER": "Werkgeversbijdragen"
+    },
+    "sectionSub": {
+      "ALLOWANCE": "Bijvoorbeeld kinderbijslag, huisvestings-, telefoon-, brandstof-, transport- en representatietoelage, koerscompensatie, vakantietoelage of gratificatie.",
+      "DEDUCTION": "Bijvoorbeeld ziektekostenverzekering, pensioenbijdrage, FVO, leningaflossing, salarisvoorschot of vakbondsbijdrage.",
+      "EMPLOYER": "Bijdragen van de werkgever; deze worden nooit op het nettoloon ingehouden."
+    },
+    "empty": {
+      "ALLOWANCE": "Nog geen vaste toelagen.",
+      "DEDUCTION": "Nog geen vaste inhoudingen.",
+      "EMPLOYER": "Geen werkgeversbijdragen."
+    },
+    "addTitle": {
+      "ALLOWANCE": "Vaste toelage toevoegen",
+      "DEDUCTION": "Vaste inhouding toevoegen",
+      "EMPLOYER": "Werkgeversbijdrage toevoegen"
+    },
+    "groupCompany": "Componenten van het bedrijf",
+    "groupLibrary": "Centrale bibliotheek (wordt bij keuze automatisch toegevoegd)",
+    "groupStatutory": "Wettelijk — automatisch berekend",
+    "statutory": {
+      "LB": "Loonbelasting (automatisch)",
+      "AOV": "AOV-premie (automatisch)",
+      "PENS": "Pensioen (automatisch via arbeidsovereenkomst)"
+    },
+    "statutoryName": {
+      "LB": "Loonbelasting",
+      "AOV": "AOV-premie",
+      "PENS": "Pensioenbijdrage"
+    },
+    "statutoryAuto": "Wettelijke inhouding — wordt automatisch berekend volgens de goedgekeurde regels en kan niet handmatig worden ingevoerd.",
+    "pensionViaContract": "{pct} van de pensioengrondslag, volgens de arbeidsovereenkomst",
+    "f": {
+      "name": "Componentnaam (op loonstrook)",
+      "amount": "Bedrag",
+      "currency": "Valuta",
+      "calcType": "Berekeningsmethode",
+      "rate": "Percentage (%)",
+      "baseComponent": "Grondslag: andere component",
+      "quantity": "Aantal",
+      "frequency": "Frequentie",
+      "payMonth": "Uitbetalingsmaand",
+      "startDate": "Ingangsdatum",
+      "paymentDate": "Uitbetalingsdatum",
+      "endDate": "Einddatum (optioneel)",
+      "tax": "Fiscale behandeling",
+      "aov": "Telt mee voor de AOV-grondslag",
+      "pension": "Telt mee voor de pensioengrondslag",
+      "active": "Actief",
+      "note": "Opmerking",
+      "employees": "Medewerkers",
+      "allowDuplicate": "Ik bevestig dat dit een extra bedrag is naast een vaste component met dezelfde naam (geen dubbele invoer)."
+    },
+    "calc": {
+      "COMPONENT": "Volgens component ({method})",
+      "FIXED": "Vast bedrag",
+      "PERCENT_OF_BASE": "Percentage van basissalaris",
+      "PERCENT_OF_COMPONENT": "Percentage van andere component",
+      "MANUAL": "Variabel bedrag (per loonstrook)"
+    },
+    "hint": {
+      "MONTHLY": "Elke maandelijkse loonrun binnen de geldigheidsperiode.",
+      "PER_PERIOD": "Elke salarisperiode binnen de geldigheidsperiode.",
+      "ONE_OFF": "Eenmalig: uitbetaald in de loonperiode van de uitbetalingsdatum.",
+      "ANNUAL": "Jaarlijks: uitbetaald in de uitbetalingsmaand (standaard de maand van de ingangsdatum).",
+      "ACCRUAL": "Opbouw: wordt elke maand opgebouwd en in de uitbetalingsmaand (of bij einddatum) in één keer uitbetaald. De opbouw is gebaseerd op berekende loonstroken.",
+      "variable": "Variabel: het bedrag kan per loonstrook worden aangepast; dit bedrag is de standaardwaarde."
+    },
+    "payMonthDefaultAnnual": "Maand van de ingangsdatum",
+    "payMonthDefaultAccrual": "Standaard ({month})",
+    "tax": {
+      "CONFIG": "Volgens wettelijke configuratie ({treatment})",
+      "TAXABLE": "Belastbaar",
+      "EXEMPT": "Onbelast"
+    },
+    "taxConfigShort": "Volgens configuratie: {treatment}",
+    "exemptWarning": "Kies alleen 'Onbelast' als de vrijstelling wettelijk vaststaat. ARA Payroll maakt een toelage nooit automatisch onbelast.",
+    "legalPending": "Let op: fiscale/wettelijke behandeling niet geverifieerd — {reference}",
+    "selectAll": "Alles selecteren",
+    "selectNone": "Niets selecteren",
+    "cols": {
+      "component": "Component",
+      "calculation": "Berekening",
+      "frequency": "Frequentie",
+      "validity": "Geldigheid",
+      "tax": "Fiscaal",
+      "status": "Status"
+    },
+    "status": {
+      "active": "Actief",
+      "inactive": "Inactief",
+      "ended": "Verlopen",
+      "paid": "Uitbetaald",
+      "future": "Toekomstig",
+      "automatic": "Automatisch"
+    },
+    "variableAmount": "Variabel (standaard {amount})",
+    "ofComponent": "{pct} van {code}",
+    "accrued": "Opgebouwd: {amount} (t/m {period})",
+    "inMonth": "in {month}",
+    "openEnded": "doorlopend"
+  },
+  "compose": {
+    "title": "Loonstrook opstellen — {name}",
+    "locked": "Deze loonrun is definitief. Historische loonstroken worden niet meer gewijzigd.",
+    "steps": {
+      "salary": "Salarisgegevens",
+      "fixed": "Vaste toelagen en inhoudingen",
+      "extra": "Extra toelagen en inhoudingen",
+      "calculation": "Berekening",
+      "preview": "Voorbeeld loonstrook",
+      "finalise": "Definitief maken"
+    },
+    "fixed": {
+      "ALLOWANCE": "Vaste toelagen",
+      "DEDUCTION": "Vaste inhoudingen"
+    },
+    "fixedSub": "Automatisch meegenomen. U kunt het bedrag voor alleen deze loonstrook aanpassen; de vaste component zelf blijft ongewijzigd.",
+    "manageFixed": "Vaste componenten beheren",
+    "thisPeriod": "Deze periode",
+    "adjust": "Aanpassen voor deze loonstrook",
+    "decision": {
+      "pay": "Wordt verwerkt",
+      "accrueAndPay": "Uitbetaling opbouw",
+      "accrue": "Opbouw (nog niet uitbetaald)",
+      "skip": "Niet in deze periode"
+    },
+    "overridden": "Aangepast: {amount}",
+    "overrideAmount": "Bedrag voor deze loonstrook",
+    "overridePlaceholder": "Nieuw bedrag",
+    "overrideSave": "Aanpassen",
+    "overrideReset": "Herstellen",
+    "extra": {
+      "ALLOWANCE": "Extra toelagen",
+      "DEDUCTION": "Extra inhoudingen"
+    },
+    "extraSub": {
+      "ALLOWANCE": "Incidentele toelagen voor alleen deze loonstrook, zoals een bonus of gratificatie.",
+      "DEDUCTION": "Incidentele inhoudingen voor alleen deze loonstrook. Loonbelasting en AOV worden automatisch berekend."
+    },
+    "periodInputs": "Periode-invoer",
+    "inputsLine": "Overwerk {ot1} + {ot2} uur · onbetaald {unpaid} d · bonus {bonus}",
+    "finaliseText": "Een loonstrook wordt definitief wanneer de loonrun wordt goedgekeurd. Daarna kunnen bedragen niet meer worden gewijzigd en blijven historische loonstroken ongewijzigd."
   }
 }

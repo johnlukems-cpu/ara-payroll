@@ -5,6 +5,7 @@ import type { Fmt } from "@/lib/format";
 import type { Conversion } from "@/lib/currency";
 import { conversionLabel, lineLabel } from "@/lib/payslip-labels";
 import { BRAND_ICON_PNG_BASE64 } from "./brand-icon";
+import { payslipSummary, SUMMARY_ROWS } from "@/lib/payroll/summary";
 
 type Slip = Payslip & { lines: PayslipLine[] };
 type T = (key: string, values?: Record<string, string | number>) => string;
@@ -105,14 +106,29 @@ function drawSlip(page: PDFPage, fonts: { font: PDFFont; bold: PDFFont; icon: PD
   text(f.money(slip.netPayPayment, slip.paymentCurrency), width - M - 14, y + 2, { size: 15, f: bold, color: rgb(1, 1, 1), right: true });
   if (differs) text(`${f.money(slip.netPay, cur)} - ${t("payslip.netPaidIn", { currency: slip.paymentCurrency })}`, width - M - 14, y - 11, { size: 7.5, color: rgb(0.8, 0.85, 0.95), right: true });
 
-  y -= differs ? 50 : 42;
-  const info: [string, number][] = [[t("payslip.taxableWage"), slip.taxableWage], [t("payslip.wageTax"), slip.wageTax], [t("payslip.aov"), slip.aov]];
-  for (const l of slip.lines.filter((x) => x.type === "EMPLOYER")) info.push([lineLabel(l, t, f, ot), l.amount]);
-  info.forEach(([k, v], i) => {
-    const x = M + i * ((width - 2 * M) / 4);
-    text(k, x, y, { size: 8, color: MUTED });
-    text(f.money(v, cur), x, y - 12, { size: 9, f: bold });
+  // Summary: the 12 payslip totals in two columns.
+  y -= differs ? 46 : 38;
+  text(t("payslip.summaryTitle").toUpperCase(), M, y, { size: 8, f: bold, color: MUTED });
+  const summary = payslipSummary(slip, slip.lines);
+  const strong = new Set(["grossPay", "totalDeductions", "totalPayable"]);
+  SUMMARY_ROWS.forEach((k, i) => {
+    const x = i < 6 ? M : M + colW + 24;
+    const yy = y - 14 - (i % 6) * 13;
+    const o = strong.has(k) ? { size: 9, f: bold } : { size: 9 };
+    text(t(`payslip.summary.${k}`), x, yy, o);
+    text(f.money(summary[k], cur), x + colW, yy, { ...o, right: true });
   });
+  y -= 14 + 6 * 13 + 4;
+  const employer = slip.lines.filter((x) => x.type === "EMPLOYER");
+  if (employer.length) {
+    y -= 10;
+    employer.slice(0, 4).forEach((l, i) => {
+      const x = M + i * ((width - 2 * M) / 4);
+      text(lineLabel(l, t, f, ot).slice(0, 34), x, y, { size: 7.5, color: MUTED });
+      text(f.money(l.amount, cur), x, y - 11, { size: 8.5, f: bold });
+    });
+    y -= 12;
+  }
 
   const conversions = (slip.conversions as unknown as Conversion[]) ?? [];
   if (conversions.length) {

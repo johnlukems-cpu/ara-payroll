@@ -6,6 +6,7 @@ import {
   type AovRules, type Bracket, type ComponentInput, type LeaveInput, type TaxRules,
 } from "./engine";
 import { LEAVE_CATEGORY_COMPONENT } from "./library";
+import { priorAccrual, scheduleFor } from "./schedule";
 import { workingDaysBetween } from "@/lib/leave";
 import { RateBook } from "@/lib/server/rates";
 import type { Conversion } from "@/lib/currency";
@@ -157,16 +158,17 @@ export async function calculateRun(runId: string) {
       contracts: { where: { startDate: { lte: end } }, orderBy: { startDate: "desc" }, take: 1 },
       components: {
         where: {
-          startDate: { lte: end }, OR: [{ endDate: null }, { endDate: { gte: start } }],
+          isActive: true, startDate: { lte: end }, OR: [{ endDate: null }, { endDate: { gte: start } }],
           component: { isActive: true, approvalStatus: "APPROVED", AND: [{ OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: end } }] }, { OR: [{ effectiveTo: null }, { effectiveTo: { gte: start } }] }] },
         },
         include: { component: true },
+        orderBy: { createdAt: "asc" },
       },
       leaveRequests: { where: { status: "APPROVED", startDate: { lte: end }, endDate: { gte: start } }, include: { leaveType: true } },
     },
   });
   const inputs = await db.payrollInput.findMany({ where: { runId } });
-  const adjustments = await db.payrollAdjustment.findMany({ where: { runId }, include: { component: true } });
+  const adjustments = await db.payrollAdjustment.findMany({ where: { runId }, include: { component: true }, orderBy: { createdAt: "asc" } });
 
   // Rule sets per tax regime (the Art. 17a regime is only used for employees explicitly linked to it).
   const regimeRules = new Map<TaxRegime, TaxRuleSet>([["STANDARD", ruleSet]]);
@@ -195,6 +197,11 @@ export async function calculateRun(runId: string) {
   const earlierSlips = await db.payslip.findMany({
     where: { run: { companyId: run.companyId, year: run.year, month: { lt: run.month } } },
     select: { employeeId: true, trace: true },
+  });
+  // Accrual balances (e.g. holiday allowance) carried forward from the previous 24 months.
+  const accrualSlips = await db.payslip.findMany({
+    where: { runId: { not: runId }, run: { companyId: run.companyId, OR: [{ year: { lt: run.year, gte: run.year - 2 } }, { year: run.year, month: { lt: run.month } }] } },
+    select: { employeeId: true, trace: true, run: { select: { year: true, month: true } } },
   });
   const ytdBonusExempt = new Map<string, number>();
   for (const s of earlierSlips) {
@@ -226,16 +233,24 @@ export async function calculateRun(runId: string) {
     let componentsLegal = true;
 
     type Comp = (typeof e.components)[number]["component"];
-    const toInput = (c: Comp, src: { amount: number; currency: string | null; rateBp: number; quantity: number | null }, label: string): ComponentInput => {
+    type Src = {
+      amount: number; currency: string | null; rateBp: number; quantity: number | null;
+      label?: string | null; calcType?: ComponentInput["calcType"] | null; baseComponentCode?: string | null;
+      taxOverride?: ComponentInput["taxTreatment"] | null; aovIncluded?: boolean | null; pensionIncluded?: boolean | null;
+    };
+    // Per-employee / per-payslip settings override the component configuration; null = component setting.
+    const toInput = (c: Comp, src: Src, source: "FIXED" | "INCIDENTAL"): ComponentInput => {
       if (c.legalStatus === "PENDING_VERIFICATION" || c.legalStatus === "CONFLICT") componentsLegal = false;
-      const useDefault = src.amount === 0 && (c.calcType === "FIXED" || c.calcType === "MANUAL");
+      const calcType = src.calcType ?? c.calcType;
+      const label = src.label || c.name;
+      const useDefault = src.amount === 0 && (calcType === "FIXED" || calcType === "MANUAL");
       return {
         code: c.code,
         name: label,
-        labels: { nl: c.nameNl ?? label, en: c.nameEn ?? label },
+        labels: src.label ? { nl: src.label, en: src.label } : { nl: c.nameNl ?? label, en: c.nameEn ?? label },
         kind: c.kind,
-        calcType: c.calcType,
-        taxTreatment: c.taxTreatment,
+        calcType,
+        taxTreatment: src.taxOverride ?? c.taxTreatment,
         exemptLimit: c.exemptLimit,
         preTax: c.preTax,
         amount: useDefault ? toCalc(c.defaultAmount, c.currency ?? salaryCur, label) : toCalc(src.amount, src.currency ?? salaryCur, label),
@@ -243,17 +258,34 @@ export async function calculateRun(runId: string) {
         quantity: src.quantity,
         multiplierBp: c.multiplierBp,
         unitPrice: toCalc(c.unitPrice, c.currency ?? salaryCur, `${label} (unit price)`),
-        baseComponentCode: c.baseComponentCode,
+        baseComponentCode: src.baseComponentCode ?? c.baseComponentCode,
         formula: c.formula,
-        aovIncluded: c.aovIncluded,
-        pensionIncluded: c.pensionIncluded,
+        aovIncluded: src.aovIncluded ?? c.aovIncluded,
+        pensionIncluded: src.pensionIncluded ?? c.pensionIncluded,
         netEffect: c.netEffect,
+        source,
       };
     };
-    const components: ComponentInput[] = [
-      ...e.components.map((a) => toInput(a.component, a, a.component.name)),
-      ...adjustments.filter((a) => a.employeeId === e.id).map((a) => toInput(a.component, { ...a, rateBp: 0 }, a.description || a.component.name)),
-    ];
+    const empAdjustments = adjustments.filter((a) => a.employeeId === e.id);
+    const earlierOfEmployee = accrualSlips.filter((s) => s.employeeId === e.id).map((s) => ({ ...s.run, trace: s.trace }));
+    const components: ComponentInput[] = [];
+    // Fixed components: active, within their validity and due in this period according to their frequency.
+    for (const a of e.components) {
+      const decision = scheduleFor(a, run.year, run.month);
+      if (decision === "skip") continue;
+      // A per-payslip override replaces the fixed amount for this run only (never added on top).
+      const override = empAdjustments.find((x) => x.assignmentId === a.id);
+      const input = override
+        ? toInput(a.component, { ...a, calcType: "FIXED", amount: override.amount, currency: override.currency, label: override.description || a.label }, "FIXED")
+        : toInput(a.component, a, "FIXED");
+      if (decision === "accrue" || decision === "accrueAndPay") input.accrual = { id: a.id, prior: priorAccrual(earlierOfEmployee, a.id), pay: decision === "accrueAndPay" };
+      components.push(input);
+    }
+    // Incidental components added to this payslip only.
+    for (const a of empAdjustments) {
+      if (a.assignmentId) continue;
+      components.push(toInput(a.component, { ...a, label: a.description }, "INCIDENTAL"));
+    }
 
     let r;
     try {
@@ -336,7 +368,7 @@ export async function calculateRun(runId: string) {
       } as Prisma.InputJsonValue,
       lines: {
         create: r.lines.map((l, i) => ({
-          sortOrder: i, type: l.type, code: l.code, description: l.description, quantity: l.quantity ?? null, rate: l.rate ?? null, amount: l.amount,
+          sortOrder: i, type: l.type, source: l.source ?? null, code: l.code, description: l.description, quantity: l.quantity ?? null, rate: l.rate ?? null, amount: l.amount,
           labels: l.labels ? (l.labels as Prisma.InputJsonValue) : undefined,
           ...(["SAL001", "SAL002", "SAL008"].includes(l.code) && salaryCur !== calcCur
             ? { originalAmount: Math.round(contract.baseSalary * (contract.payType === "MONTHLY" ? fraction : 1)), originalCurrency: salaryCur }

@@ -14,6 +14,10 @@ import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { CurrencySelect } from "@/components/currency-select";
 import { Alert } from "@/components/ui/misc";
 import { saveComponentConfigAction } from "@/app/actions/settings";
+import { bulkAssignAction } from "@/app/actions/employees";
+import { ComponentAssignmentForm } from "@/components/component-assignment-form";
+import { componentOptions, isStatutory } from "@/lib/server/pay-components";
+import { can } from "@/lib/permissions";
 
 export async function generateMetadata() {
   const { t } = await getI18n();
@@ -30,13 +34,21 @@ function F({ name, label, hint, children, className }: { name: string; label: st
 
 export default async function ComponentConfigPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ created?: string }> }) {
   const ctx = await requirePage("settings.manage");
-  const { t, f } = await getI18n();
+  const { t, f, locale } = await getI18n();
   const { id } = await params;
   const isNew = id === "new";
   const c = isNew ? null : await db.payComponent.findFirst({ where: { id, companyId: ctx.company.id } });
   if (!isNew && !c) notFound();
   const [currencies, others] = await Promise.all([getCurrencies(), db.payComponent.findMany({ where: { companyId: ctx.company.id, kind: "ALLOWANCE" }, select: { code: true }, orderBy: { code: "asc" } })]);
   const sp = await searchParams;
+  // Assign this component to several employees at once (only active, approved, non-statutory components).
+  const bulkOption = c && can(ctx.role, "employees.edit") && c.isActive && c.approvalStatus === "APPROVED" && !isStatutory(c)
+    ? (await componentOptions(ctx.company.id, locale)).find((o) => o.value === c.id) ?? null
+    : null;
+  const employees = bulkOption
+    ? (await db.employee.findMany({ where: { companyId: ctx.company.id, status: { not: "TERMINATED" } }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }], select: { id: true, firstName: true, lastName: true } })).map((e) => ({ id: e.id, name: `${e.lastName}, ${e.firstName}` }))
+    : [];
+  const baseOptions = (await db.payComponent.findMany({ where: { companyId: ctx.company.id, isActive: true }, orderBy: { name: "asc" } })).filter((x) => !isStatutory(x)).map((x) => ({ code: x.code, name: (locale === "en" ? x.nameEn : x.nameNl) || x.name }));
   const category = c?.category ?? (c?.kind === "DEDUCTION" ? "DEDUCTION" : "ALLOWANCE");
 
   return (
@@ -93,11 +105,24 @@ export default async function ComponentConfigPage({ params, searchParams }: { pa
             <F name="legalStatus" label={t("components.f.legalStatus")}><Select id="legalStatus" name="legalStatus" defaultValue={c?.legalStatus ?? "COMPANY_POLICY"}>{(["COMPANY_POLICY", "PENDING_VERIFICATION", "CONFLICT", "VERIFIED"] as const).map((v) => <option key={v} value={v}>{t(`legal.${v}`)}</option>)}</Select></F>
             <F name="legalReference" label={t("components.f.legalReference")} className="sm:col-span-2"><Textarea id="legalReference" name="legalReference" rows={2} defaultValue={c?.legalReference ?? ""} /></F>
             <label className="flex items-center gap-2 pt-6 text-sm"><input type="checkbox" name="isActive" defaultChecked={c?.isActive ?? true} /> {t("components.f.active")}</label>
+            <label className="flex items-start gap-2 pt-6 text-sm sm:col-span-2"><input type="checkbox" name="availableToAll" className="mt-0.5" defaultChecked={c?.availableToAll ?? true} /> <span>{t("components.f.availableToAll")}<span className="block text-xs text-muted-foreground">{t("components.f.availableToAllHint")}</span></span></label>
             <p className="text-xs text-muted-foreground sm:col-span-2 lg:col-span-4">{t("components.companyScope", { company: ctx.company.name })}</p>
           </CardContent>
         </Card>
         <div className="flex justify-end"><SubmitButton>{isNew ? t("common.create") : t("common.saveChanges")}</SubmitButton></div>
       </ActionForm>
+      {c && bulkOption && (
+        <Card data-testid="bulk-assign">
+          <CardHeader><CardTitle>{t("components.bulkTitle")}</CardTitle><CardDescription>{t("components.bulkSub")}</CardDescription></CardHeader>
+          <CardContent>
+            <ComponentAssignmentForm
+              action={bulkAssignAction} mode="bulk" kind={c.kind} options={[]} fixedOption={bulkOption} hidden={{}}
+              currencies={currencies} defaultCurrency={ctx.company.currency} baseOptions={baseOptions} employees={employees}
+              today={toDateInput(new Date())} idPrefix="bulk" submitLabel={t("components.bulkSubmit")}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

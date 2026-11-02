@@ -465,6 +465,7 @@ const componentConfigSchema = z.object({
   legalStatus: z.enum(["VERIFIED", "PENDING_VERIFICATION", "CONFLICT", "COMPANY_POLICY"]),
   approvalStatus: z.enum(["DRAFT", "APPROVED"]),
   isActive: z.string().optional().transform((v) => v === "on"),
+  availableToAll: z.string().optional().transform((v) => v === "on"),
 });
 
 /**
@@ -501,7 +502,7 @@ export async function saveComponentConfigAction(_: ActionState, fd: FormData): P
       netEffect: kind === "DEDUCTION" ? ("DEDUCT" as const) : kind === "EMPLOYER" ? ("NONE" as const) : d.benefitInKind ? ("NONE" as const) : ("ADD" as const),
       employerCost: kind !== "DEDUCTION",
       glAccount: d.glAccount, effectiveFrom: d.effectiveFrom, effectiveTo: d.effectiveTo, legalReference: d.legalReference, legalStatus: d.legalStatus,
-      approvalStatus: d.approvalStatus, isActive: d.isActive,
+      approvalStatus: d.approvalStatus, isActive: d.isActive, availableToAll: d.availableToAll,
     };
     if (raw.id) {
       const existing = await db.payComponent.findFirst({ where: { id: raw.id, companyId: ctx.company.id } });
@@ -518,6 +519,24 @@ export async function saveComponentConfigAction(_: ActionState, fd: FormData): P
     return handleError(e);
   }
   redirect(`/app/settings/components/${id}?created=1`);
+}
+
+/** Quick (de)activation and dropdown availability from the component overview. */
+export async function toggleComponentAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requirePermission("settings.manage");
+    const field = z.enum(["isActive", "availableToAll"]).parse(fd.get("field"));
+    const c = await db.payComponent.findFirst({ where: { id: String(fd.get("id")), companyId: ctx.company.id } });
+    if (!c) throw new UserError("errors.notFound");
+    const value = !c[field];
+    await db.payComponent.update({ where: { id: c.id }, data: { [field]: value } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "component.toggle", entity: "PayComponent", entityId: c.id, details: { code: c.code, [field]: value } });
+    revalidatePath("/app/settings/components");
+    const t = await getTranslations();
+    return ok(t(`components.toggled.${field}.${value ? "on" : "off"}`, { name: c.name }));
+  } catch (e) {
+    return handleError(e);
+  }
 }
 
 /** Adopts entries of the central library into the company (all missing ones, or one code). */

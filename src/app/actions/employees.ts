@@ -5,13 +5,16 @@ import { redirect } from "next/navigation";
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/server/auth";
 import { audit } from "@/lib/server/audit";
 import { storage } from "@/lib/server/storage";
 import { formObject, handleError, ok, UserError, type ActionState } from "@/lib/server/action";
 import { assertActiveCurrency } from "@/lib/server/rates";
+import { assertNoFixedDuplicate, assertPensionNotDouble, parseOverrides, recalcOpenRuns, resolveComponent } from "@/lib/server/pay-components";
+import { calculateRun } from "@/lib/payroll/service";
+import { parseMoney } from "@/lib/format";
 import { currencyField, dateField, moneyField, numberField, optionalDate, optionalText, percentField } from "@/lib/validation";
 
 const employeeSchema = z.object({
@@ -133,40 +136,94 @@ export async function addContractAction(_: ActionState, fd: FormData): Promise<A
   }
 }
 
-export async function assignComponentAction(_: ActionState, fd: FormData): Promise<ActionState> {
+const assignmentSchema = z.object({
+  id: z.string().optional(),
+  employeeId: z.string(),
+  component: z.string({ error: "validation.selectComponent" }),
+  label: z.string().max(80).optional(),
+  frequency: z.enum(["MONTHLY", "PER_PERIOD", "ONE_OFF", "ANNUAL", "ACCRUAL"], { error: "validation.required" }),
+  payMonth: z.coerce.number().int().min(1).max(12).optional(),
+  startDate: dateField,
+  endDate: optionalDate,
+  isActive: z.string().optional(),
+  note: z.string().max(500).optional(),
+});
+
+/**
+ * Creates or updates a fixed component of an employee (allowance or deduction that is processed
+ * automatically on every payslip within its validity, according to its frequency).
+ */
+export async function saveAssignmentAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const ctx = await requirePermission("employees.edit");
     const raw = formObject(fd);
-    const data = z.object({
-      employeeId: z.string(),
-      componentId: z.string({ error: "validation.selectComponent" }),
-      amount: moneyField,
-      currency: z.string().regex(/^[A-Z]{3}$/, "validation.currency").optional(),
-      rate: percentField,
-      quantity: z.string().optional().transform((v) => (v ? Number(v.replace(",", ".")) : null)).pipe(z.number().min(0).max(10000).nullable()),
-      startDate: dateField,
-      endDate: optionalDate,
-    }).parse(raw);
-    const [emp, comp] = await Promise.all([
-      db.employee.findFirst({ where: { id: data.employeeId, companyId: ctx.company.id } }),
-      db.payComponent.findFirst({ where: { id: data.componentId, companyId: ctx.company.id } }),
-    ]);
-    if (!emp || !comp) throw new UserError("errors.invalidEmployeeOrComponent");
     const t = await getTranslations();
-    if (comp.calcType === "MANUAL") throw new UserError("errors.manualPerRun");
-    if (comp.calcType === "FIXED" && data.amount <= 0 && comp.defaultAmount <= 0) return { ok: false, message: t("errors.enterAmount"), errors: { amount: [t("validation.required")] } };
-    if ((comp.calcType === "PERCENT_OF_BASE" || comp.calcType === "PERCENT_OF_COMPONENT") && data.rate <= 0 && comp.defaultRateBp <= 0) return { ok: false, message: t("errors.enterPercent"), errors: { rate: [t("validation.required")] } };
-    if (["HOURS_X_RATE", "DAYS_X_RATE", "QTY_X_PRICE"].includes(comp.calcType) && !data.quantity) throw new UserError("errors.enterQuantity");
-    await ensureCurrencies(data.currency);
-    // Always store an explicit currency for fixed amounts so a later salary-currency change cannot reinterpret them.
+    const d = assignmentSchema.parse(raw);
+    const emp = await db.employee.findFirst({ where: { id: d.employeeId, companyId: ctx.company.id } });
+    if (!emp) throw new UserError("errors.invalidEmployeeOrComponent");
+    const existing = d.id ? await db.employeePayComponent.findFirst({ where: { id: d.id, employeeId: emp.id }, include: { component: true } }) : null;
+    if (d.id && !existing) throw new UserError("errors.notFound");
+    const comp = existing ? existing.component : await resolveComponent(ctx.company.id, d.component, await getLocale());
+    if (d.endDate && d.endDate < d.startDate) return { ok: false, message: t("validation.fixFields"), errors: { endDate: [t("validation.endAfterStart")] }, ts: Date.now() };
     const contract = await db.contract.findFirst({ where: { employeeId: emp.id }, orderBy: { startDate: "desc" } });
-    const currency = comp.calcType === "FIXED" ? data.currency ?? contract?.salaryCurrency ?? ctx.company.currency : null;
-    await db.employeePayComponent.create({
-      data: { employeeId: emp.id, componentId: comp.id, amount: data.amount, rateBp: data.rate, quantity: data.quantity, startDate: data.startDate, endDate: data.endDate, currency },
-    });
-    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.component_assigned", entity: "Employee", entityId: emp.id, details: { component: comp.code, currency: data.currency } });
+    const { errors, values } = await parseOverrides(ctx.company.id, comp, raw, { incidental: false, parseMoney, defaultCurrency: contract?.salaryCurrency ?? ctx.company.currency });
+    if (Object.keys(errors).length) return { ok: false, message: t("validation.fixFields"), errors: Object.fromEntries(Object.entries(errors).map(([k, v]) => [k, [t(v as never)]])), ts: Date.now() };
+    await ensureCurrencies(values.currency);
+    await assertPensionNotDouble(emp.id, comp);
+    const label = d.label && d.label !== comp.name ? d.label : null;
+    const endDate = d.frequency === "ONE_OFF" ? null : d.endDate;
+    // The form posts activeField so an unchecked "active" box can be told apart from a form without it.
+    const isActive = raw.activeField ? d.isActive === "on" || d.isActive === "true" : existing?.isActive ?? true;
+    if (isActive) await assertNoFixedDuplicate({ id: existing?.id, employeeId: emp.id, componentId: comp.id, label, frequency: d.frequency, startDate: d.startDate, endDate });
+    const data = {
+      ...values, label, frequency: d.frequency, payMonth: d.frequency === "ANNUAL" || d.frequency === "ACCRUAL" ? d.payMonth ?? null : null,
+      startDate: d.startDate, endDate, isActive, note: d.note ?? null,
+    };
+    if (existing) await db.employeePayComponent.update({ where: { id: existing.id }, data });
+    else await db.employeePayComponent.create({ data: { ...data, employeeId: emp.id, componentId: comp.id } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: existing ? "employee.component_updated" : "employee.component_assigned", entity: "Employee", entityId: emp.id, details: { component: comp.code, frequency: d.frequency, amount: values.amount, currency: values.currency, rateBp: values.rateBp, taxOverride: values.taxOverride, isActive } });
+    const rec = await recalcOpenRuns(ctx.company.id, emp.id, calculateRun);
     revalidatePath(`/app/employees/${emp.id}`);
-    return ok(t("employee.componentAdded", { name: comp.name }));
+    const msg = t(existing ? "employee.componentUpdated" : "employee.componentAdded", { name: label ?? comp.name });
+    return ok(rec.recalculated || rec.failed ? `${msg} ${t(rec.failed ? "employee.recalcFailed" : "employee.recalculated", { count: rec.recalculated })}` : msg);
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+/** Assigns a component to several employees at once (e.g. a gratuity for a group, or a new standard allowance). */
+export async function bulkAssignAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requirePermission("employees.edit");
+    const t = await getTranslations();
+    const raw = formObject(fd);
+    const ids = fd.getAll("employeeIds").map(String).filter(Boolean);
+    if (ids.length === 0) return { ok: false, message: t("validation.selectEmployee"), errors: { employeeIds: [t("validation.selectEmployee")] }, ts: Date.now() };
+    const d = assignmentSchema.omit({ employeeId: true, id: true }).parse(raw);
+    if (d.endDate && d.endDate < d.startDate) throw new UserError("validation.endAfterStart");
+    const comp = await resolveComponent(ctx.company.id, d.component, await getLocale());
+    const employees = await db.employee.findMany({ where: { id: { in: ids }, companyId: ctx.company.id }, include: { contracts: { orderBy: { startDate: "desc" }, take: 1 } } });
+    const skipped: string[] = [];
+    let created = 0;
+    for (const emp of employees) {
+      const { errors, values } = await parseOverrides(ctx.company.id, comp, raw, { incidental: false, parseMoney, defaultCurrency: emp.contracts[0]?.salaryCurrency ?? ctx.company.currency });
+      if (Object.keys(errors).length) return { ok: false, message: t("validation.fixFields"), errors: Object.fromEntries(Object.entries(errors).map(([k, v]) => [k, [t(v as never)]])), ts: Date.now() };
+      await ensureCurrencies(values.currency);
+      const endDate = d.frequency === "ONE_OFF" ? null : d.endDate;
+      const label = d.label && d.label !== comp.name ? d.label : null;
+      try {
+        await assertPensionNotDouble(emp.id, comp);
+        await assertNoFixedDuplicate({ employeeId: emp.id, componentId: comp.id, label, frequency: d.frequency, startDate: d.startDate, endDate });
+      } catch (e) {
+        if (e instanceof UserError) { skipped.push(`${emp.firstName} ${emp.lastName}`); continue; }
+        throw e;
+      }
+      await db.employeePayComponent.create({ data: { ...values, label, employeeId: emp.id, componentId: comp.id, frequency: d.frequency, payMonth: d.frequency === "ANNUAL" || d.frequency === "ACCRUAL" ? d.payMonth ?? null : null, startDate: d.startDate, endDate, note: d.note ?? null } });
+      created++;
+    }
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.component_bulk_assigned", entity: "PayComponent", entityId: comp.id, details: { component: comp.code, employees: created, skipped } });
+    revalidatePath("/app/settings/components");
+    return ok(`${t("employee.bulkAssigned", { count: created, name: comp.name })}${skipped.length ? ` ${t("employee.bulkSkipped", { list: skipped.join(", ") })}` : ""}`);
   } catch (err) {
     return handleError(err);
   }
@@ -178,8 +235,10 @@ export async function removeComponentAction(_: ActionState, fd: FormData): Promi
     const id = z.string().parse(fd.get("id"));
     const a = await db.employeePayComponent.findFirst({ where: { id, employee: { companyId: ctx.company.id } } });
     if (!a) throw new UserError("errors.notFound");
+    // Payslips keep their own copy of every line, so removing a fixed component never changes historical payslips.
     await db.employeePayComponent.delete({ where: { id } });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.component_removed", entity: "Employee", entityId: a.employeeId });
+    await recalcOpenRuns(ctx.company.id, a.employeeId, calculateRun);
     revalidatePath(`/app/employees/${a.employeeId}`);
     return ok((await getTranslations())("employee.removed"));
   } catch (err) {

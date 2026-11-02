@@ -58,6 +58,8 @@ export const COMPONENT_LIBRARY: LibraryEntry[] = [
   alw("ALW010", "Gevarentoeslag", "Hazard allowance"),
   alw("ALW011", "Ploegentoeslag", "Shift allowance"),
   alw("ALW012", "Overige vergoeding", "Other allowance", { calcType: "MANUAL", frequency: "ONE_OFF" }),
+  alw("ALW013", "Brandstoftoelage", "Fuel allowance"),
+  alw("ALW014", "Koerscompensatie", "Exchange rate compensation", { legalReference: "Fiscale behandeling van koerscompensatie niet geverifieerd" }),
   // 1.3 Overtime and special working hours (percentages configurable; link to legislation or CAO)
   ovt("OVT001", "Overwerk 150%", "Overtime 150%", { multiplierBp: 15000, isSystem: true, systemCode: "OT1" }),
   ovt("OVT002", "Overwerk 200%", "Overtime 200%", { multiplierBp: 20000, isSystem: true, systemCode: "OT2" }),
@@ -73,7 +75,7 @@ export const COMPONENT_LIBRARY: LibraryEntry[] = [
   bon("BON003", "Commissie", "Commission", { taxTreatment: "TAXABLE", frequency: "RECURRING", legalReference: undefined }),
   bon("BON004", "Kerstbonus", "Christmas bonus"),
   bon("BON005", "Jaarbonus", "Annual bonus", { frequency: "ANNUAL" }),
-  bon("BON006", "Vakantiegeld", "Holiday allowance", { frequency: "ANNUAL" }),
+  bon("BON006", "Vakantietoelage", "Holiday allowance", { frequency: "ANNUAL" }),
   bon("BON007", "Gratificatie", "Gratuity"),
   bon("BON008", "Eenmalige bonus", "One-time bonus"),
   bon("BON009", "Winstuitkering", "Profit sharing", { frequency: "ANNUAL" }),
@@ -89,6 +91,8 @@ export const COMPONENT_LIBRARY: LibraryEntry[] = [
   ded("DED008", "Overige inhoudingen", "Other deductions", { calcType: "MANUAL", frequency: "ONE_OFF" }),
   ded("DED009", "Correctie vorige periode", "Previous period adjustment", { calcType: "MANUAL", frequency: "ONE_OFF" }),
   ded("DED010", "Onbetaald verlof", "Unpaid leave", { isSystem: true, systemCode: "UNPAID" }),
+  ded("DED012", "FVO-bijdrage", "FVO contribution", { calcType: "PERCENT_OF_BASE", legalStatus: "PENDING_VERIFICATION", legalReference: "Fonds ouderschapsverlof (Wet Arbeidsbescherming Gezin) — percentage en verdeling werkgever/werknemer niet geverifieerd" }),
+  ded("DED013", "Pensioenbijdrage (vast bedrag)", "Pension contribution (fixed amount)", { preTax: true, legalReference: "Alleen gebruiken als er geen pensioenpercentage in de arbeidsovereenkomst staat" }),
   ded("DED011", "AOV-premie", "AOV premium", { isSystem: true, systemCode: "AOV", legalStatus: "PENDING_VERIFICATION", legalReference: "Wet AOV — premie 4% van de heffingsgrondslag" }),
   // 1.6 Employer contributions (never deducted from net salary)
   er("ER001", "Werkgeversbijdrage pensioen", "Employer pension contribution", { isSystem: true, systemCode: "PENS-ER" }),

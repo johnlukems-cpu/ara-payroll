@@ -62,6 +62,24 @@ enum ComponentFrequency {
   ANNUAL
 }
 
+/// When a pay component assigned to an employee is processed.
+enum AssignmentFrequency {
+  MONTHLY // every monthly payroll run within the validity period
+  PER_PERIOD // every payroll period (runs are monthly today; kept separate for future weekly/biweekly runs)
+  ONE_OFF // once, in the period that contains the start (payment) date
+  ANNUAL // once a year, in the payment month
+  ACCRUAL // accrued every month, paid out in the payment month (e.g. holiday allowance)
+}
+
+/// Origin of a payslip line (used for the payslip summary and to prevent double processing).
+enum LineSource {
+  BASE
+  FIXED
+  INCIDENTAL
+  STATUTORY
+  LEAVE
+}
+
 enum NetEffect {
   ADD
   DEDUCT
@@ -404,6 +422,7 @@ model PayComponent {
   legalReference   String?
   legalStatus      LegalStatus            @default(COMPANY_POLICY)
   approvalStatus   ApprovalStatus         @default(APPROVED)
+  availableToAll   Boolean                @default(true) // offered in the employee and payslip dropdowns
   company          Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   assignments      EmployeePayComponent[]
   adjustments      PayrollAdjustment[]
@@ -421,8 +440,23 @@ model EmployeePayComponent {
   quantity    Float? // hours, days or units for quantity-based methods
   startDate   DateTime
   endDate     DateTime?
+  label       String? // name on the payslip; null = component name
+  calcType    CalcType? // per-employee calculation method; null = component default
+  baseComponentCode String? // PERCENT_OF_COMPONENT
+  frequency   AssignmentFrequency @default(MONTHLY)
+  payMonth    Int? // ANNUAL / ACCRUAL payment month (1–12); null = month of the start date (ANNUAL) or December (ACCRUAL)
+  taxOverride TaxTreatment? // null = component tax configuration
+  aovIncluded Boolean? // null = component setting
+  pensionIncluded Boolean? // null = component setting
+  isActive    Boolean      @default(true)
+  note        String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @default(now()) @updatedAt
   employee    Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   component   PayComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  overrides   PayrollAdjustment[]
+
+  @@index([employeeId])
 }
 
 /// Statutory parameters for Surinamese wage tax (Loonbelasting) and AOV.
@@ -524,8 +558,21 @@ model PayrollAdjustment {
   quantity    Float? // hours, days or units for quantity-based methods
   currency    String? // null = the employee's salary currency
   description String?
+  calcType    CalcType? // null = component default
+  rateBp      Int          @default(0)
+  baseComponentCode String?
+  taxOverride TaxTreatment? // null = component tax configuration
+  aovIncluded Boolean?
+  pensionIncluded Boolean?
+  allowDuplicate Boolean   @default(false) // explicitly confirmed as additional to a fixed component
+  /// Set when this row overrides the amount of a fixed (employee) component for this run only.
+  assignmentId String?
+  createdAt   DateTime     @default(now())
   run         PayrollRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
   component   PayComponent @relation(fields: [componentId], references: [id], onDelete: Cascade)
+  assignment  EmployeePayComponent? @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([runId, employeeId])
 }
 
 model Payslip {
@@ -583,6 +630,7 @@ model PayslipLine {
   originalAmount   Int? // amount before conversion, when the source currency differs
   originalCurrency String?
   labels      Json? // { nl, en } display names at calculation time
+  source      LineSource? // fixed (employee profile), incidental (payslip), statutory, base or leave
   payslip     Payslip         @relation(fields: [payslipId], references: [id], onDelete: Cascade)
 }
 

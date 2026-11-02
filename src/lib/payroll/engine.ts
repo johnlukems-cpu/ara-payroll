@@ -74,6 +74,13 @@ export interface ComponentInput {
   pensionIncluded?: boolean;
   /** ALLOWANCE only: NONE = taxable benefit in kind (part of gross, not paid out). */
   netEffect?: "ADD" | "DEDUCT" | "NONE";
+  /** FIXED = employee's fixed component, INCIDENTAL = added to this payslip only. */
+  source?: "FIXED" | "INCIDENTAL";
+  /**
+   * Accrual (e.g. holiday allowance built up during the year): the period amount is always
+   * resolved and recorded in trace.accruals[id]; it is only paid (with the prior balance) when pay is true.
+   */
+  accrual?: { id: string; prior: number; pay: boolean };
 }
 
 export interface LeaveInput {
@@ -116,8 +123,11 @@ export interface PeriodInput {
   leave?: LeaveInput[];
 }
 
+export type LineSource = "BASE" | "FIXED" | "INCIDENTAL" | "STATUTORY" | "LEAVE";
+
 export interface PayslipLineResult {
   type: "EARNING" | "DEDUCTION" | "EMPLOYER";
+  source?: LineSource;
   code: string;
   description: string;
   labels?: { nl?: string; en?: string };
@@ -306,16 +316,17 @@ export function calculatePayslip(
   if (emp.payType === "HOURLY") {
     const hours = period.hoursWorked ?? round(emp.hoursPerWeek * WEEKS_PER_MONTH * fraction * 100) / 100;
     basePay = round(hours * emp.hourlyRate);
-    lines.push({ type: "EARNING", code: "SAL004", description: "Hourly wages", quantity: hours, rate: emp.hourlyRate, amount: basePay });
+    lines.push({ type: "EARNING", source: "BASE", code: "SAL004", description: "Hourly wages", quantity: hours, rate: emp.hourlyRate, amount: basePay });
   } else if (emp.payType === "DAILY") {
     const days = period.daysWorked ?? round(WORKING_DAYS_PER_MONTH * fraction * 100) / 100;
     basePay = round(days * emp.baseSalary);
-    lines.push({ type: "EARNING", code: "SAL003", description: "Daily wages", quantity: days, rate: emp.baseSalary, amount: basePay });
+    lines.push({ type: "EARNING", source: "BASE", code: "SAL003", description: "Daily wages", quantity: days, rate: emp.baseSalary, amount: basePay });
   } else {
     const code = emp.payType === "WEEKLY" ? "SAL002" : fraction < 1 ? "SAL008" : "SAL001";
     basePay = round(rates.monthly * fraction);
     lines.push({
       type: "EARNING",
+      source: "BASE",
       code,
       description: fraction < 1 ? "Base salary (prorated)" : "Base salary",
       quantity: fraction < 1 ? Math.round(fraction * 10000) / 10000 : undefined,
@@ -325,7 +336,7 @@ export function calculatePayslip(
     if (period.unpaidDays > 0) {
       const unpaid = Math.min(basePay, round(rates.daily * period.unpaidDays));
       basePay -= unpaid;
-      lines.push({ type: "EARNING", code: "UNPAID", description: "Unpaid leave", quantity: period.unpaidDays, rate: round(rates.daily), amount: -unpaid });
+      lines.push({ type: "EARNING", source: "LEAVE", code: "UNPAID", description: "Unpaid leave", quantity: period.unpaidDays, rate: round(rates.daily), amount: -unpaid });
     }
   }
   // Components expressed as % of base use the contractual (unprorated by leave) salary basis.
@@ -339,7 +350,7 @@ export function calculatePayslip(
       const reduction = Math.min(basePay, round((rates.daily * l.days * (10000 - Math.min(10000, Math.max(0, l.payPercentBp)))) / 10000));
       if (reduction > 0 || l.informational) {
         basePay -= reduction;
-        lines.push({ type: "EARNING", code: l.code, description: l.label, labels: l.labels, quantity: Math.round(l.days * 100) / 100, rate: l.payPercentBp, amount: -reduction });
+        lines.push({ type: "EARNING", source: "LEAVE", code: l.code, description: l.label, labels: l.labels, quantity: Math.round(l.days * 100) / 100, rate: l.payPercentBp, amount: -reduction });
         leaveTrace.push({ code: l.code, days: l.days, payPercentBp: l.payPercentBp, reduction });
       }
     }
@@ -349,18 +360,29 @@ export function calculatePayslip(
   trace.rates = { monthly: round(rates.monthly), hourly: round(rates.hourly), daily: round(rates.daily) };
 
   // 3. Components
-  const amounts = resolveComponentAmounts(components, { base: componentBase, hourly: rates.hourly, daily: rates.daily });
+  const resolved = resolveComponentAmounts(components, { base: componentBase, hourly: rates.hourly, daily: rates.daily });
+  // Accruals: record the period amount; only pay out (period amount + earlier balance) in the payout period.
+  const accruals: Record<string, { code: string; name: string; accrued: number; paid: number; balance: number }> = {};
+  const amounts = resolved.map((v, i) => {
+    const c = components[i];
+    const acc = c.accrual;
+    if (!acc) return v;
+    const total = acc.prior + v;
+    accruals[acc.id] = { code: c.code, name: c.name, accrued: v, paid: acc.pay ? total : 0, balance: acc.pay ? 0 : total };
+    return acc.pay ? total : 0;
+  });
+  trace.accruals = accruals;
 
   // Overtime from period inputs
   const ot1 = round(period.overtime1Hours * rates.hourly * (period.overtime1RateBp / 10000));
   const ot2 = round(period.overtime2Hours * rates.hourly * (period.overtime2RateBp / 10000));
-  if (ot1 > 0) lines.push({ type: "EARNING", code: "OT1", description: `Overtime ${period.overtime1RateBp / 100}%`, quantity: period.overtime1Hours, rate: round(rates.hourly * period.overtime1RateBp / 10000), amount: ot1 });
-  if (ot2 > 0) lines.push({ type: "EARNING", code: "OT2", description: `Overtime ${period.overtime2RateBp / 100}%`, quantity: period.overtime2Hours, rate: round(rates.hourly * period.overtime2RateBp / 10000), amount: ot2 });
+  if (ot1 > 0) lines.push({ type: "EARNING", source: "INCIDENTAL", code: "OT1", description: `Overtime ${period.overtime1RateBp / 100}%`, quantity: period.overtime1Hours, rate: round(rates.hourly * period.overtime1RateBp / 10000), amount: ot1 });
+  if (ot2 > 0) lines.push({ type: "EARNING", source: "INCIDENTAL", code: "OT2", description: `Overtime ${period.overtime2RateBp / 100}%`, quantity: period.overtime2Hours, rate: round(rates.hourly * period.overtime2RateBp / 10000), amount: ot2 });
   let overtimePay = ot1 + ot2;
 
   // Special reward from period input
   let rewards = Math.max(0, period.bonus);
-  if (rewards > 0) lines.push({ type: "EARNING", code: "BONUS", description: "Special reward (bijzondere beloning)", amount: rewards });
+  if (rewards > 0) lines.push({ type: "EARNING", source: "INCIDENTAL", code: "BONUS", description: "Special reward (bijzondere beloning)", amount: rewards });
 
   let taxableAllowances = 0;
   let exemptAllowances = 0;
@@ -369,7 +391,9 @@ export function calculatePayslip(
   let benefitsInKind = 0;
   let employerContributions = 0;
   const childCap = rules.childAllowanceExempt * Math.min(emp.numberOfChildren, rules.childAllowanceMaxChildren);
+  let exemptPaidAllowances = 0;
   const lineMeta = (c: ComponentInput, amount: number) => ({
+    source: c.source ?? ("FIXED" as const),
     code: c.code,
     description: c.name,
     labels: c.labels,
@@ -395,6 +419,7 @@ export function calculatePayslip(
         else if (c.taxTreatment === "CHILD_ALLOWANCE") exempt = Math.min(amount, childCap);
         exempt = Math.max(0, exempt);
         exemptAllowances += exempt;
+        if (c.netEffect !== "NONE") exemptPaidAllowances += exempt;
         taxableAllowances += amount - exempt;
         if (c.aovIncluded ?? c.taxTreatment === "TAXABLE") aovAllowances += amount - exempt;
       }
@@ -406,6 +431,7 @@ export function calculatePayslip(
   trace.overtimePay = overtimePay;
   trace.taxableAllowances = taxableAllowances;
   trace.exemptAllowances = exemptAllowances;
+  trace.exemptPaidAllowances = exemptPaidAllowances;
 
   const bonusExemptRemaining = Math.max(0, rules.bonusExemptAnnual - period.ytdBonusExemptUsed);
   const bonusExemptUsed = Math.min(rewards, bonusExemptRemaining);
@@ -480,11 +506,11 @@ export function calculatePayslip(
   trace.aov = { base: aovRules.base, baseAmount: aovBase, rateBp: aovRules.rateBp, franchise: aovRules.franchiseMonthly, employeeShareBp: aovRules.employeeShareBp, exempt: aovExempt, total: aovTotal };
   trace.aovBase = aovBase;
 
-  if (wageTax > 0) lines.push({ type: "DEDUCTION", code: "LB", description: "Wage tax (loonbelasting)", amount: wageTax });
-  if (bonusTax > 0) lines.push({ type: "DEDUCTION", code: "LB-BB", description: "Wage tax on special reward", amount: bonusTax });
-  if (overtimeTax > 0) lines.push({ type: "DEDUCTION", code: "LB-OT", description: "Wage tax on overtime", amount: overtimeTax });
-  if (aov > 0) lines.push({ type: "DEDUCTION", code: "AOV", description: "AOV premium", rate: applyBp(aovRules.rateBp, aovRules.employeeShareBp), amount: aov });
-  if (pensionEmployee > 0) lines.push({ type: "DEDUCTION", code: "PENS", description: "Pension contribution", rate: emp.pensionEmployeeBp, amount: pensionEmployee });
+  if (wageTax > 0) lines.push({ type: "DEDUCTION", source: "STATUTORY", code: "LB", description: "Wage tax (loonbelasting)", amount: wageTax });
+  if (bonusTax > 0) lines.push({ type: "DEDUCTION", source: "STATUTORY", code: "LB-BB", description: "Wage tax on special reward", amount: bonusTax });
+  if (overtimeTax > 0) lines.push({ type: "DEDUCTION", source: "STATUTORY", code: "LB-OT", description: "Wage tax on overtime", amount: overtimeTax });
+  if (aov > 0) lines.push({ type: "DEDUCTION", source: "STATUTORY", code: "AOV", description: "AOV premium", rate: applyBp(aovRules.rateBp, aovRules.employeeShareBp), amount: aov });
+  if (pensionEmployee > 0) lines.push({ type: "DEDUCTION", source: "STATUTORY", code: "PENS", description: "Pension contribution", rate: emp.pensionEmployeeBp, amount: pensionEmployee });
 
   // 8. Other deductions
   let otherDeductions = 0;
@@ -499,8 +525,8 @@ export function calculatePayslip(
   const netPay = grossPay - totalDeductions - benefitsInKind;
 
   // Employer contributions: calculated separately, never deducted from net pay.
-  if (pensionEmployer > 0) lines.push({ type: "EMPLOYER", code: "PENS-ER", description: "Employer pension contribution", rate: emp.pensionEmployerBp, amount: pensionEmployer });
-  if (aovEmployer > 0) lines.push({ type: "EMPLOYER", code: "AOV-ER", description: "AOV employer share", amount: aovEmployer });
+  if (pensionEmployer > 0) lines.push({ type: "EMPLOYER", source: "STATUTORY", code: "PENS-ER", description: "Employer pension contribution", rate: emp.pensionEmployerBp, amount: pensionEmployer });
+  if (aovEmployer > 0) lines.push({ type: "EMPLOYER", source: "STATUTORY", code: "AOV-ER", description: "AOV employer share", amount: aovEmployer });
   components.forEach((c, i) => {
     if (c.kind !== "EMPLOYER" || amounts[i] === 0) return;
     employerContributions += amounts[i];

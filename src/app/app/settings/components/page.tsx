@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { LegalBadge } from "@/components/legal-badge";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { adoptLibraryAction } from "@/app/actions/settings";
+import { adoptLibraryAction, toggleComponentAction } from "@/app/actions/settings";
 
 export async function generateMetadata() {
   const { t } = await getI18n();
@@ -74,8 +74,14 @@ export default async function ComponentsPage() {
                       {c.netEffect === "NONE" && c.kind === "ALLOWANCE" && <Badge variant="muted">{t("components.inKind")}</Badge>}
                     </TD>
                     <TD><LegalBadge status={c.legalStatus} /></TD>
-                    <TD>{c.approvalStatus === "DRAFT" ? <Badge variant="warning">{t("components.draft")}</Badge> : c.isActive ? <Badge variant="success">{t("common.active")}</Badge> : <Badge variant="muted">{t("common.inactive")}</Badge>}</TD>
-                    <TD className="text-right"><Link className="text-primary hover:underline" href={`/app/settings/components/${c.id}`}>{t("common.edit")}</Link></TD>
+                    <TD>
+                      {c.approvalStatus === "DRAFT" ? <Badge variant="warning">{t("components.draft")}</Badge> : c.isActive ? <Badge variant="success">{t("common.active")}</Badge> : <Badge variant="muted">{t("common.inactive")}</Badge>}
+                      {c.isActive && c.availableToAll && cat !== "SALARY" && <Badge variant="accent" className="ml-1">{t("components.inDropdowns")}</Badge>}
+                    </TD>
+                    <TD className="whitespace-nowrap text-right">
+                      <ActionButton action={toggleComponentAction} fields={{ id: c.id, field: "isActive" }} size="sm" variant="ghost">{c.isActive ? t("components.deactivate") : t("components.activate")}</ActionButton>
+                      <Link className="ml-2 text-primary hover:underline" href={`/app/settings/components/${c.id}`}>{t("common.edit")}</Link>
+                    </TD>
                   </TR>
                 ))}
               </TBody>

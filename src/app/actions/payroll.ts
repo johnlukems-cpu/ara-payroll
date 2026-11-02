@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { requirePermission } from "@/lib/server/auth";
 import { audit } from "@/lib/server/audit";
@@ -14,6 +14,7 @@ import { assertActiveCurrency } from "@/lib/server/rates";
 import { getI18n } from "@/lib/server/i18n";
 import { assertPeriodReopenable, prepareMonthlyDeclaration } from "@/lib/server/declarations";
 import { dateField } from "@/lib/validation";
+import { assertNoIncidentalDuplicate, assertPensionNotDouble, parseOverrides, resolveComponent } from "@/lib/server/pay-components";
 
 async function loadRun(companyId: string, runId: string) {
   const run = await db.payrollRun.findFirst({ where: { id: runId, companyId } });
@@ -82,49 +83,105 @@ export async function saveInputsAction(_: ActionState, fd: FormData): Promise<Ac
     });
     await db.$transaction([...ops, db.payrollRun.update({ where: { id: run.id }, data: { status: "DRAFT" } })]);
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "payroll.inputs_saved", entity: "PayrollRun", entityId: run.id });
-    revalidatePath(`/app/payroll/${run.id}`);
-    return ok((await getTranslations())("run.inputsSaved"));
+    const t = await getTranslations();
+    const suffix = await recalcAfterChange(run.id, t);
+    revalidatePath(`/app/payroll/${run.id}`, "layout");
+    return ok(`${t("run.inputsSaved")}${suffix}`);
   } catch (e) {
     return handleError(e);
   }
 }
 
+/**
+ * Recalculates a run after its inputs changed so net pay is always up to date. When the calculation
+ * cannot run (e.g. a missing exchange rate) the run stays in draft and the reason is reported.
+ */
+async function recalcAfterChange(runId: string, t: Awaited<ReturnType<typeof getTranslations>>): Promise<string> {
+  try {
+    await calculateRun(runId);
+    return ` ${t("run.recalculated")}`;
+  } catch (e) {
+    await db.payrollRun.update({ where: { id: runId }, data: { status: "DRAFT" } });
+    const err = await handleError(e).catch(() => null);
+    return ` ${t("run.recalcPending", { reason: err?.message ?? "" })}`;
+  }
+}
+
+/**
+ * Adds an incidental allowance or deduction to the payslips of one or more employees in a run.
+ * Statutory deductions are calculated automatically and cannot be added; a component that already
+ * applies as a fixed component of the employee requires explicit confirmation (no silent double entry).
+ */
 export async function addAdjustmentAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const ctx = await requirePermission("payroll.run");
     const raw = formObject(fd);
+    const t = await getTranslations();
     const run = await loadRun(ctx.company.id, String(raw.runId));
     assertEditable(run.status);
-    const data = z.object({
-      employeeId: z.string({ error: "validation.selectEmployee" }),
-      componentId: z.string({ error: "validation.selectComponent" }),
-      amount: z.string().optional(),
-      quantity: z.string().optional(),
-      currency: z.string().regex(/^[A-Z]{3}$/, "validation.currency").optional(),
-      description: z.string().max(120).optional(),
-    }).parse(raw);
-    let amount = 0;
-    try { amount = parseMoney(data.amount); } catch { /* handled below */ }
-    const quantity = data.quantity ? Number(data.quantity.replace(",", ".")) : null;
-    if (quantity !== null && (!Number.isFinite(quantity) || quantity <= 0 || quantity > 10000)) throw new UserError("errors.invalidValue", { value: data.quantity! });
-    if (data.currency && !(await assertActiveCurrency(data.currency))) throw new UserError("errors.currencyInactive", { code: data.currency });
-    const [emp, comp] = await Promise.all([
-      db.employee.findFirst({ where: { id: data.employeeId, companyId: ctx.company.id } }),
-      db.payComponent.findFirst({ where: { id: data.componentId, companyId: ctx.company.id } }),
-    ]);
-    if (!emp || !comp) throw new UserError("errors.invalidEmployeeOrComponent");
-    const qtyBased = ["HOURS_X_RATE", "DAYS_X_RATE", "QTY_X_PRICE"].includes(comp.calcType);
-    if (qtyBased && !quantity) throw new UserError("errors.enterQuantity");
-    if (!qtyBased && comp.calcType !== "FORMULA" && amount <= 0) throw new UserError("errors.positiveAmount");
-    const contract = await db.contract.findFirst({ where: { employeeId: emp.id }, orderBy: { startDate: "desc" } });
-    const currency = data.currency ?? contract?.salaryCurrency ?? ctx.company.currency;
+    const employeeIds = [...new Set(fd.getAll("employeeIds").map(String).filter(Boolean).concat(raw.employeeId ? [raw.employeeId] : []))];
+    if (employeeIds.length === 0) return { ok: false, message: t("validation.selectEmployee"), errors: { employeeIds: [t("validation.selectEmployee")] }, ts: Date.now() };
+    if (!raw.component && !raw.componentId) return { ok: false, message: t("validation.selectComponent"), errors: { component: [t("validation.selectComponent")] }, ts: Date.now() };
+    const description = raw.description || raw.label || null;
+    if (description && description.length > 120) throw new UserError("errors.invalidValue", { value: description.slice(0, 20) });
+    const allowDuplicate = raw.allowDuplicate === "on";
+    const comp = await resolveComponent(ctx.company.id, raw.component ?? raw.componentId!, await getLocale());
+    const employees = await db.employee.findMany({
+      where: { ...eligibleEmployeesWhere(ctx.company.id, run.year, run.month), id: { in: employeeIds } },
+      include: { contracts: { orderBy: { startDate: "desc" }, take: 1 } },
+    });
+    if (employees.length !== employeeIds.length) throw new UserError("errors.invalidEmployeeOrComponent");
+    const rows = [];
+    for (const emp of employees) {
+      const { errors, values } = await parseOverrides(ctx.company.id, comp, raw, { incidental: true, parseMoney, defaultCurrency: emp.contracts[0]?.salaryCurrency ?? ctx.company.currency });
+      if (Object.keys(errors).length) return { ok: false, message: t("validation.fixFields"), errors: Object.fromEntries(Object.entries(errors).map(([k, v]) => [k, [t(v as never)]])), ts: Date.now() };
+      if (values.currency && !(await assertActiveCurrency(values.currency))) throw new UserError("errors.currencyInactive", { code: values.currency });
+      await assertPensionNotDouble(emp.id, comp);
+      try {
+        await assertNoIncidentalDuplicate(run, emp.id, comp, description, allowDuplicate);
+      } catch (e) {
+        if (e instanceof UserError && employees.length > 1) throw new UserError(e.key, { ...e.values, name: `${e.values?.name ?? comp.name} (${emp.firstName} ${emp.lastName})` });
+        throw e;
+      }
+      rows.push({ runId: run.id, employeeId: emp.id, componentId: comp.id, description, allowDuplicate, ...values });
+    }
     await db.$transaction([
-      db.payrollAdjustment.create({ data: { runId: run.id, employeeId: emp.id, componentId: comp.id, amount, quantity, currency, description: data.description } }),
+      db.payrollAdjustment.createMany({ data: rows }),
       db.payrollRun.update({ where: { id: run.id }, data: { status: "DRAFT" } }),
     ]);
-    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "payroll.adjustment_added", entity: "PayrollRun", entityId: run.id, details: { employee: emp.employeeNumber, component: comp.code, amount, quantity, currency } });
-    revalidatePath(`/app/payroll/${run.id}`);
-    return ok((await getTranslations())("run.adjAdded"));
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "payroll.adjustment_added", entity: "PayrollRun", entityId: run.id, details: { employees: employees.map((e) => e.employeeNumber), component: comp.code, amount: rows[0]?.amount, rateBp: rows[0]?.rateBp, currency: rows[0]?.currency, taxOverride: rows[0]?.taxOverride, allowDuplicate } });
+    const suffix = await recalcAfterChange(run.id, t);
+    revalidatePath(`/app/payroll/${run.id}`, "layout");
+    return ok(`${t("run.adjAddedCount", { count: rows.length, name: description ?? comp.name })}${suffix}`);
+  } catch (e) {
+    return handleError(e);
+  }
+}
+
+/** Overrides the amount of an employee's fixed component for this run only (replaces it; never adds a second line). */
+export async function overrideFixedAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requirePermission("payroll.run");
+    const raw = formObject(fd);
+    const t = await getTranslations();
+    const run = await loadRun(ctx.company.id, String(raw.runId));
+    assertEditable(run.status);
+    const a = await db.employeePayComponent.findFirst({ where: { id: String(raw.assignmentId), employee: { companyId: ctx.company.id } } });
+    if (!a) throw new UserError("errors.notFound");
+    let amount: number;
+    try { amount = parseMoney(raw.amount); } catch { amount = -1; }
+    if (amount < 0) return { ok: false, message: t("validation.fixFields"), errors: { amount: [t("validation.amount")] }, ts: Date.now() };
+    const currency = raw.currency ?? a.currency ?? (await db.contract.findFirst({ where: { employeeId: a.employeeId }, orderBy: { startDate: "desc" } }))?.salaryCurrency ?? ctx.company.currency;
+    if (!(await assertActiveCurrency(currency))) throw new UserError("errors.currencyInactive", { code: currency });
+    await db.$transaction([
+      db.payrollAdjustment.deleteMany({ where: { runId: run.id, assignmentId: a.id } }),
+      db.payrollAdjustment.create({ data: { runId: run.id, employeeId: a.employeeId, componentId: a.componentId, assignmentId: a.id, amount, currency, calcType: "FIXED", description: a.label } }),
+      db.payrollRun.update({ where: { id: run.id }, data: { status: "DRAFT" } }),
+    ]);
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "payroll.fixed_override", entity: "PayrollRun", entityId: run.id, details: { assignmentId: a.id, amount, currency } });
+    const suffix = await recalcAfterChange(run.id, t);
+    revalidatePath(`/app/payroll/${run.id}`, "layout");
+    return ok(`${t("run.overrideSaved")}${suffix}`);
   } catch (e) {
     return handleError(e);
   }
@@ -140,8 +197,10 @@ export async function removeAdjustmentAction(_: ActionState, fd: FormData): Prom
       db.payrollAdjustment.delete({ where: { id: adj.id } }),
       db.payrollRun.update({ where: { id: adj.runId }, data: { status: "DRAFT" } }),
     ]);
-    revalidatePath(`/app/payroll/${adj.runId}`);
-    return ok((await getTranslations())("run.adjRemoved"));
+    const t = await getTranslations();
+    const suffix = await recalcAfterChange(adj.runId, t);
+    revalidatePath(`/app/payroll/${adj.runId}`, "layout");
+    return ok(`${t(adj.assignmentId ? "run.overrideRemoved" : "run.adjRemoved")}${suffix}`);
   } catch (e) {
     return handleError(e);
   }

@@ -101,6 +101,8 @@ describe("enum translations", () => {
     [$Enums.PayrollStatus, ["status"]],
     [$Enums.LeaveStatus, ["status"]],
     [$Enums.RateSource, ["enums.rateSource"]],
+    [$Enums.AssignmentFrequency, ["enums.assignmentFrequency", "assign.hint"]],
+    [$Enums.LineSource, ["enums.lineSource"]],
     [$Enums.LeaveUnit, ["leaveTypes.units"]],
   ];
   it("has a translation for every enum value", () => {

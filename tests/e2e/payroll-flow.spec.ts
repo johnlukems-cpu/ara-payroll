@@ -69,8 +69,8 @@ test("owner registers, pays a USD-salaried employee and approves payroll (Englis
   await page.goto(runUrl);
   await page.getByLabel(/OT 150/).fill("5");
   await page.click("button:has-text('Save inputs')");
-  await expect(page.getByText("Inputs saved")).toBeVisible();
-  await page.click("button:has-text('Calculate payroll')");
+  await expect(page.getByText("Inputs saved. Net pay has been recalculated.")).toBeVisible();
+  await page.click("button:has-text('Recalculate')");
   await expect(page.getByText("Calculated 1 payslip")).toBeVisible();
   await page.reload();
   await expect(page.getByRole("cell", { name: /Anita Ramsaran/ })).toBeVisible();
@@ -228,3 +228,116 @@ test("login rejects wrong passwords (Dutch message)", async ({ page }) => {
   await expect(page.getByText("Onjuist e-mailadres of wachtwoord")).toBeVisible();
 });
 
+
+test("fixed and extra allowances/deductions via dropdowns, duplicate checks and payslip summary (Dutch UI)", async ({ page }) => {
+  const email = `fixed-${Date.now()}@e2e.test`;
+  await page.goto("/register");
+  await page.fill("#name", "Vaste Componenten");
+  await page.fill("#email", email);
+  await page.fill("#password", "E2ePassword1");
+  await page.fill("#organizationName", "Toelagen Org");
+  await page.fill("#companyName", "Toelagen N.V.");
+  await page.selectOption("#currency", "SRD");
+  await page.click("button[type=submit]");
+  await expect(page).toHaveURL(/\/app\?welcome=1/);
+
+  await page.goto("/app/employees/new");
+  await page.fill("#firstName", "Ravi");
+  await page.fill("#lastName", "Jagernath");
+  await page.fill("#hireDate", "2024-01-01");
+  await page.selectOption("#salaryCurrency", "SRD");
+  await page.fill("#baseSalary", "20000");
+  await page.click("button:has-text('Werknemer aanmaken')");
+  await expect(page.getByText("Werknemer succesvol aangemaakt")).toBeVisible();
+
+  // Personeelsprofiel → Toelagen en inhoudingen
+  await page.getByRole("link", { name: "Toelagen en inhoudingen" }).click();
+  await expect(page.getByText("A. Vaste toelagen")).toBeVisible();
+  await expect(page.getByText("B. Vaste inhoudingen")).toBeVisible();
+  await expect(page.getByTestId("section-DEDUCTION").getByText("Loonbelasting", { exact: true })).toBeVisible();
+
+  // The form appears after selecting a component from the dropdown.
+  const allowance = page.getByTestId("add-ALLOWANCE-component");
+  await allowance.selectOption({ label: "Brandstoftoelage" });
+  await page.fill("#add-ALLOWANCE-amount", "500");
+  await page.fill("#add-ALLOWANCE-start", "2026-01-01");
+  await expect(page.locator("#add-ALLOWANCE-tax")).toHaveValue("CONFIG");
+  await page.locator("#add-ALLOWANCE-tax").selectOption("EXEMPT");
+  await expect(page.getByText(/maakt een toelage nooit automatisch onbelast/)).toBeVisible();
+  await page.locator("#add-ALLOWANCE-tax").selectOption("TAXABLE");
+  await page.getByTestId("section-ALLOWANCE").getByRole("button", { name: "Toevoegen" }).click();
+  await expect(page.getByText("Brandstoftoelage toegevoegd.")).toBeVisible();
+  await expect(page.getByTestId("assignment-ALW013")).toContainText("SRD");
+
+  // Same component again for the same period → duplicate error.
+  await allowance.selectOption({ label: "Brandstoftoelage" });
+  await page.fill("#add-ALLOWANCE-amount", "500");
+  await page.fill("#add-ALLOWANCE-start", "2026-06-01");
+  await page.getByTestId("section-ALLOWANCE").getByRole("button", { name: "Toevoegen" }).click();
+  await expect(page.getByText(/is al als vaste component toegewezen/)).toBeVisible();
+
+  // Holiday allowance as an accrual, 8% of base salary, paid in March.
+  await allowance.selectOption({ label: "Vakantietoelage" });
+  await page.locator("#add-ALLOWANCE-calc").selectOption("PERCENT_OF_BASE");
+  await page.fill("#add-ALLOWANCE-rate", "8");
+  await page.locator("#add-ALLOWANCE-freq").selectOption("ACCRUAL");
+  await page.locator("#add-ALLOWANCE-month").selectOption("3");
+  await page.fill("#add-ALLOWANCE-start", "2026-01-01");
+  await page.getByTestId("section-ALLOWANCE").getByRole("button", { name: "Toevoegen" }).click();
+  await expect(page.getByText("Vakantietoelage toegevoegd.")).toBeVisible();
+
+  // Statutory deductions are shown but cannot be selected; a fixed loan repayment can.
+  const deduction = page.getByTestId("add-DEDUCTION-component");
+  await expect(deduction.locator("option", { hasText: "Loonbelasting (automatisch)" })).toBeDisabled();
+  await deduction.selectOption({ label: "Personeelslening" });
+  await page.fill("#add-DEDUCTION-amount", "250");
+  await page.fill("#add-DEDUCTION-start", "2026-01-01");
+  await page.getByTestId("section-DEDUCTION").getByRole("button", { name: "Toevoegen" }).click();
+  await expect(page.getByText("Personeelslening toegevoegd.")).toBeVisible();
+
+  // Payroll run for March 2026: fixed components are included automatically.
+  await page.goto("/app/payroll/new");
+  await page.selectOption("#month", "3");
+  await page.fill("#year", "2026");
+  await page.click("button:has-text('Salarisrun aanmaken')");
+  await page.getByRole("button", { name: "Salarissen berekenen" }).click();
+  await expect(page.getByText(/1 loonstrook|1 loonstroken/).first()).toBeVisible();
+  await page.reload();
+  await page.getByRole("link", { name: "Opstellen" }).first().click();
+  await expect(page.getByRole("heading", { name: /Loonstrook opstellen — Ravi Jagernath/ })).toBeVisible();
+  await expect(page.getByTestId("compose-row-ALW013")).toContainText("Wordt verwerkt");
+  await expect(page.getByTestId("compose-row-BON006")).toContainText("Uitbetaling opbouw");
+
+  // Extra allowance via the dropdown; the payslip is recalculated straight away.
+  await page.getByTestId("extra-ALLOWANCE-component").selectOption({ label: "Gratificatie" });
+  await page.fill("#extra-ALLOWANCE-amount", "1000");
+  await page.getByTestId("compose-extra-ALLOWANCE").getByRole("button", { name: "Toevoegen" }).click();
+  await expect(page.getByText(/Gratificatie toegevoegd aan 1 loonstrook\. Nettoloon is opnieuw berekend\./)).toBeVisible();
+
+  // A component that already applies as fixed cannot silently be entered again.
+  await page.getByTestId("extra-ALLOWANCE-component").selectOption({ label: "Brandstoftoelage" });
+  await page.fill("#extra-ALLOWANCE-amount", "500");
+  await page.getByTestId("compose-extra-ALLOWANCE").getByRole("button", { name: "Toevoegen" }).click();
+  await expect(page.getByText(/wordt al als vaste component verwerkt/)).toBeVisible();
+
+  // Adjust the fixed fuel allowance for this payslip only.
+  await page.getByTestId("compose-row-ALW013").getByLabel("Bedrag voor deze loonstrook").fill("600");
+  await page.getByTestId("compose-row-ALW013").getByRole("button", { name: "Aanpassen" }).click();
+  await expect(page.getByText(/Bedrag voor deze loonstrook aangepast/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId("compose-row-ALW013")).toContainText("Aangepast: SRD");
+
+  const calc = page.getByTestId("compose-calculation");
+  for (const row of ["Basissalaris", "Vaste toelagen", "Incidentele toelagen", "Brutosalaris", "Belastbare grondslag", "Loonbelasting", "AOV", "Overige inhoudingen", "Totale inhoudingen", "Nettosalaris", "Onbelaste kostenvergoedingen", "Totaal uit te betalen"]) {
+    await expect(calc.getByRole("cell", { name: row, exact: true })).toBeVisible();
+  }
+  // Fixed: fuel 600 (adjusted) + holiday allowance paid out in March: 8% of 20,000 = 1,600 (no earlier payslips
+  // accrued in this new company) → 2,200; incidental: gratuity 1,000.
+  await expect(calc.getByRole("row", { name: /^Vaste toelagen/ })).toContainText("2.200,00");
+  await expect(calc.getByRole("row", { name: /^Incidentele toelagen/ })).toContainText("1.000,00");
+  await expect(calc.getByRole("row", { name: /^Brutosalaris/ })).toContainText("23.200,00");
+  await expect(page.getByTestId("payslip-summary")).toBeVisible();
+
+  const pdf = await page.request.get((await page.getByRole("link", { name: /PDF/ }).first().getAttribute("href"))!);
+  expect(pdf.status()).toBe(200);
+});

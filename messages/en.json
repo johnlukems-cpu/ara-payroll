@@ -148,6 +148,20 @@
       "Livingtogether": "Living together",
       "Divorced": "Divorced",
       "Widowed": "Widowed"
+    },
+    "assignmentFrequency": {
+      "MONTHLY": "Monthly",
+      "PER_PERIOD": "Per pay period",
+      "ONE_OFF": "One-off",
+      "ANNUAL": "Annual",
+      "ACCRUAL": "Accrual, annual payout"
+    },
+    "lineSource": {
+      "BASE": "Base salary",
+      "FIXED": "Fixed",
+      "INCIDENTAL": "Incidental",
+      "STATUTORY": "Statutory",
+      "LEAVE": "Leave"
     }
   },
   "auth": {
@@ -420,7 +434,12 @@
     "selfServiceExisting": "Self-service enabled. {email} already has an ARA account and can sign in with their existing password.",
     "taxRegime": "Tax regime",
     "taxRegimeHint": "Art. 17a only applies to employees within its verified legal scope.",
-    "taxRegimeLocked": "Art. 17a can be selected once a verified rule set for its scope exists."
+    "taxRegimeLocked": "Art. 17a can be selected once a verified rule set for its scope exists.",
+    "bulkAssigned": "{name} assigned to {count, plural, one {# employee} other {# employees}}.",
+    "bulkSkipped": "Skipped (already assigned or not allowed): {list}.",
+    "componentUpdated": "{name} updated.",
+    "recalculated": "{count, plural, one {# open payroll run} other {# open payroll runs}} recalculated.",
+    "recalcFailed": "An open payroll run could not be recalculated and is back in draft."
   },
   "payroll": {
     "title": "Payroll runs",
@@ -488,7 +507,7 @@
     },
     "noContract": "No contract",
     "saveInputs": "Save inputs",
-    "inputsSaved": "Inputs saved. Recalculate the payroll to update payslips.",
+    "inputsSaved": "Inputs saved.",
     "adjTitle": "One-off adjustments",
     "adjSub": "Allowances or deductions that apply to this period only.",
     "adjCols": {
@@ -497,10 +516,10 @@
       "description": "Description",
       "amount": "Amount",
       "currency": "Currency",
-      "quantity": "Quantity"
+      "quantity": "Quantity",
+      "type": "Type"
     },
     "addAdjustment": "Add adjustment",
-    "adjAdded": "Adjustment added.",
     "adjRemoved": "Adjustment removed.",
     "payslipsTitle": "Payslips",
     "payslipsSub": "{count, plural, one {# payslip} other {# payslips}} · statutory amounts in {currency}",
@@ -534,7 +553,22 @@
     "acknowledge": "I acknowledge that the statutory rules are pending legal validation",
     "legalPending": "This payroll was calculated with statutory rules that are pending legal validation. It can only be approved with an explicit acknowledgement and does not count as legally approved.",
     "acknowledged": "approved with acknowledgement",
-    "quantityHint": "Hours, days or units"
+    "quantityHint": "Hours, days or units",
+    "recalculated": "Net pay has been recalculated.",
+    "recalcPending": "Recalculation not possible yet: {reason}",
+    "adjAddedCount": "{name} added to {count, plural, one {# payslip} other {# payslips}}.",
+    "overrideSaved": "Amount adjusted for this payslip.",
+    "overrideRemoved": "Fixed amount restored.",
+    "composePayslip": "Compose",
+    "adjType": {
+      "incidental": "Incidental",
+      "additional": "Additional to fixed",
+      "override": "Fixed amount adjusted"
+    },
+    "addExtra": {
+      "ALLOWANCE": "Add extra allowance",
+      "DEDUCTION": "Add extra deduction"
+    }
   },
   "payslip": {
     "title": "Payslip",
@@ -593,7 +627,24 @@
       "SAL008": "Pro-rata salary",
       "AOV-ER": "AOV employer share"
     },
-    "paidShare": "{pct} paid"
+    "paidShare": "{pct} paid",
+    "summaryTitle": "Summary",
+    "incidental": "incidental",
+    "accrualsTitle": "Accrued, not yet paid",
+    "summary": {
+      "baseSalary": "Base salary",
+      "fixedAllowances": "Fixed allowances",
+      "incidentalAllowances": "Incidental allowances",
+      "grossPay": "Gross salary",
+      "taxableBase": "Taxable base",
+      "wageTax": "Wage tax",
+      "aov": "AOV",
+      "otherDeductions": "Other deductions",
+      "totalDeductions": "Total deductions",
+      "netSalary": "Net salary",
+      "exemptReimbursements": "Tax-free reimbursements",
+      "totalPayable": "Total payable"
+    }
   },
   "leave": {
     "title": "Leave management",
@@ -1111,7 +1162,13 @@
     "regimeNotVerified": "Art. 17a can only be assigned once a verified rule set for its scope exists.",
     "manualPerRun": "Manual-entry components are entered per payroll run as an adjustment.",
     "childBirthDateRequired": "Enter the child's (expected) date of birth or arrival.",
-    "partTimeNotAllowed": "This leave type does not allow part-time leave."
+    "partTimeNotAllowed": "This leave type does not allow part-time leave.",
+    "componentInactive": "{name} is not active or not approved.",
+    "duplicateFixed": "{name} is already assigned as a fixed component for (part of) this period. Edit the existing component or use a different name.",
+    "duplicateIncidental": "{name} is already on this payslip.",
+    "duplicateOfFixed": "{name} is already processed as a fixed component in this period. Adjust the fixed amount for this payslip, or confirm that this is an additional amount.",
+    "pensionViaContract": "Pension is already deducted via the percentage in the employment contract; a fixed pension amount would be deducted twice.",
+    "statutoryAutomatic": "Statutory deductions (wage tax, AOV, pension) are calculated automatically and cannot be added by hand."
   },
   "bracket": {
     "required": "at least one bracket is required",
@@ -1143,7 +1200,12 @@
     "selectEmployee": "Select an employee",
     "selectComponent": "Select a component",
     "selectLeaveType": "Select a leave type",
-    "confirmRequired": "Confirmation required"
+    "confirmRequired": "Confirmation required",
+    "amountRequired": "Enter an amount greater than 0",
+    "percentRequired": "Enter a percentage greater than 0",
+    "selfReference": "A component cannot refer to itself",
+    "treatmentNotAllowed": "Not allowed for this category",
+    "unknownComponent": "Unknown component"
   },
   "defaults": {
     "components": {
@@ -1573,7 +1635,25 @@
       "approval": "Approval status",
       "legalStatus": "Legal status",
       "legalReference": "Legal reference",
-      "active": "Active"
+      "active": "Active",
+      "availableToAll": "Available to all employees by default",
+      "availableToAllHint": "Shown in the dropdowns for employees and payslips."
+    },
+    "bulkTitle": "Assign to employees",
+    "bulkSub": "Assign this component to one or more employees at once, for example a gratuity or a new fixed allowance.",
+    "bulkSubmit": "Assign",
+    "inDropdowns": "In dropdowns",
+    "deactivate": "Deactivate",
+    "activate": "Activate",
+    "toggled": {
+      "isActive": {
+        "on": "{name} activated.",
+        "off": "{name} deactivated."
+      },
+      "availableToAll": {
+        "on": "{name} is shown in the dropdowns.",
+        "off": "{name} is no longer shown in the dropdowns."
+      }
     }
   },
   "parental": {
@@ -1703,5 +1783,164 @@
     "aovRules": "AOV rules",
     "method": "Method",
     "calculatedAt": "Calculated"
+  },
+  "assign": {
+    "intro": "Fixed allowances and deductions are included automatically on every payslip while they are active and within their validity period. Statutory deductions (wage tax, AOV, pension per contract) are calculated by the system.",
+    "placeholder": {
+      "ALLOWANCE": "— Select an allowance —",
+      "DEDUCTION": "— Select a deduction —",
+      "EMPLOYER": "— Select an employer contribution —"
+    },
+    "select": {
+      "ALLOWANCE": "Allowance",
+      "DEDUCTION": "Deduction",
+      "EMPLOYER": "Employer contribution"
+    },
+    "section": {
+      "ALLOWANCE": "Fixed allowances",
+      "DEDUCTION": "Fixed deductions",
+      "EMPLOYER": "Employer contributions"
+    },
+    "sectionSub": {
+      "ALLOWANCE": "For example child allowance, housing, telephone, fuel, transport and representation allowance, exchange rate compensation, holiday allowance or gratuity.",
+      "DEDUCTION": "For example health insurance, pension contribution, FVO, loan repayment, salary advance or union contribution.",
+      "EMPLOYER": "Employer contributions; these are never deducted from net pay."
+    },
+    "empty": {
+      "ALLOWANCE": "No fixed allowances yet.",
+      "DEDUCTION": "No fixed deductions yet.",
+      "EMPLOYER": "No employer contributions."
+    },
+    "addTitle": {
+      "ALLOWANCE": "Add fixed allowance",
+      "DEDUCTION": "Add fixed deduction",
+      "EMPLOYER": "Add employer contribution"
+    },
+    "groupCompany": "Company components",
+    "groupLibrary": "Central library (added automatically when selected)",
+    "groupStatutory": "Statutory — calculated automatically",
+    "statutory": {
+      "LB": "Wage tax (automatic)",
+      "AOV": "AOV premium (automatic)",
+      "PENS": "Pension (automatic via employment contract)"
+    },
+    "statutoryName": {
+      "LB": "Wage tax",
+      "AOV": "AOV premium",
+      "PENS": "Pension contribution"
+    },
+    "statutoryAuto": "Statutory deduction — calculated automatically under the approved rules and cannot be entered by hand.",
+    "pensionViaContract": "{pct} of the pension base, per the employment contract",
+    "f": {
+      "name": "Component name (on payslip)",
+      "amount": "Amount",
+      "currency": "Currency",
+      "calcType": "Calculation method",
+      "rate": "Percentage (%)",
+      "baseComponent": "Base: other component",
+      "quantity": "Quantity",
+      "frequency": "Frequency",
+      "payMonth": "Payment month",
+      "startDate": "Start date",
+      "paymentDate": "Payment date",
+      "endDate": "End date (optional)",
+      "tax": "Tax treatment",
+      "aov": "Part of the AOV base",
+      "pension": "Part of the pension base",
+      "active": "Active",
+      "note": "Note",
+      "employees": "Employees",
+      "allowDuplicate": "I confirm this is an additional amount next to a fixed component with the same name (not a double entry)."
+    },
+    "calc": {
+      "COMPONENT": "As per component ({method})",
+      "FIXED": "Fixed amount",
+      "PERCENT_OF_BASE": "Percentage of base salary",
+      "PERCENT_OF_COMPONENT": "Percentage of another component",
+      "MANUAL": "Variable amount (per payslip)"
+    },
+    "hint": {
+      "MONTHLY": "Every monthly payroll run within the validity period.",
+      "PER_PERIOD": "Every pay period within the validity period.",
+      "ONE_OFF": "One-off: paid in the pay period of the payment date.",
+      "ANNUAL": "Annual: paid in the payment month (default: the month of the start date).",
+      "ACCRUAL": "Accrual: built up every month and paid out at once in the payment month (or at the end date). Accrual is based on calculated payslips.",
+      "variable": "Variable: the amount can be adjusted per payslip; this amount is the default."
+    },
+    "payMonthDefaultAnnual": "Month of the start date",
+    "payMonthDefaultAccrual": "Default ({month})",
+    "tax": {
+      "CONFIG": "As per statutory configuration ({treatment})",
+      "TAXABLE": "Taxable",
+      "EXEMPT": "Tax-exempt"
+    },
+    "taxConfigShort": "As configured: {treatment}",
+    "exemptWarning": "Only choose 'Tax-exempt' when the exemption is legally established. ARA Payroll never makes an allowance tax-exempt automatically.",
+    "legalPending": "Note: tax/legal treatment not verified — {reference}",
+    "selectAll": "Select all",
+    "selectNone": "Select none",
+    "cols": {
+      "component": "Component",
+      "calculation": "Calculation",
+      "frequency": "Frequency",
+      "validity": "Validity",
+      "tax": "Tax",
+      "status": "Status"
+    },
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "ended": "Ended",
+      "paid": "Paid",
+      "future": "Future",
+      "automatic": "Automatic"
+    },
+    "variableAmount": "Variable (default {amount})",
+    "ofComponent": "{pct} of {code}",
+    "accrued": "Accrued: {amount} (up to {period})",
+    "inMonth": "in {month}",
+    "openEnded": "ongoing"
+  },
+  "compose": {
+    "title": "Compose payslip — {name}",
+    "locked": "This payroll run is final. Historical payslips are no longer changed.",
+    "steps": {
+      "salary": "Salary details",
+      "fixed": "Fixed allowances and deductions",
+      "extra": "Extra allowances and deductions",
+      "calculation": "Calculation",
+      "preview": "Payslip preview",
+      "finalise": "Finalise"
+    },
+    "fixed": {
+      "ALLOWANCE": "Fixed allowances",
+      "DEDUCTION": "Fixed deductions"
+    },
+    "fixedSub": "Included automatically. You can adjust the amount for this payslip only; the fixed component itself stays unchanged.",
+    "manageFixed": "Manage fixed components",
+    "thisPeriod": "This period",
+    "adjust": "Adjust for this payslip",
+    "decision": {
+      "pay": "Processed",
+      "accrueAndPay": "Accrual paid out",
+      "accrue": "Accruing (not yet paid)",
+      "skip": "Not in this period"
+    },
+    "overridden": "Adjusted: {amount}",
+    "overrideAmount": "Amount for this payslip",
+    "overridePlaceholder": "New amount",
+    "overrideSave": "Adjust",
+    "overrideReset": "Reset",
+    "extra": {
+      "ALLOWANCE": "Extra allowances",
+      "DEDUCTION": "Extra deductions"
+    },
+    "extraSub": {
+      "ALLOWANCE": "Incidental allowances for this payslip only, such as a bonus or gratuity.",
+      "DEDUCTION": "Incidental deductions for this payslip only. Wage tax and AOV are calculated automatically."
+    },
+    "periodInputs": "Period inputs",
+    "inputsLine": "Overtime {ot1} + {ot2} h · unpaid {unpaid} d · bonus {bonus}",
+    "finaliseText": "A payslip becomes final when the payroll run is approved. After that amounts can no longer be changed and historical payslips remain unchanged."
   }
 }

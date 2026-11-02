@@ -3,6 +3,8 @@ import Image from "next/image";
 import { getI18n } from "@/lib/server/i18n";
 import { conversionLabel, lineLabel } from "@/lib/payslip-labels";
 import type { Conversion } from "@/lib/currency";
+import { lineSource, payslipSummary, SUMMARY_ROWS } from "@/lib/payroll/summary";
+import type { AccrualState } from "@/lib/payroll/schedule";
 
 type Slip = Payslip & { lines: PayslipLine[]; run: PayrollRun & { company: Company } };
 
@@ -17,6 +19,9 @@ export async function PayslipView({ slip }: { slip: Slip }) {
   const employer = slip.lines.filter((l) => l.type === "EMPLOYER");
   const conversions = (slip.conversions as unknown as Conversion[]) ?? [];
   const cur = slip.calcCurrency;
+  const summary = payslipSummary(slip, slip.lines);
+  const accruals = Object.values(((slip.trace as { accruals?: Record<string, AccrualState> } | null)?.accruals) ?? {}).filter((a) => a.balance > 0);
+  const strong = new Set(["grossPay", "totalDeductions", "totalPayable"]);
 
   const lineTable = (title: string, lines: PayslipLine[], total: number, totalLabel: string) => (
     <div>
@@ -27,6 +32,7 @@ export async function PayslipView({ slip }: { slip: Slip }) {
             <tr key={l.id} className="border-b border-dashed last:border-0">
               <td className="py-1.5 pr-2">
                 {label(l)}
+                {lineSource(l) === "INCIDENTAL" && <span className="ml-1 rounded bg-muted px-1 text-[10px] uppercase text-muted-foreground">{t("payslip.incidental")}</span>}
                 {l.quantity != null && <span className="text-xs text-muted-foreground"> × {f.number(l.quantity, 4)}</span>}
                 {l.originalCurrency && <span className="block text-xs text-muted-foreground">{f.money(l.originalAmount, l.originalCurrency)}</span>}
               </td>
@@ -76,12 +82,30 @@ export async function PayslipView({ slip }: { slip: Slip }) {
           <p className="mt-1 text-right text-xs text-primary-foreground/70">{f.money(slip.netPay, cur)} · {t("payslip.netPaidIn", { currency: slip.paymentCurrency })}</p>
         )}
       </section>
-      <section className="mt-5 grid grid-cols-2 gap-4 text-xs text-muted-foreground sm:grid-cols-4">
-        <div>{t("payslip.taxableWage")}<br /><span className="tabular font-medium text-foreground">{f.money(slip.taxableWage, cur)}</span></div>
-        <div>{t("payslip.wageTax")}<br /><span className="tabular font-medium text-foreground">{f.money(slip.wageTax, cur)}</span></div>
-        <div>{t("payslip.aov")}<br /><span className="tabular font-medium text-foreground">{f.money(slip.aov, cur)}</span></div>
-        {employer.map((l) => <div key={l.id}>{label(l)}<br /><span className="tabular font-medium text-foreground">{f.money(l.amount, cur)}</span></div>)}
+      <section className="mt-6 border-t pt-4" data-testid="payslip-summary">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("payslip.summaryTitle")}</p>
+        <table className="w-full text-sm">
+          <tbody>
+            {SUMMARY_ROWS.map((k) => (
+              <tr key={k} className={strong.has(k) ? "border-t font-semibold" : "border-b border-dashed last:border-0"}>
+                <td className="py-1.5">{t(`payslip.summary.${k}`)}</td>
+                <td className="tabular py-1.5 text-right">{f.money(summary[k], cur)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </section>
+      {employer.length > 0 && (
+        <section className="mt-5 grid grid-cols-2 gap-4 text-xs text-muted-foreground sm:grid-cols-4">
+          {employer.map((l) => <div key={l.id}>{label(l)}<br /><span className="tabular font-medium text-foreground">{f.money(l.amount, cur)}</span></div>)}
+        </section>
+      )}
+      {accruals.length > 0 && (
+        <section className="mt-5 rounded-lg border border-dashed p-3 text-xs">
+          <p className="mb-1 font-semibold">{t("payslip.accrualsTitle")}</p>
+          {accruals.map((a, i) => <p key={i} className="flex justify-between"><span>{a.name ?? a.code}</span><span className="tabular">{f.money(a.balance, cur)}</span></p>)}
+        </section>
+      )}
       {conversions.length > 0 && (
         <section className="mt-6 border-t pt-4">
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t("payslip.conversions")}</p>

@@ -7,13 +7,15 @@ import { getI18n } from "@/lib/server/i18n";
 import { getCurrencies } from "@/lib/server/rates";
 import { can } from "@/lib/permissions";
 import { eligibleEmployeesWhere } from "@/lib/payroll/service";
-import { ActionForm, FieldError } from "@/components/action-form";
+import { ActionForm } from "@/components/action-form";
+import { ComponentAssignmentForm } from "@/components/component-assignment-form";
+import { componentOptions, isStatutory } from "@/lib/server/pay-components";
+import { toDateInput } from "@/lib/format";
 import { ActionButton } from "@/components/confirm-button";
 import { SubmitButton } from "@/components/submit-button";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, Input, Select } from "@/components/ui/form";
-import { CurrencySelect } from "@/components/currency-select";
+import { Input } from "@/components/ui/form";
 import { Alert, EmptyState, PageHeader, Stat } from "@/components/ui/misc";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import {
@@ -26,7 +28,7 @@ const NOTICES = ["approved", "reopened", "paid"] as const;
 
 export default async function RunPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ notice?: string }> }) {
   const ctx = await requirePage("payroll.view");
-  const { t, f } = await getI18n();
+  const { t, f, locale } = await getI18n();
   const { id } = await params;
   const noticeKey = (await searchParams).notice;
   const notice = (NOTICES as readonly string[]).includes(noticeKey ?? "") ? t(`run.notices.${noticeKey as (typeof NOTICES)[number]}`) : null;
@@ -46,7 +48,10 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
       })
     : [];
-  const components = editable && canRun ? await db.payComponent.findMany({ where: { companyId: ctx.company.id, isActive: true }, orderBy: [{ kind: "asc" }, { name: "asc" }] }) : [];
+  const options = editable && canRun ? await componentOptions(ctx.company.id, locale) : [];
+  const baseOptions = editable && canRun
+    ? (await db.payComponent.findMany({ where: { companyId: ctx.company.id, isActive: true }, orderBy: { name: "asc" } })).filter((c) => !isStatutory(c)).map((c) => ({ code: c.code, name: (locale === "en" ? c.nameEn : c.nameNl) || c.name }))
+    : [];
   const currencies = editable && canRun ? await getCurrencies() : [];
   const empName = new Map(employees.map((e) => [e.id, `${e.lastName}, ${e.firstName}`]));
   const stepIndex = STEPS.indexOf(run.status);
@@ -114,7 +119,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
                   const c = e.contracts[0];
                   return (
                     <TR key={e.id}>
-                      <TD className="whitespace-nowrap font-medium">{e.lastName}, {e.firstName}<span className="block text-xs font-normal text-muted-foreground">#{e.employeeNumber}</span></TD>
+                      <TD className="whitespace-nowrap font-medium"><Link href={`/app/payroll/${run.id}/employees/${e.id}`} className="hover:text-primary hover:underline">{e.lastName}, {e.firstName}</Link><span className="block text-xs font-normal text-muted-foreground">#{e.employeeNumber}</span></TD>
                       <TD className="whitespace-nowrap text-xs text-muted-foreground">{c ? (c.payType === "HOURLY" ? `${f.money(c.hourlyRate, c.salaryCurrency)}${t("common.perHour")}` : `${f.money(c.baseSalary, c.salaryCurrency)} ${t(`enums.frequency.${c.payType}`)}`) : <span className="text-destructive">{t("run.noContract")}</span>}</TD>
                       <TD><Input name={`hours_${e.id}`} defaultValue={i?.hoursWorked != null ? f.number(i.hoursWorked) : ""} disabled={c?.payType !== "HOURLY"} className="w-20" inputMode="decimal" aria-label={t("run.inputCols.hours")} /></TD>
                       <TD><Input name={`days_${e.id}`} defaultValue={i?.daysWorked != null ? f.number(i.daysWorked) : ""} disabled={c?.payType !== "DAILY"} className="w-20" inputMode="decimal" aria-label={t("run.inputCols.days")} /></TD>
@@ -142,18 +147,18 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           <CardHeader><CardTitle>{t("run.adjTitle")}</CardTitle><CardDescription>{t("run.adjSub")}</CardDescription></CardHeader>
           {run.adjustments.length > 0 && (
             <Table>
-              <THead><TR><TH>{t("run.adjCols.employee")}</TH><TH>{t("run.adjCols.component")}</TH><TH>{t("run.adjCols.description")}</TH><TH className="text-right">{t("run.adjCols.quantity")}</TH><TH className="text-right">{t("run.adjCols.amount")}</TH><TH /></TR></THead>
+              <THead><TR><TH>{t("run.adjCols.employee")}</TH><TH>{t("run.adjCols.component")}</TH><TH>{t("run.adjCols.description")}</TH><TH>{t("run.adjCols.type")}</TH><TH className="text-right">{t("run.adjCols.amount")}</TH><TH /></TR></THead>
               <TBody>
                 {run.adjustments.map((a) => {
                   const emp = employees.find((e) => e.id === a.employeeId);
                   const cur = a.currency ?? emp?.contracts[0]?.salaryCurrency ?? run.currency;
                   return (
                     <TR key={a.id}>
-                      <TD>{empName.get(a.employeeId) ?? run.payslips.find((p) => p.employeeId === a.employeeId)?.employeeName ?? "—"}</TD>
+                      <TD><Link className="hover:underline" href={`/app/payroll/${run.id}/employees/${a.employeeId}`}>{empName.get(a.employeeId) ?? run.payslips.find((p) => p.employeeId === a.employeeId)?.employeeName ?? "—"}</Link></TD>
                       <TD>{a.component.kind === "ALLOWANCE" ? "+" : "−"} {a.component.name}</TD>
                       <TD>{a.description ?? "—"}</TD>
-                      <TD className="tabular text-right">{a.quantity != null ? f.number(a.quantity) : "—"}</TD>
-                      <TD className="tabular text-right">{a.amount ? f.money(a.amount, cur) : "—"}</TD>
+                      <TD className="text-xs">{a.assignmentId ? t("run.adjType.override") : a.allowDuplicate ? t("run.adjType.additional") : t("run.adjType.incidental")}</TD>
+                      <TD className="tabular text-right">{a.rateBp ? f.pct(a.rateBp) : a.quantity != null ? `${f.number(a.quantity)} ×` : f.money(a.amount, cur)}</TD>
                       <TD className="text-right">{editable && canRun && <ActionButton action={removeAdjustmentAction} fields={{ id: a.id }} variant="ghost" size="sm">{t("common.remove")}</ActionButton>}</TD>
                     </TR>
                   );
@@ -162,17 +167,18 @@ export default async function RunPage({ params, searchParams }: { params: Promis
             </Table>
           )}
           {editable && canRun && (
-            <CardContent className="pt-4">
-              <ActionForm action={addAdjustmentAction} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7" resetOnSuccess>
-                <input type="hidden" name="runId" value={run.id} />
-                <Field label={t("run.adjCols.employee")} htmlFor="adj-emp"><Select id="adj-emp" name="employeeId">{employees.map((e) => <option key={e.id} value={e.id}>{e.lastName}, {e.firstName}</option>)}</Select></Field>
-                <Field label={t("run.adjCols.component")} htmlFor="adj-comp"><Select id="adj-comp" name="componentId">{components.filter((c) => c.approvalStatus === "APPROVED").map((c) => <option key={c.id} value={c.id}>{c.kind === "ALLOWANCE" ? "+" : c.kind === "DEDUCTION" ? "−" : "◦"} {c.code} {c.name}{["HOURS_X_RATE", "DAYS_X_RATE", "QTY_X_PRICE"].includes(c.calcType) ? ` (${t(`components.calc.${c.calcType}`)})` : ""}</option>)}</Select></Field>
-                <Field label={t("run.adjCols.amount")} htmlFor="adj-amount"><Input id="adj-amount" name="amount" inputMode="decimal" /><FieldError name="amount" /></Field>
-                <Field label={t("run.adjCols.quantity")} htmlFor="adj-qty" hint={t("run.quantityHint")}><Input id="adj-qty" name="quantity" inputMode="decimal" /></Field>
-                <Field label={t("run.adjCols.currency")} htmlFor="adj-cur"><CurrencySelect id="adj-cur" name="currency" currencies={currencies} emptyLabel={t("employee.sameAsSalary")} defaultValue="" /></Field>
-                <Field label={t("run.adjCols.description")} htmlFor="adj-desc"><Input id="adj-desc" name="description" /></Field>
-                <div className="flex items-end"><SubmitButton variant="outline">{t("run.addAdjustment")}</SubmitButton></div>
-              </ActionForm>
+            <CardContent className="grid gap-6 border-t pt-5 lg:grid-cols-2">
+              {(["ALLOWANCE", "DEDUCTION"] as const).map((kind) => (
+                <div key={kind} data-testid={`run-add-${kind}`}>
+                  <p className="mb-3 text-sm font-medium">{t(`run.addExtra.${kind}`)}</p>
+                  <ComponentAssignmentForm
+                    action={addAdjustmentAction} mode="incidental" kind={kind} options={options} hidden={{ runId: run.id }}
+                    currencies={currencies} defaultCurrency={run.company.currency} baseOptions={baseOptions}
+                    employees={employees.map((e) => ({ id: e.id, name: `${e.lastName}, ${e.firstName}` }))}
+                    today={toDateInput(new Date())} idPrefix={`run-${kind}`}
+                  />
+                </div>
+              ))}
             </CardContent>
           )}
         </Card>
@@ -205,7 +211,10 @@ export default async function RunPage({ params, searchParams }: { params: Promis
                   <TD className="tabular text-right font-semibold">{f.amount(p.netPay)}</TD>
                   <TD className="tabular whitespace-nowrap text-right">{f.money(p.netPayPayment, p.paymentCurrency)}</TD>
                   <TD className="tabular text-right text-muted-foreground">{f.amount(p.employerCost)}</TD>
-                  <TD className="text-right"><Link href={`/app/payslips/${p.id}`} className="text-primary hover:underline">{t("common.view")}</Link></TD>
+                  <TD className="whitespace-nowrap text-right">
+                    {editable && canRun && <Link href={`/app/payroll/${run.id}/employees/${p.employeeId}`} className="mr-3 text-primary hover:underline">{t("run.composePayslip")}</Link>}
+                    <Link href={`/app/payslips/${p.id}`} className="text-primary hover:underline">{t("common.view")}</Link>
+                  </TD>
                 </TR>
               ))}
             </TBody>

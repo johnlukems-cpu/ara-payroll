@@ -8,22 +8,20 @@ import { findRuleSet } from "@/lib/payroll/service";
 import { parentalEntitlements } from "@/lib/server/leave-balance";
 import { LegalBadge } from "@/components/legal-badge";
 import { can } from "@/lib/permissions";
-import { toDateInput } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import { ActionForm, FieldError } from "@/components/action-form";
+import { ActionForm } from "@/components/action-form";
 import { ActionButton } from "@/components/confirm-button";
 import { SubmitButton } from "@/components/submit-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, Input, Select } from "@/components/ui/form";
-import { CurrencySelect } from "@/components/currency-select";
+import { Input } from "@/components/ui/form";
 import { Alert, EmptyState, PageHeader } from "@/components/ui/misc";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import {
-  addContractAction, assignComponentAction, deleteDocumentAction, enableSelfServiceAction,
-  removeComponentAction, updateEmployeeAction, uploadDocumentAction,
+  addContractAction, deleteDocumentAction, enableSelfServiceAction, updateEmployeeAction, uploadDocumentAction,
 } from "@/app/actions/employees";
 import { ContractFields, EmployeeFields } from "../fields";
+import { EmployeeComponentsTab } from "./components-tab";
 
 const TABS = ["details", "contracts", "pay", "payslips", "leave", "parental", "documents"] as const;
 
@@ -41,7 +39,7 @@ export default async function EmployeePage({ params, searchParams }: { params: P
     include: {
       department: true,
       contracts: { orderBy: { startDate: "desc" } },
-      components: { include: { component: true }, orderBy: { startDate: "desc" } },
+      components: { include: { component: true }, orderBy: [{ isActive: "desc" }, { startDate: "desc" }] },
       documents: { orderBy: { createdAt: "desc" } },
       leaveRequests: { include: { leaveType: true }, orderBy: { startDate: "desc" }, take: 50 },
       payslips: { include: { run: true }, orderBy: [{ run: { year: "desc" } }, { run: { month: "desc" } }], take: 36 },
@@ -161,53 +159,7 @@ export default async function EmployeePage({ params, searchParams }: { params: P
       )}
 
       {tab === "pay" && canSalary && (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader><CardTitle>{t("employee.componentsTitle")}</CardTitle><CardDescription>{t("employee.componentsSub")}</CardDescription></CardHeader>
-            {e.components.length === 0 ? <EmptyState title={t("employee.noComponents")} /> : (
-              <Table>
-                <THead><TR><TH>{t("employee.componentCols.component")}</TH><TH>{t("employee.componentCols.kind")}</TH><TH className="text-right">{t("employee.componentCols.amount")}</TH><TH>{t("employee.componentCols.from")}</TH><TH>{t("employee.componentCols.until")}</TH><TH /></TR></THead>
-                <TBody>
-                  {e.components.map((a) => (
-                    <TR key={a.id}>
-                      <TD className="font-medium">{a.component.name}</TD>
-                      <TD><Badge variant={a.component.kind === "ALLOWANCE" ? "success" : "warning"}>{t(`enums.componentKind.${a.component.kind}`)}</Badge></TD>
-                      <TD className="tabular text-right">{a.component.calcType === "FIXED" ? f.money(a.amount, a.currency ?? salaryCur) : t("employee.ofBase", { pct: f.pct(a.rateBp) })}</TD>
-                      <TD className="tabular">{f.date(a.startDate)}</TD>
-                      <TD className="tabular">{f.date(a.endDate)}</TD>
-                      <TD className="text-right">{canEdit && <ActionButton action={removeComponentAction} fields={{ id: a.id }} variant="ghost" size="sm" confirm={t("employee.removeComponentConfirm")}>{t("common.remove")}</ActionButton>}</TD>
-                    </TR>
-                  ))}
-                </TBody>
-              </Table>
-            )}
-          </Card>
-          {canEdit && (
-            <Card>
-              <CardHeader><CardTitle>{t("employee.addComponentTitle")}</CardTitle></CardHeader>
-              <CardContent>
-                <ActionForm action={assignComponentAction} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6" resetOnSuccess>
-                  <input type="hidden" name="employeeId" value={e.id} />
-                  <Field label={t("employee.component")} htmlFor="componentId" className="lg:col-span-2">
-                    <Select id="componentId" name="componentId">
-                      {(await db.payComponent.findMany({ where: { companyId: ctx.company.id, isActive: true }, orderBy: [{ kind: "asc" }, { name: "asc" }] })).map((c) => (
-                        <option key={c.id} value={c.id}>{c.kind === "ALLOWANCE" ? "+" : "−"} {c.name}{c.calcType === "PERCENT_OF_BASE" ? " (%)" : ""}</option>
-                      ))}
-                    </Select>
-                    <FieldError name="componentId" />
-                  </Field>
-                  <Field label={t("employee.amount")} htmlFor="amount" hint={t("employee.amountHint")}><Input id="amount" name="amount" inputMode="decimal" /><FieldError name="amount" /></Field>
-                  <Field label={t("employee.componentCurrency")} htmlFor="currency"><CurrencySelect id="currency" name="currency" currencies={currencies} defaultValue={salaryCur} /><FieldError name="currency" /></Field>
-                  <Field label={t("employee.percentage")} htmlFor="rate" hint={t("employee.percentageHint")}><Input id="rate" name="rate" inputMode="decimal" /><FieldError name="rate" /></Field>
-                  <div />
-                  <Field label={t("employee.from")} htmlFor="startDate"><Input id="startDate" name="startDate" type="date" defaultValue={toDateInput(new Date())} /><FieldError name="startDate" /></Field>
-                  <Field label={t("employee.until")} htmlFor="endDate"><Input id="endDate" name="endDate" type="date" /></Field>
-                  <div className="flex items-end lg:col-span-4 lg:justify-end"><SubmitButton>{t("common.add")}</SubmitButton></div>
-                </ActionForm>
-              </CardContent>
-            </Card>
-          )}
-        </div>
+        <EmployeeComponentsTab employeeId={e.id} companyId={ctx.company.id} assignments={e.components} contract={current} currencies={currencies} salaryCur={salaryCur} canEdit={canEdit} />
       )}
 
       {tab === "payslips" && canSalary && (
