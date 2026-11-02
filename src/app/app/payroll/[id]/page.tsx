@@ -62,7 +62,13 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         actions={
           <>
             {canRun && editable && <ActionButton action={calculateRunAction} fields={{ runId: run.id }} variant="accent">{run.status === "DRAFT" ? t("run.calculate") : t("run.recalculate")}</ActionButton>}
-            {canApprove && run.status === "CALCULATED" && <ActionButton action={approveRunAction} fields={{ runId: run.id }} confirm={t("run.approveConfirm")}>{t("run.approve")}</ActionButton>}
+            {canApprove && run.status === "CALCULATED" && (
+              <ActionForm notify="toast" action={approveRunAction} className="flex items-center gap-2">
+                <input type="hidden" name="runId" value={run.id} />
+                {run.legalStatus !== "VALIDATED" && <label className="flex max-w-56 items-start gap-1.5 text-xs"><input type="checkbox" name="acknowledgePending" className="mt-0.5" /> {t("run.acknowledge")}</label>}
+                <SubmitButton>{t("run.approve")}</SubmitButton>
+              </ActionForm>
+            )}
             {canApprove && run.status === "APPROVED" && <ActionButton action={reopenRunAction} fields={{ runId: run.id }} variant="outline">{t("run.reopen")}</ActionButton>}
             {canApprove && run.status === "APPROVED" && <ActionButton action={markPaidAction} fields={{ runId: run.id }} confirm={t("run.markPaidConfirm")}>{t("run.markPaid")}</ActionButton>}
           </>
@@ -78,6 +84,9 @@ export default async function RunPage({ params, searchParams }: { params: Promis
       </ol>
 
       {notice && <Alert variant="success" className="mb-4">{notice}</Alert>}
+      {run.status !== "DRAFT" && run.legalStatus !== "VALIDATED" && run.payslips.length > 0 && (
+        <Alert variant="warning" className="mb-4">{t("run.legalPending")} <Link href="/app/tax/rules" className="font-medium underline">{t("dashboard.reviewRules")}</Link>{run.legalAcknowledgedById && <> · {t("run.acknowledged")}</>}</Alert>
+      )}
       {run.taxRuleSet && !run.taxRuleSet.isVerified && <Alert variant="warning" className="mb-4">{t("run.unverified")}</Alert>}
       {run.status === "DRAFT" && run.payslips.length > 0 && <Alert variant="info" className="mb-4">{t("run.inputsChanged")}</Alert>}
 
@@ -98,7 +107,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           <ActionForm action={saveInputsAction}>
             <input type="hidden" name="runId" value={run.id} />
             <Table>
-              <THead><TR><TH>{t("run.inputCols.employee")}</TH><TH>{t("run.inputCols.pay")}</TH><TH>{t("run.inputCols.hours")}</TH><TH>{t("run.inputCols.ot1", { pct: ot1 })}</TH><TH>{t("run.inputCols.ot2", { pct: ot2 })}</TH><TH>{t("run.inputCols.bonus")}</TH><TH>{t("run.inputCols.unpaid")}</TH></TR></THead>
+              <THead><TR><TH>{t("run.inputCols.employee")}</TH><TH>{t("run.inputCols.pay")}</TH><TH>{t("run.inputCols.hours")}</TH><TH>{t("run.inputCols.days")}</TH><TH>{t("run.inputCols.ot1", { pct: ot1 })}</TH><TH>{t("run.inputCols.ot2", { pct: ot2 })}</TH><TH>{t("run.inputCols.bonus")}</TH><TH>{t("run.inputCols.unpaid")}</TH></TR></THead>
               <TBody>
                 {employees.map((e) => {
                   const i = run.inputs.find((x) => x.employeeId === e.id);
@@ -106,8 +115,9 @@ export default async function RunPage({ params, searchParams }: { params: Promis
                   return (
                     <TR key={e.id}>
                       <TD className="whitespace-nowrap font-medium">{e.lastName}, {e.firstName}<span className="block text-xs font-normal text-muted-foreground">#{e.employeeNumber}</span></TD>
-                      <TD className="whitespace-nowrap text-xs text-muted-foreground">{c ? (c.payType === "MONTHLY" ? f.money(c.baseSalary, c.salaryCurrency) : `${f.money(c.hourlyRate, c.salaryCurrency)}${t("common.perHour")}`) : <span className="text-destructive">{t("run.noContract")}</span>}</TD>
-                      <TD><Input name={`hours_${e.id}`} defaultValue={i?.hoursWorked != null ? f.number(i.hoursWorked) : ""} disabled={c?.payType !== "HOURLY"} className="w-24" inputMode="decimal" aria-label={t("run.inputCols.hours")} /></TD>
+                      <TD className="whitespace-nowrap text-xs text-muted-foreground">{c ? (c.payType === "HOURLY" ? `${f.money(c.hourlyRate, c.salaryCurrency)}${t("common.perHour")}` : `${f.money(c.baseSalary, c.salaryCurrency)} ${t(`enums.frequency.${c.payType}`)}`) : <span className="text-destructive">{t("run.noContract")}</span>}</TD>
+                      <TD><Input name={`hours_${e.id}`} defaultValue={i?.hoursWorked != null ? f.number(i.hoursWorked) : ""} disabled={c?.payType !== "HOURLY"} className="w-20" inputMode="decimal" aria-label={t("run.inputCols.hours")} /></TD>
+                      <TD><Input name={`days_${e.id}`} defaultValue={i?.daysWorked != null ? f.number(i.daysWorked) : ""} disabled={c?.payType !== "DAILY"} className="w-20" inputMode="decimal" aria-label={t("run.inputCols.days")} /></TD>
                       <TD><Input name={`ot1_${e.id}`} defaultValue={i?.overtime1Hours ? f.number(i.overtime1Hours) : ""} className="w-20" inputMode="decimal" aria-label={t("run.inputCols.ot1", { pct: ot1 })} /></TD>
                       <TD><Input name={`ot2_${e.id}`} defaultValue={i?.overtime2Hours ? f.number(i.overtime2Hours) : ""} className="w-20" inputMode="decimal" aria-label={t("run.inputCols.ot2", { pct: ot2 })} /></TD>
                       <TD>
@@ -116,7 +126,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
                           <span className="text-xs text-muted-foreground">{c?.salaryCurrency}</span>
                         </div>
                       </TD>
-                      <TD><Input name={`unpaid_${e.id}`} defaultValue={i?.unpaidDays ? f.number(i.unpaidDays) : ""} disabled={c?.payType === "HOURLY"} className="w-20" inputMode="decimal" aria-label={t("run.inputCols.unpaid")} /></TD>
+                      <TD><Input name={`unpaid_${e.id}`} defaultValue={i?.unpaidDays ? f.number(i.unpaidDays) : ""} disabled={c?.payType === "HOURLY" || c?.payType === "DAILY"} className="w-20" inputMode="decimal" aria-label={t("run.inputCols.unpaid")} /></TD>
                     </TR>
                   );
                 })}
@@ -132,7 +142,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           <CardHeader><CardTitle>{t("run.adjTitle")}</CardTitle><CardDescription>{t("run.adjSub")}</CardDescription></CardHeader>
           {run.adjustments.length > 0 && (
             <Table>
-              <THead><TR><TH>{t("run.adjCols.employee")}</TH><TH>{t("run.adjCols.component")}</TH><TH>{t("run.adjCols.description")}</TH><TH className="text-right">{t("run.adjCols.amount")}</TH><TH /></TR></THead>
+              <THead><TR><TH>{t("run.adjCols.employee")}</TH><TH>{t("run.adjCols.component")}</TH><TH>{t("run.adjCols.description")}</TH><TH className="text-right">{t("run.adjCols.quantity")}</TH><TH className="text-right">{t("run.adjCols.amount")}</TH><TH /></TR></THead>
               <TBody>
                 {run.adjustments.map((a) => {
                   const emp = employees.find((e) => e.id === a.employeeId);
@@ -142,7 +152,8 @@ export default async function RunPage({ params, searchParams }: { params: Promis
                       <TD>{empName.get(a.employeeId) ?? run.payslips.find((p) => p.employeeId === a.employeeId)?.employeeName ?? "—"}</TD>
                       <TD>{a.component.kind === "ALLOWANCE" ? "+" : "−"} {a.component.name}</TD>
                       <TD>{a.description ?? "—"}</TD>
-                      <TD className="tabular text-right">{f.money(a.amount, cur)}</TD>
+                      <TD className="tabular text-right">{a.quantity != null ? f.number(a.quantity) : "—"}</TD>
+                      <TD className="tabular text-right">{a.amount ? f.money(a.amount, cur) : "—"}</TD>
                       <TD className="text-right">{editable && canRun && <ActionButton action={removeAdjustmentAction} fields={{ id: a.id }} variant="ghost" size="sm">{t("common.remove")}</ActionButton>}</TD>
                     </TR>
                   );
@@ -152,11 +163,12 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           )}
           {editable && canRun && (
             <CardContent className="pt-4">
-              <ActionForm action={addAdjustmentAction} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-6" resetOnSuccess>
+              <ActionForm action={addAdjustmentAction} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-7" resetOnSuccess>
                 <input type="hidden" name="runId" value={run.id} />
                 <Field label={t("run.adjCols.employee")} htmlFor="adj-emp"><Select id="adj-emp" name="employeeId">{employees.map((e) => <option key={e.id} value={e.id}>{e.lastName}, {e.firstName}</option>)}</Select></Field>
-                <Field label={t("run.adjCols.component")} htmlFor="adj-comp"><Select id="adj-comp" name="componentId">{components.filter((c) => c.calcType === "FIXED").map((c) => <option key={c.id} value={c.id}>{c.kind === "ALLOWANCE" ? "+" : "−"} {c.name}</option>)}</Select></Field>
+                <Field label={t("run.adjCols.component")} htmlFor="adj-comp"><Select id="adj-comp" name="componentId">{components.filter((c) => c.approvalStatus === "APPROVED").map((c) => <option key={c.id} value={c.id}>{c.kind === "ALLOWANCE" ? "+" : c.kind === "DEDUCTION" ? "−" : "◦"} {c.code} {c.name}{["HOURS_X_RATE", "DAYS_X_RATE", "QTY_X_PRICE"].includes(c.calcType) ? ` (${t(`components.calc.${c.calcType}`)})` : ""}</option>)}</Select></Field>
                 <Field label={t("run.adjCols.amount")} htmlFor="adj-amount"><Input id="adj-amount" name="amount" inputMode="decimal" /><FieldError name="amount" /></Field>
+                <Field label={t("run.adjCols.quantity")} htmlFor="adj-qty" hint={t("run.quantityHint")}><Input id="adj-qty" name="quantity" inputMode="decimal" /></Field>
                 <Field label={t("run.adjCols.currency")} htmlFor="adj-cur"><CurrencySelect id="adj-cur" name="currency" currencies={currencies} emptyLabel={t("employee.sameAsSalary")} defaultValue="" /></Field>
                 <Field label={t("run.adjCols.description")} htmlFor="adj-desc"><Input id="adj-desc" name="description" /></Field>
                 <div className="flex items-end"><SubmitButton variant="outline">{t("run.addAdjustment")}</SubmitButton></div>

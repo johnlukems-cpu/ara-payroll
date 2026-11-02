@@ -5,6 +5,7 @@ import { requireSelf } from "@/lib/server/self-service";
 import { getI18n } from "@/lib/server/i18n";
 import { buttonVariants } from "@/components/ui/button";
 import { PayslipView } from "@/components/payslip-view";
+import { PayslipBreakdown } from "@/components/payslip-breakdown";
 import { PrintButton } from "@/components/print-button";
 
 export async function generateMetadata() {
@@ -23,6 +24,7 @@ export default async function MyPayslip({ params }: { params: Promise<{ id: stri
     <div>
       <div className="no-print mb-6 flex justify-end gap-2"><PrintButton /><a href={`/api/payslips/${slip.id}/pdf`} className={buttonVariants()}><Download /> {t("common.downloadPdf")}</a></div>
       <PayslipView slip={slip} />
+      <PayslipBreakdown slip={slip} />
     </div>
   );
 }

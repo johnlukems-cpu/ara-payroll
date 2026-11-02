@@ -12,6 +12,7 @@ import { calculateRun, eligibleEmployeesWhere } from "@/lib/payroll/service";
 import { createFormat, parseMoney } from "@/lib/format";
 import { assertActiveCurrency } from "@/lib/server/rates";
 import { getI18n } from "@/lib/server/i18n";
+import { assertPeriodReopenable, prepareMonthlyDeclaration } from "@/lib/server/declarations";
 import { dateField } from "@/lib/validation";
 
 async function loadRun(companyId: string, runId: string) {
@@ -63,8 +64,10 @@ export async function saveInputsAction(_: ActionState, fd: FormData): Promise<Ac
     const employees = await db.employee.findMany({ where: eligibleEmployeesWhere(ctx.company.id, run.year, run.month), select: { id: true } });
     const ops = employees.map((e) => {
       const hw = fd.get(`hours_${e.id}`);
+      const dw = fd.get(`days_${e.id}`);
       const data = {
         hoursWorked: hw === null || hw === "" ? null : num(hw, 744),
+        daysWorked: dw === null || dw === "" ? null : num(dw, 31),
         overtime1Hours: num(fd.get(`ot1_${e.id}`), 400),
         overtime2Hours: num(fd.get(`ot2_${e.id}`), 400),
         bonus: parseMoney(String(fd.get(`bonus_${e.id}`) ?? "")),
@@ -95,26 +98,31 @@ export async function addAdjustmentAction(_: ActionState, fd: FormData): Promise
     const data = z.object({
       employeeId: z.string({ error: "validation.selectEmployee" }),
       componentId: z.string({ error: "validation.selectComponent" }),
-      amount: z.string({ error: "validation.required" }),
+      amount: z.string().optional(),
+      quantity: z.string().optional(),
       currency: z.string().regex(/^[A-Z]{3}$/, "validation.currency").optional(),
       description: z.string().max(120).optional(),
     }).parse(raw);
     let amount = 0;
     try { amount = parseMoney(data.amount); } catch { /* handled below */ }
-    if (amount <= 0) throw new UserError("errors.positiveAmount");
+    const quantity = data.quantity ? Number(data.quantity.replace(",", ".")) : null;
+    if (quantity !== null && (!Number.isFinite(quantity) || quantity <= 0 || quantity > 10000)) throw new UserError("errors.invalidValue", { value: data.quantity! });
     if (data.currency && !(await assertActiveCurrency(data.currency))) throw new UserError("errors.currencyInactive", { code: data.currency });
     const [emp, comp] = await Promise.all([
       db.employee.findFirst({ where: { id: data.employeeId, companyId: ctx.company.id } }),
       db.payComponent.findFirst({ where: { id: data.componentId, companyId: ctx.company.id } }),
     ]);
     if (!emp || !comp) throw new UserError("errors.invalidEmployeeOrComponent");
+    const qtyBased = ["HOURS_X_RATE", "DAYS_X_RATE", "QTY_X_PRICE"].includes(comp.calcType);
+    if (qtyBased && !quantity) throw new UserError("errors.enterQuantity");
+    if (!qtyBased && comp.calcType !== "FORMULA" && amount <= 0) throw new UserError("errors.positiveAmount");
     const contract = await db.contract.findFirst({ where: { employeeId: emp.id }, orderBy: { startDate: "desc" } });
     const currency = data.currency ?? contract?.salaryCurrency ?? ctx.company.currency;
     await db.$transaction([
-      db.payrollAdjustment.create({ data: { runId: run.id, employeeId: emp.id, componentId: comp.id, amount, currency, description: data.description } }),
+      db.payrollAdjustment.create({ data: { runId: run.id, employeeId: emp.id, componentId: comp.id, amount, quantity, currency, description: data.description } }),
       db.payrollRun.update({ where: { id: run.id }, data: { status: "DRAFT" } }),
     ]);
-    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "payroll.adjustment_added", entity: "PayrollRun", entityId: run.id, details: { employee: emp.employeeNumber, component: comp.code, amount, currency } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "payroll.adjustment_added", entity: "PayrollRun", entityId: run.id, details: { employee: emp.employeeNumber, component: comp.code, amount, quantity, currency } });
     revalidatePath(`/app/payroll/${run.id}`);
     return ok((await getTranslations())("run.adjAdded"));
   } catch (e) {
@@ -161,8 +169,13 @@ export async function approveRunAction(_: ActionState, fd: FormData): Promise<Ac
     const run = await loadRun(ctx.company.id, String(fd.get("runId")));
     if (run.status !== "CALCULATED") throw new UserError("errors.onlyCalculatedApprove");
     if (run.employeeCount === 0) throw new UserError("errors.noPayslips");
-    await db.payrollRun.update({ where: { id: run.id }, data: { status: "APPROVED", approvedById: ctx.user.id, approvedAt: new Date() } });
-    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "payroll.approve", entity: "PayrollRun", entityId: run.id, details: { totalNet: run.totalNet } });
+    // Statutory rules not (yet) legally validated: approval requires an explicit acknowledgement and is recorded as such.
+    const pending = run.legalStatus !== "VALIDATED";
+    if (pending && fd.get("acknowledgePending") !== "on") throw new UserError("errors.acknowledgeLegalPending");
+    await db.payrollRun.update({ where: { id: run.id }, data: { status: "APPROVED", approvedById: ctx.user.id, approvedAt: new Date(), legalAcknowledgedById: pending ? ctx.user.id : null } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "payroll.approve", entity: "PayrollRun", entityId: run.id, details: { totalNet: run.totalNet, legalStatus: run.legalStatus } });
+    // Automatic preparation of the LB/AOV declaration draft for this period.
+    await prepareMonthlyDeclaration(ctx.company.id, run.year, run.month, ctx.user.id);
     runId = run.id;
   } catch (e) {
     return handleError(e);
@@ -176,6 +189,7 @@ export async function reopenRunAction(_: ActionState, fd: FormData): Promise<Act
     const ctx = await requirePermission("payroll.approve");
     const run = await loadRun(ctx.company.id, String(fd.get("runId")));
     if (run.status !== "APPROVED") throw new UserError("errors.onlyApprovedReopen");
+    await assertPeriodReopenable(ctx.company.id, run.year, run.month);
     await db.payrollRun.update({ where: { id: run.id }, data: { status: "CALCULATED", approvedById: null, approvedAt: null } });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "payroll.reopen", entity: "PayrollRun", entityId: run.id });
     runId = run.id;

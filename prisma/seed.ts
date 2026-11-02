@@ -5,29 +5,62 @@
  */
 import { PrismaClient, type Prisma } from "@prisma/client";
 import bcrypt from "bcryptjs";
-import { DEFAULT_SR_RULES } from "../src/lib/payroll/defaults";
+import { AOV_RESEARCH, DEFAULT_SR_RULES, SB_2024_2, SB_2024_2_ART17A } from "../src/lib/payroll/defaults";
 import { seedCompanyDefaults } from "../src/lib/server/company-setup";
 import { calculateRun } from "../src/lib/payroll/service";
+import { prepareMonthlyDeclaration } from "../src/lib/server/declarations";
 
 const db = new PrismaClient();
 const SRD = (v: number) => Math.round(v * 100);
 
+const json = (v: unknown) => v as Prisma.InputJsonValue;
+
+/**
+ * Ensures the platform-level statutory rule sets exist (idempotent, safe in production):
+ * - Loonbelasting per S.B. 2024 no. 2 (standard regime) and the separate Art. 17a regime,
+ * - AOV premium rules,
+ * and withdraws the first-release starting values (which contained a separate heffingskorting).
+ * Everything is PENDING_VERIFICATION until confirmed by a professional for the relevant period.
+ */
 async function ensureDefaultRules() {
-  const name = "Suriname statutory defaults 2026";
-  const exists = await db.taxRuleSet.findFirst({ where: { companyId: null, name } });
-  if (exists) return exists;
-  return db.taxRuleSet.create({
-    data: {
-      name,
-      companyId: null,
-      effectiveFrom: new Date("2024-01-01T00:00:00Z"),
-      ...DEFAULT_SR_RULES,
-      brackets: DEFAULT_SR_RULES.brackets as unknown as Prisma.InputJsonValue,
-      overtimeBrackets: DEFAULT_SR_RULES.overtimeBrackets as unknown as Prisma.InputJsonValue,
-      isVerified: false,
-      notes: "Starting values shipped with ARA Payroll. Verify against current Belastingdienst Suriname publications before production use.",
-    },
-  });
+  const legacyName = "Suriname statutory defaults 2026";
+  if (!(await db.taxRuleSet.findFirst({ where: { companyId: null, name: legacyName } }))) {
+    await db.taxRuleSet.create({
+      data: {
+        name: legacyName, companyId: null, effectiveFrom: new Date("2024-01-01T00:00:00Z"), ...DEFAULT_SR_RULES,
+        brackets: json(DEFAULT_SR_RULES.brackets), overtimeBrackets: json(DEFAULT_SR_RULES.overtimeBrackets),
+        approvalStatus: "DRAFT", notes: "Withdrawn starting values of the first release. Kept for history only.",
+      },
+    });
+  }
+  // Withdraw the legacy starting values: approved payroll keeps referencing them, new calculations no longer use them.
+  await db.taxRuleSet.updateMany({ where: { companyId: null, name: legacyName, approvalStatus: "APPROVED" }, data: { approvalStatus: "DRAFT", notes: "Ingetrokken: vervangen door de regelset op basis van S.B. 2024 no. 2 (geen afzonderlijke heffingskorting). Blijft bewaard voor de historie." } });
+
+  for (const [def, regime] of [[SB_2024_2, "STANDARD"], [SB_2024_2_ART17A, "ART17A"]] as const) {
+    if (await db.taxRuleSet.findFirst({ where: { companyId: null, name: def.name } })) continue;
+    const r = def.rules;
+    await db.taxRuleSet.create({
+      data: {
+        companyId: null, name: def.name, regime, currency: "SRD", effectiveFrom: new Date(`${def.effectiveFrom}T00:00:00Z`),
+        brackets: json(r.brackets), overtimeBrackets: json(r.overtimeBrackets), taxCreditMonthly: r.taxCreditMonthly,
+        lumpSumRateBp: r.lumpSumRateBp, lumpSumCapAnnual: r.lumpSumCapAnnual, lumpSumMode: r.lumpSumMode ?? "PERCENT_CAPPED", lumpSumMonthly: r.lumpSumMonthly ?? 0,
+        taxFreeAnnual: r.taxFreeAnnual ?? 0, taxFreeMonthly: r.taxFreeMonthly ?? 0, calcMethod: r.calcMethod ?? "ANNUALIZED",
+        aovRateBp: r.aovRateBp, aovFranchiseMonthly: r.aovFranchiseMonthly, childAllowanceExempt: r.childAllowanceExempt,
+        childAllowanceMaxChildren: r.childAllowanceMaxChildren, bonusExemptAnnual: r.bonusExemptAnnual,
+        verificationStatus: "PENDING_VERIFICATION", isVerified: false, citations: json(def.citations), notes: def.notes,
+      },
+    });
+  }
+  if (!(await db.aovRuleSet.findFirst({ where: { companyId: null, name: AOV_RESEARCH.name } }))) {
+    const a = AOV_RESEARCH.rules;
+    await db.aovRuleSet.create({
+      data: {
+        companyId: null, name: AOV_RESEARCH.name, effectiveFrom: new Date(`${AOV_RESEARCH.effectiveFrom}T00:00:00Z`), rateBp: a.rateBp, base: a.base,
+        franchiseMonthly: a.franchiseMonthly, employeeShareBp: a.employeeShareBp, exemptFromAge: a.exemptFromAge ?? null,
+        verificationStatus: "PENDING_VERIFICATION", citations: json(AOV_RESEARCH.citations), notes: AOV_RESEARCH.notes,
+      },
+    });
+  }
 }
 
 const FIRST = ["Rajesh", "Sharmila", "Kenneth", "Marisa", "Djoko", "Sitie", "Roy", "Anjali", "Glenn", "Priscilla", "Wong", "Naomi", "Ravi", "Joyce"];
@@ -174,12 +207,22 @@ async function demoMulticurrency() {
   console.log("Multicurrency demo created (USD and EUR employees, approved rates).");
 }
 
+/** Demo: draft declarations for approved/paid demo payroll (drafts only — submissions are never simulated). */
+async function demoDeclarations() {
+  const company = await db.company.findFirst({ where: { name: "Paramaribo Trading N.V." } });
+  if (!company) return;
+  const runs = await db.payrollRun.findMany({ where: { companyId: company.id, status: { in: ["APPROVED", "PAID"] } } });
+  for (const r of runs) await prepareMonthlyDeclaration(company.id, r.year, r.month, null);
+  console.log(`Demo declaration drafts prepared (${runs.length}).`);
+}
+
 async function main() {
   await ensureDefaultRules();
   console.log("Platform default tax rule set ensured.");
   if (process.argv.includes("--demo")) {
     await demo();
     await demoMulticurrency();
+    await demoDeclarations();
   }
 }
 

@@ -14,12 +14,16 @@ export type Permission =
   | "leave.approve"
   | "reports.view"
   | "settings.manage"
-  | "audit.view";
+  | "audit.view"
+  | "tax.view"
+  | "tax.manage"
+  | "declarations.prepare"
+  | "declarations.approve";
 
 const ALL: Permission[] = [
   "company.manage", "users.manage", "employees.view", "employees.edit", "employees.viewSalary",
   "payroll.view", "payroll.run", "payroll.approve", "leave.view", "leave.approve",
-  "reports.view", "settings.manage", "audit.view",
+  "reports.view", "settings.manage", "audit.view", "tax.view", "tax.manage", "declarations.prepare", "declarations.approve",
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
@@ -28,9 +32,10 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   PAYROLL_MANAGER: [
     "employees.view", "employees.edit", "employees.viewSalary", "payroll.view", "payroll.run",
     "payroll.approve", "leave.view", "leave.approve", "reports.view", "settings.manage",
+    "tax.view", "tax.manage", "declarations.prepare", "declarations.approve",
   ],
   HR_MANAGER: ["employees.view", "employees.edit", "leave.view", "leave.approve"],
-  ACCOUNTANT: ["employees.view", "employees.viewSalary", "payroll.view", "reports.view", "audit.view"],
+  ACCOUNTANT: ["employees.view", "employees.viewSalary", "payroll.view", "reports.view", "audit.view", "tax.view"],
   EMPLOYEE: [],
 };
 

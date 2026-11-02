@@ -46,7 +46,9 @@
     "errorText": "De fout is vastgelegd. Probeer het opnieuw.",
     "tryAgain": "Opnieuw proberen",
     "perHour": "/u",
-    "employeesCount": "{count, plural, one {# werknemer} other {# werknemers}}"
+    "employeesCount": "{count, plural, one {# werknemer} other {# werknemers}}",
+    "yes": "Ja",
+    "no": "Nee"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -64,7 +66,8 @@
     "overview": "Overzicht",
     "payslips": "Loonstroken",
     "profile": "Profiel",
-    "adminArea": "Beheer"
+    "adminArea": "Beheer",
+    "tax": "Belasting & Aangiften"
   },
   "roles": {
     "OWNER": "Eigenaar",
@@ -93,19 +96,59 @@
       "TEMPORARY": "Tijdelijk",
       "PROBATION": "Proeftijd"
     },
-    "payType": { "MONTHLY": "Maandsalaris", "HOURLY": "Uurloon" },
-    "frequency": { "MONTHLY": "Per maand", "HOURLY": "Per uur" },
-    "componentKind": { "ALLOWANCE": "Toelage", "DEDUCTION": "Inhouding" },
-    "calcType": { "FIXED": "Vast bedrag", "PERCENT_OF_BASE": "% van basissalaris" },
+    "payType": {
+      "MONTHLY": "Maandsalaris",
+      "HOURLY": "Uurloon",
+      "WEEKLY": "Weeksalaris",
+      "DAILY": "Dagloon"
+    },
+    "frequency": {
+      "MONTHLY": "Per maand",
+      "HOURLY": "Per uur",
+      "WEEKLY": "Per week",
+      "DAILY": "Per dag"
+    },
+    "componentKind": {
+      "ALLOWANCE": "Toelage",
+      "DEDUCTION": "Inhouding",
+      "EMPLOYER": "Werkgeversbijdrage"
+    },
+    "calcType": {
+      "FIXED": "Vast bedrag",
+      "PERCENT_OF_BASE": "% van basissalaris",
+      "PERCENT_OF_COMPONENT": "% van component",
+      "HOURS_X_RATE": "Uren × uurtarief",
+      "DAYS_X_RATE": "Dagen × dagtarief",
+      "QTY_X_PRICE": "Aantal × stukprijs",
+      "FORMULA": "Formule",
+      "MANUAL": "Handmatige invoer"
+    },
     "taxTreatment": {
       "TAXABLE": "Belast",
       "EXEMPT": "Onbelast",
       "EXEMPT_UP_TO_LIMIT": "Onbelast tot een maximum",
-      "CHILD_ALLOWANCE": "Kinderbijslag (wettelijk maximum)"
+      "CHILD_ALLOWANCE": "Kinderbijslag (wettelijk maximum)",
+      "SPECIAL_REWARD": "Bijzondere beloning",
+      "OVERTIME": "Overwerk (overwerkschijven)"
     },
-    "rateSource": { "MANUAL": "Handmatig", "API": "Externe aanbieder", "INVERSE": "Omgekeerde goedgekeurde koers", "IDENTITY": "Zelfde valuta" },
-    "gender": { "Female": "Vrouw", "Male": "Man", "Other": "Anders" },
-    "marital": { "Single": "Ongehuwd", "Married": "Gehuwd", "Livingtogether": "Samenwonend", "Divorced": "Gescheiden", "Widowed": "Weduwe/weduwnaar" }
+    "rateSource": {
+      "MANUAL": "Handmatig",
+      "API": "Externe aanbieder",
+      "INVERSE": "Omgekeerde goedgekeurde koers",
+      "IDENTITY": "Zelfde valuta"
+    },
+    "gender": {
+      "Female": "Vrouw",
+      "Male": "Man",
+      "Other": "Anders"
+    },
+    "marital": {
+      "Single": "Ongehuwd",
+      "Married": "Gehuwd",
+      "Livingtogether": "Samenwonend",
+      "Divorced": "Gescheiden",
+      "Widowed": "Weduwe/weduwnaar"
+    }
   },
   "auth": {
     "signInTitle": "Aanmelden",
@@ -149,12 +192,30 @@
     "signIn": "Aanmelden",
     "startFree": "Gratis starten",
     "features": {
-      "employees": { "title": "Personeelsadministratie", "text": "Personeelsdossiers, arbeidsovereenkomsten, salarishistorie, bankgegevens en documenten op één veilige plek." },
-      "engine": { "title": "Surinaamse salarisberekening", "text": "Loonbelasting, AOV, heffingskorting, forfaitaire aftrek, overwerk en bijzondere beloningen — met geversioneerde, aanpasbare belastingtabellen." },
-      "multicurrency": { "title": "Meerdere valuta", "text": "Salarissen in SRD, USD, EUR en meer, met goedgekeurde en vastgelegde wisselkoersen en rapportage in uw basisvaluta." },
-      "payslips": { "title": "Professionele loonstroken", "text": "Duidelijke PDF-loonstroken in het Nederlands of Engels, direct beschikbaar via de selfservice voor werknemers." },
-      "leave": { "title": "Verlofbeheer", "text": "Aanvragen, goedkeuringen en saldi voor vakantie-, ziekte-, zwangerschaps- en ander verlof." },
-      "security": { "title": "Veilig ontworpen", "text": "Toegang op basis van rollen, volledig auditlogboek, goedkeuringsproces en vergrendelde salarisperiodes." }
+      "employees": {
+        "title": "Personeelsadministratie",
+        "text": "Personeelsdossiers, arbeidsovereenkomsten, salarishistorie, bankgegevens en documenten op één veilige plek."
+      },
+      "engine": {
+        "title": "Surinaamse salarisberekening",
+        "text": "Loonbelasting, AOV, heffingskorting, forfaitaire aftrek, overwerk en bijzondere beloningen — met geversioneerde, aanpasbare belastingtabellen."
+      },
+      "multicurrency": {
+        "title": "Meerdere valuta",
+        "text": "Salarissen in SRD, USD, EUR en meer, met goedgekeurde en vastgelegde wisselkoersen en rapportage in uw basisvaluta."
+      },
+      "payslips": {
+        "title": "Professionele loonstroken",
+        "text": "Duidelijke PDF-loonstroken in het Nederlands of Engels, direct beschikbaar via de selfservice voor werknemers."
+      },
+      "leave": {
+        "title": "Verlofbeheer",
+        "text": "Aanvragen, goedkeuringen en saldi voor vakantie-, ziekte-, zwangerschaps- en ander verlof."
+      },
+      "security": {
+        "title": "Veilig ontworpen",
+        "text": "Toegang op basis van rollen, volledig auditlogboek, goedkeuringsproces en vergrendelde salarisperiodes."
+      }
     }
   },
   "dashboard": {
@@ -185,7 +246,12 @@
     "payrollPeriod": "Salarisadministratie {period}",
     "payBy": "{period} uitbetalen vóór {date}"
   },
-  "charts": { "net": "Nettoloon", "tax": "Loonbelasting", "aov": "AOV", "employerCost": "Werkgeverslasten" },
+  "charts": {
+    "net": "Nettoloon",
+    "tax": "Loonbelasting",
+    "aov": "AOV",
+    "employerCost": "Werkgeverslasten"
+  },
   "employees": {
     "title": "Werknemers",
     "shown": "{count, plural, one {# werknemer weergegeven} other {# werknemers weergegeven}}",
@@ -196,7 +262,15 @@
     "allDepartments": "Alle afdelingen",
     "noneFound": "Geen werknemers gevonden",
     "noneFoundText": "Voeg uw eerste werknemer toe om de salarisadministratie te starten.",
-    "cols": { "number": "Nr.", "name": "Naam", "jobTitle": "Functie", "department": "Afdeling", "hired": "In dienst", "salary": "Salaris", "status": "Status" },
+    "cols": {
+      "number": "Nr.",
+      "name": "Naam",
+      "jobTitle": "Functie",
+      "department": "Afdeling",
+      "hired": "In dienst",
+      "salary": "Salaris",
+      "status": "Status"
+    },
     "addTitle": "Werknemer toevoegen",
     "addSubtitle": "Registreer een nieuwe werknemer met de eerste arbeidsovereenkomst.",
     "contractSection": "Arbeidsovereenkomst en salaris",
@@ -206,7 +280,11 @@
     "saved": "Werknemersgegevens opgeslagen."
   },
   "employee": {
-    "sections": { "personal": "Persoonsgegevens", "contact": "Contactgegevens", "employment": "Dienstverband en betaling" },
+    "sections": {
+      "personal": "Persoonsgegevens",
+      "contact": "Contactgegevens",
+      "employment": "Dienstverband en betaling"
+    },
     "employeeNumber": "Personeelsnummer",
     "firstName": "Voorna(a)m(en)",
     "lastName": "Achternaam",
@@ -236,8 +314,8 @@
       "payType": "Beloningsvorm",
       "hoursPerWeek": "Uren per week",
       "salaryCurrency": "Salarisvaluta",
-      "baseSalary": "Maandsalaris",
-      "baseSalaryHint": "Voor werknemers met een maandsalaris",
+      "baseSalary": "Salaris per loontijdvak",
+      "baseSalaryHint": "Per maand, week of dag, afhankelijk van de beloningsvorm",
       "hourlyRate": "Uurloon",
       "hourlyRateHint": "Voor werknemers met een uurloon",
       "effectiveFrom": "Ingangsdatum",
@@ -245,7 +323,15 @@
       "pensionEmployee": "Pensioen — werknemer %",
       "pensionEmployer": "Pensioen — werkgever %"
     },
-    "tabs": { "details": "Gegevens", "contracts": "Overeenkomsten en salaris", "pay": "Toelagen en inhoudingen", "payslips": "Loonstroken", "leave": "Verlof", "documents": "Documenten" },
+    "tabs": {
+      "details": "Gegevens",
+      "contracts": "Overeenkomsten en salaris",
+      "pay": "Toelagen en inhoudingen",
+      "payslips": "Loonstroken",
+      "leave": "Verlof",
+      "documents": "Documenten",
+      "parental": "Ouderschapsverlof"
+    },
     "noJobTitle": "Geen functie",
     "selfServiceEnabled": "Selfservice ingeschakeld",
     "enableSelfService": "Selfservice inschakelen",
@@ -260,7 +346,15 @@
     "statutoryNote": "Wettelijke inhoudingen worden berekend in {currency}.",
     "contractsTitle": "Historie overeenkomsten en salaris",
     "contractsSub": "De meest recente overeenkomst die in een periode geldt, wordt gebruikt voor de salarisadministratie.",
-    "contractCols": { "effective": "Ingang", "ends": "Einde", "type": "Soort", "pay": "Beloning", "amount": "Bedrag", "hours": "Uren/wk", "pension": "Pensioen (wn/wg)" },
+    "contractCols": {
+      "effective": "Ingang",
+      "ends": "Einde",
+      "type": "Soort",
+      "pay": "Beloning",
+      "amount": "Bedrag",
+      "hours": "Uren/wk",
+      "pension": "Pensioen (wn/wg)"
+    },
     "current": "Huidig",
     "newContract": "Nieuwe overeenkomst of salariswijziging vastleggen",
     "newContractSub": "Eerdere gegevens blijven bewaard voor de historie en de audit.",
@@ -269,7 +363,13 @@
     "componentsTitle": "Vaste toelagen en inhoudingen",
     "componentsSub": "Worden automatisch toegepast in elke salarisrun binnen de geldige periode.",
     "noComponents": "Geen vaste componenten",
-    "componentCols": { "component": "Component", "kind": "Soort", "amount": "Bedrag", "from": "Vanaf", "until": "Tot" },
+    "componentCols": {
+      "component": "Component",
+      "kind": "Soort",
+      "amount": "Bedrag",
+      "from": "Vanaf",
+      "until": "Tot"
+    },
     "ofBase": "{pct} van basis",
     "removeComponentConfirm": "Dit component verwijderen?",
     "addComponentTitle": "Toelage of inhouding toevoegen",
@@ -284,12 +384,30 @@
     "componentAdded": "{name} toegevoegd.",
     "removed": "Verwijderd.",
     "noPayslips": "Nog geen loonstroken",
-    "payslipCols": { "period": "Periode", "runStatus": "Status run", "gross": "Bruto", "wageTax": "Loonbelasting", "aov": "AOV", "net": "Netto", "netPaid": "Uitbetaald" },
+    "payslipCols": {
+      "period": "Periode",
+      "runStatus": "Status run",
+      "gross": "Bruto",
+      "wageTax": "Loonbelasting",
+      "aov": "AOV",
+      "net": "Netto",
+      "netPaid": "Uitbetaald"
+    },
     "noLeave": "Geen verlof geregistreerd",
-    "leaveCols": { "type": "Soort", "from": "Van", "to": "Tot", "days": "Dagen", "status": "Status" },
+    "leaveCols": {
+      "type": "Soort",
+      "from": "Van",
+      "to": "Tot",
+      "days": "Dagen",
+      "status": "Status"
+    },
     "noDocuments": "Geen documenten",
     "noDocumentsText": "Upload ondertekende overeenkomsten, kopieën van ID-kaarten en andere personeelsdocumenten.",
-    "docCols": { "file": "Bestand", "size": "Grootte", "uploaded": "Geüpload" },
+    "docCols": {
+      "file": "Bestand",
+      "size": "Grootte",
+      "uploaded": "Geüpload"
+    },
     "deleteDocConfirm": "Dit document definitief verwijderen?",
     "uploadTitle": "Document uploaden",
     "uploadHint": "PDF, PNG, JPEG of DOCX, maximaal 8 MB.",
@@ -299,7 +417,10 @@
     "docUploaded": "Document geüpload.",
     "docDeleted": "Document verwijderd.",
     "selfServiceNew": "Selfservice ingeschakeld. Deel deze gegevens op een veilige manier: {email} / tijdelijk wachtwoord {password} (wordt maar één keer getoond — vraag de werknemer het na de eerste aanmelding te wijzigen).",
-    "selfServiceExisting": "Selfservice ingeschakeld. {email} heeft al een ARA-account en kan aanmelden met het bestaande wachtwoord."
+    "selfServiceExisting": "Selfservice ingeschakeld. {email} heeft al een ARA-account en kan aanmelden met het bestaande wachtwoord.",
+    "taxRegime": "Belastingregime",
+    "taxRegimeHint": "Art. 17a geldt alleen voor werknemers binnen het geverifieerde wettelijke toepassingsbereik.",
+    "taxRegimeLocked": "Art. 17a kan worden gekozen zodra er een geverifieerde regelset voor het toepassingsbereik is."
   },
   "payroll": {
     "title": "Salarisruns",
@@ -307,7 +428,16 @@
     "newRun": "Nieuwe salarisrun",
     "noRuns": "Nog geen salarisruns",
     "noRunsText": "Maak een salarisrun aan voor de huidige maand om salarissen te berekenen en loonstroken te maken.",
-    "cols": { "period": "Periode", "payDate": "Betaaldatum", "status": "Status", "employees": "Werknemers", "gross": "Bruto", "wageTax": "Loonbelasting", "aov": "AOV", "net": "Netto" },
+    "cols": {
+      "period": "Periode",
+      "payDate": "Betaaldatum",
+      "status": "Status",
+      "employees": "Werknemers",
+      "gross": "Bruto",
+      "wageTax": "Loonbelasting",
+      "aov": "AOV",
+      "net": "Netto"
+    },
     "newTitle": "Nieuwe salarisrun",
     "newSubtitle": "Alle actieve werknemers in de periode worden automatisch meegenomen.",
     "month": "Maand",
@@ -329,19 +459,46 @@
     "reopen": "Heropenen",
     "markPaid": "Als betaald markeren",
     "markPaidConfirm": "Bevestig dat de salarissen zijn uitbetaald. De periode wordt hiermee definitief afgesloten.",
-    "steps": { "DRAFT": "Invoer", "CALCULATED": "Berekend", "APPROVED": "Goedgekeurd", "PAID": "Betaald" },
+    "steps": {
+      "DRAFT": "Invoer",
+      "CALCULATED": "Berekend",
+      "APPROVED": "Goedgekeurd",
+      "PAID": "Betaald"
+    },
     "unverified": "Berekend met een niet-geverifieerde belastingregelset. Controleer de wettelijke tarieven onder Instellingen → Belastingregels voordat u uitbetaalt.",
     "inputsChanged": "De invoer is gewijzigd sinds de laatste berekening. Bereken opnieuw om de loonstroken bij te werken.",
-    "stats": { "employees": "Werknemers", "gross": "Brutoloon", "wageTax": "Loonbelasting", "aov": "AOV", "net": "Nettoloon" },
+    "stats": {
+      "employees": "Werknemers",
+      "gross": "Brutoloon",
+      "wageTax": "Loonbelasting",
+      "aov": "AOV",
+      "net": "Nettoloon"
+    },
     "inputsTitle": "Periode-invoer",
     "inputsSub": "Uren voor werknemers met uurloon (leeg = contracturen), overwerk, bijzondere beloningen (in de salarisvaluta) en onbetaalde dagen.",
-    "inputCols": { "employee": "Werknemer", "pay": "Beloning", "hours": "Gewerkte uren", "ot1": "Overwerk {pct} (u)", "ot2": "Overwerk {pct} (u)", "bonus": "Bijzondere beloning", "unpaid": "Onbetaalde dagen" },
+    "inputCols": {
+      "employee": "Werknemer",
+      "pay": "Beloning",
+      "hours": "Gewerkte uren",
+      "ot1": "Overwerk {pct} (u)",
+      "ot2": "Overwerk {pct} (u)",
+      "bonus": "Bijzondere beloning",
+      "unpaid": "Onbetaalde dagen",
+      "days": "Gewerkte dagen"
+    },
     "noContract": "Geen overeenkomst",
     "saveInputs": "Invoer opslaan",
     "inputsSaved": "Invoer opgeslagen. Bereken de salarisadministratie opnieuw om de loonstroken bij te werken.",
     "adjTitle": "Eenmalige correcties",
     "adjSub": "Toelagen of inhoudingen die alleen voor deze periode gelden.",
-    "adjCols": { "employee": "Werknemer", "component": "Component", "description": "Omschrijving", "amount": "Bedrag", "currency": "Valuta" },
+    "adjCols": {
+      "employee": "Werknemer",
+      "component": "Component",
+      "description": "Omschrijving",
+      "amount": "Bedrag",
+      "currency": "Valuta",
+      "quantity": "Aantal"
+    },
     "addAdjustment": "Correctie toevoegen",
     "adjAdded": "Correctie toegevoegd.",
     "adjRemoved": "Correctie verwijderd.",
@@ -352,7 +509,16 @@
     "bankFile": "Betaalbestand bank",
     "notCalculated": "Nog niet berekend",
     "notCalculatedText": "Sla de periode-invoer op en klik op “Salarissen berekenen” om loonstroken te maken.",
-    "slipCols": { "employee": "Werknemer", "gross": "Bruto", "wageTax": "Loonbelasting", "aov": "AOV", "deductions": "Inhoudingen", "net": "Netto", "netPaid": "Uitbetaald", "employerCost": "Werkgeverslasten" },
+    "slipCols": {
+      "employee": "Werknemer",
+      "gross": "Bruto",
+      "wageTax": "Loonbelasting",
+      "aov": "AOV",
+      "deductions": "Inhoudingen",
+      "net": "Netto",
+      "netPaid": "Uitbetaald",
+      "employerCost": "Werkgeverslasten"
+    },
     "deleteRun": "Salarisrun verwijderen",
     "deleteConfirm": "Deze salarisrun en alle bijbehorende loonstroken verwijderen?",
     "notices": {
@@ -362,7 +528,13 @@
     },
     "calculated": "{count, plural, one {# loonstrook} other {# loonstroken}} berekend.",
     "skipped": "Overgeslagen: {list}.",
-    "skipReasons": { "noContract": "geen geldige overeenkomst in deze periode" }
+    "skipReasons": {
+      "noContract": "geen geldige overeenkomst in deze periode"
+    },
+    "acknowledge": "Ik bevestig dat de wettelijke regels nog juridisch moeten worden gevalideerd",
+    "legalPending": "Deze salarisadministratie is berekend met wettelijke regels waarvan de juridische validatie nog ontbreekt. Goedkeuren kan alleen met een uitdrukkelijke bevestiging en geldt niet als juridisch goedgekeurd.",
+    "acknowledged": "goedgekeurd met bevestiging",
+    "quantityHint": "Uren, dagen of eenheden"
   },
   "payslip": {
     "title": "Loonstrook",
@@ -386,8 +558,21 @@
     "kkf": "KKF {value}",
     "calcIn": "Wettelijke berekening in {currency}",
     "conversions": "Valutaomrekeningen",
-    "convCols": { "item": "Onderdeel", "original": "Oorspronkelijk", "rate": "Koers", "rateDate": "Koersdatum", "converted": "Omgerekend", "source": "Bron" },
-    "convPurpose": { "BASE": "Basissalaris", "HOURLY_RATE": "Uurloon", "BONUS": "Bijzondere beloning", "NET_PAY": "Nettoloon", "REPORTING": "Rapportage (basisvaluta)" },
+    "convCols": {
+      "item": "Onderdeel",
+      "original": "Oorspronkelijk",
+      "rate": "Koers",
+      "rateDate": "Koersdatum",
+      "converted": "Omgerekend",
+      "source": "Bron"
+    },
+    "convPurpose": {
+      "BASE": "Basissalaris",
+      "HOURLY_RATE": "Uurloon",
+      "BONUS": "Bijzondere beloning",
+      "NET_PAY": "Nettoloon",
+      "REPORTING": "Rapportage (basisvaluta)"
+    },
     "lines": {
       "BASE": "Basissalaris",
       "BASE_PRORATED": "Basissalaris (naar rato)",
@@ -400,8 +585,15 @@
       "LB-OT": "Loonbelasting overwerk",
       "AOV": "AOV-premie",
       "PENS": "Pensioenpremie",
-      "PENS-ER": "Pensioenpremie werkgever"
-    }
+      "PENS-ER": "Pensioenpremie werkgever",
+      "SAL001": "Bruto maandsalaris",
+      "SAL002": "Bruto weeksalaris",
+      "SAL003": "Dagloon",
+      "SAL004": "Uurloon",
+      "SAL008": "Pro-rata salaris",
+      "AOV-ER": "AOV werkgeversdeel"
+    },
+    "paidShare": "{pct} doorbetaald"
   },
   "leave": {
     "title": "Verlofbeheer",
@@ -411,9 +603,20 @@
     "types": "Verlofsoorten",
     "manageTypes": "Soorten beheren",
     "requests": "Aanvragen",
-    "filter": { "all": "Alle", "PENDING": "In behandeling", "APPROVED": "Goedgekeurd", "REJECTED": "Afgewezen" },
+    "filter": {
+      "all": "Alle",
+      "PENDING": "In behandeling",
+      "APPROVED": "Goedgekeurd",
+      "REJECTED": "Afgewezen"
+    },
     "none": "Geen verlofaanvragen",
-    "cols": { "employee": "Werknemer", "type": "Soort", "period": "Periode", "days": "Dagen", "status": "Status" },
+    "cols": {
+      "employee": "Werknemer",
+      "type": "Soort",
+      "period": "Periode",
+      "days": "Dagen",
+      "status": "Status"
+    },
     "approve": "Goedkeuren",
     "reject": "Afwijzen",
     "cancel": "Annuleren",
@@ -450,11 +653,28 @@
     "deptSub": "Goedgekeurde en betaalde runs",
     "remitTitle": "Afdracht loonbelasting en AOV",
     "remitSub": "Maandelijks ingehouden bedragen, voor de aangifte loonbelasting bij de Belastingdienst.",
-    "cols": { "month": "Maand", "status": "Status", "employees": "Werknemers", "currency": "Valuta", "gross": "Brutolonen", "wageTax": "Loonbelasting", "aov": "AOV", "remit": "Totaal af te dragen" },
+    "cols": {
+      "month": "Maand",
+      "status": "Status",
+      "employees": "Werknemers",
+      "currency": "Valuta",
+      "gross": "Brutolonen",
+      "wageTax": "Loonbelasting",
+      "aov": "AOV",
+      "remit": "Totaal af te dragen"
+    },
     "annualTitle": "Jaaropgaven {year}",
     "annualSub": "Jaartotalen per werknemer (goedgekeurde en betaalde runs), in de wettelijke rekenvaluta.",
     "annualEmpty": "Geen goedgekeurde salarisadministratie dit jaar",
-    "annualCols": { "employee": "Werknemer", "months": "Maanden", "gross": "Bruto", "taxable": "Belastbaar", "wageTax": "Loonbelasting", "aov": "AOV", "net": "Netto" },
+    "annualCols": {
+      "employee": "Werknemer",
+      "months": "Maanden",
+      "gross": "Bruto",
+      "taxable": "Belastbaar",
+      "wageTax": "Loonbelasting",
+      "aov": "AOV",
+      "net": "Netto"
+    },
     "unassigned": "Niet toegewezen",
     "mixedCurrencies": "De basisvaluta is dit jaar gewijzigd; totalen worden per valuta getoond."
   },
@@ -512,7 +732,15 @@
   "settings": {
     "title": "Instellingen",
     "subtitle": "Bedrijfsinrichting, salarisregels en gebruikerstoegang.",
-    "tabs": { "company": "Bedrijf", "currency": "Valuta en koersen", "components": "Looncomponenten", "tax": "Belastingregels", "leave": "Verlofsoorten", "departments": "Afdelingen", "users": "Gebruikers en rollen" },
+    "tabs": {
+      "company": "Bedrijf",
+      "currency": "Valuta en koersen",
+      "components": "Looncomponenten",
+      "tax": "Belastingregels",
+      "leave": "Verlofsoorten",
+      "departments": "Afdelingen",
+      "users": "Gebruikers en rollen"
+    },
     "company": {
       "employer": "Werkgeversgegevens",
       "displayName": "Weergavenaam",
@@ -610,7 +838,10 @@
       "createVersion": "Versie aanmaken",
       "saved": "Belastingregelset opgeslagen. Markeer deze als geverifieerd zodra de tarieven zijn gecontroleerd.",
       "verifiedMsg": "Als geverifieerd gemarkeerd.",
-      "tables": { "lb": "Tabel loonbelasting", "ot": "Tabel overwerk" }
+      "tables": {
+        "lb": "Tabel loonbelasting",
+        "ot": "Tabel overwerk"
+      }
     },
     "leaveTypes": {
       "title": "Verlofsoorten",
@@ -633,7 +864,12 @@
     "users": {
       "title": "Personen met toegang",
       "sub": "Rollen bepalen wat elke gebruiker in {company} kan zien en doen.",
-      "cols": { "name": "Naam", "email": "E-mailadres", "lastLogin": "Laatst aangemeld", "role": "Rol" },
+      "cols": {
+        "name": "Naam",
+        "email": "E-mailadres",
+        "lastLogin": "Laatst aangemeld",
+        "role": "Rol"
+      },
       "role": "Rol",
       "removeConfirm": "De toegang van deze gebruiker tot het bedrijf intrekken?",
       "addTitle": "Gebruiker toevoegen",
@@ -670,7 +906,15 @@
     "fetch": "Koersen ophalen",
     "providerOff": "De platformbeheerder heeft geen koersaanbieder ingeschakeld.",
     "apiOff": "Het beleid van uw bedrijf staat koersen van een aanbieder niet toe.",
-    "cols": { "pair": "Valutapaar", "rate": "Koers", "effective": "Ingang", "source": "Bron", "status": "Status", "scope": "Bereik", "notes": "Opmerkingen" },
+    "cols": {
+      "pair": "Valutapaar",
+      "rate": "Koers",
+      "effective": "Ingang",
+      "source": "Bron",
+      "status": "Status",
+      "scope": "Bereik",
+      "notes": "Opmerkingen"
+    },
     "scopeCompany": "Bedrijf",
     "scopePlatform": "Platform",
     "approve": "Goedkeuren",
@@ -689,7 +933,12 @@
   "companies": {
     "title": "Bedrijven",
     "subtitle": "Beheer de salarisadministratie van meerdere werkgevers vanuit één account — ideaal voor groepen en administratiekantoren.",
-    "cols": { "company": "Bedrijf", "role": "Uw rol", "currency": "Basisvaluta", "employees": "Werknemers" },
+    "cols": {
+      "company": "Bedrijf",
+      "role": "Uw rol",
+      "currency": "Basisvaluta",
+      "employees": "Werknemers"
+    },
     "activeBadge": "Actief",
     "addTitle": "Bedrijf toevoegen",
     "addSub": "Wordt aangemaakt in dezelfde organisatie, met de standaard Surinaamse salarisinrichting.",
@@ -709,7 +958,13 @@
     "title": "Auditlogboek",
     "subtitle": "Elke wijziging in werknemers, salarisadministratie, instellingen en toegang wordt vastgelegd.",
     "none": "Nog geen activiteit",
-    "cols": { "when": "Tijdstip", "user": "Gebruiker", "action": "Actie", "record": "Gegeven", "details": "Details" },
+    "cols": {
+      "when": "Tijdstip",
+      "user": "Gebruiker",
+      "action": "Actie",
+      "record": "Gegeven",
+      "details": "Details"
+    },
     "system": "Systeem",
     "newer": "← Nieuwer",
     "older": "Ouder →"
@@ -728,7 +983,12 @@
     "requestLeave": "Verlof aanvragen",
     "payslipsTitle": "Mijn loonstroken",
     "payslipsEmptyText": "Loonstroken verschijnen hier zodra de salarisadministratie is goedgekeurd.",
-    "payslipCols": { "period": "Periode", "gross": "Bruto", "deductions": "Inhoudingen", "net": "Nettoloon" },
+    "payslipCols": {
+      "period": "Periode",
+      "gross": "Bruto",
+      "deductions": "Inhoudingen",
+      "net": "Nettoloon"
+    },
     "leaveTitle": "Mijn verlof",
     "daysLeft": "dagen resterend",
     "usedOfTotal": "{taken} opgenomen van {total}",
@@ -756,7 +1016,13 @@
     "subtitle": "Valuta en koersaanbieder voor alle bedrijven op het platform.",
     "currencies": "Valutaregister (ISO 4217)",
     "currenciesSub": "Alleen actieve valuta kunnen worden gekozen voor nieuwe salarissen, componenten en koersen. Bestaande gegevens behouden hun valuta.",
-    "cols": { "code": "Code", "name": "Naam", "symbol": "Symbool", "decimals": "Decimalen", "status": "Status" },
+    "cols": {
+      "code": "Code",
+      "name": "Naam",
+      "symbol": "Symbool",
+      "decimals": "Decimalen",
+      "status": "Status"
+    },
     "activate": "Activeren",
     "deactivate": "Deactiveren",
     "currencyUpdated": "Valuta {code} bijgewerkt.",
@@ -828,7 +1094,24 @@
     "apiNotAllowed": "Het beleid van uw bedrijf staat koersen van een aanbieder niet toe.",
     "notPlatformAdmin": "Alleen voor platformbeheerders.",
     "rateNotPending": "Alleen koersen in behandeling kunnen worden goedgekeurd of afgewezen.",
-    "notSignedIn": "Niet aangemeld."
+    "notSignedIn": "Niet aangemeld.",
+    "acknowledgeLegalPending": "De wettelijke regels moeten nog juridisch worden gevalideerd. Vink de bevestiging aan om goed te keuren.",
+    "noRegimeRuleSet": "Er bestaat geen goedgekeurde belastingregelset voor belastingregime {regime}.",
+    "componentCalc": "Component {code} voor {employee} kon niet worden berekend: {error}",
+    "enterQuantity": "Vul een aantal in (uren, dagen of eenheden).",
+    "declarationLocked": "De aangifte voor deze periode is al goedgekeurd. Correcties verlopen via een suppletieaangifte.",
+    "declarationTransition": "Deze actie is niet mogelijk in de huidige status ({status}).",
+    "supplementaryExists": "Er bestaat al een nieuwere versie van deze aangifte.",
+    "receiptType": "Alleen PDF-, PNG- en JPEG-bestanden zijn toegestaan.",
+    "reservedCode": "Deze code is gereserveerd voor een systeemcomponent.",
+    "baseComponentRequired": "Kies het component waarover het percentage wordt berekend.",
+    "formulaRequired": "Vul een formule in.",
+    "formulaInvalid": "De formule is ongeldig.",
+    "treatmentNotAllowed": "Deze fiscale behandeling is niet toegestaan voor deze categorie.",
+    "regimeNotVerified": "Art. 17a kan pas worden gekoppeld als er een geverifieerde regelset voor het toepassingsbereik is.",
+    "manualPerRun": "Componenten met handmatige invoer worden per salarisrun als correctie ingevoerd.",
+    "childBirthDateRequired": "Vul de (verwachte) geboorte- of aankomstdatum van het kind in.",
+    "partTimeNotAllowed": "Deze verlofsoort staat geen deeltijdverlof toe."
   },
   "bracket": {
     "required": "er is ten minste één schijf vereist",
@@ -859,7 +1142,8 @@
     "code": "Alleen letters, cijfers, + - _",
     "selectEmployee": "Kies een werknemer",
     "selectComponent": "Kies een component",
-    "selectLeaveType": "Kies een verlofsoort"
+    "selectLeaveType": "Kies een verlofsoort",
+    "confirmRequired": "Bevestiging vereist"
   },
   "defaults": {
     "components": {
@@ -880,8 +1164,544 @@
       "MAT": "Zwangerschapsverlof",
       "PAT": "Vaderschapsverlof",
       "CAL": "Bijzonder / calamiteitenverlof",
-      "UNP": "Onbetaald verlof"
+      "UNP": "Onbetaald verlof",
+      "ADO": "Adoptieverlof",
+      "OUD": "Ouderschapsverlof",
+      "FEEST": "Feestdagen",
+      "AZT": "Afwezigheid zonder toestemming"
     },
-    "departments": { "admin": "Administratie", "ops": "Operaties", "sales": "Verkoop" }
+    "departments": {
+      "admin": "Administratie",
+      "ops": "Operaties",
+      "sales": "Verkoop"
+    }
+  },
+  "legal": {
+    "VERIFIED": "Geverifieerd",
+    "PENDING_VERIFICATION": "Verificatie vereist",
+    "CONFLICT": "Tegenstrijdige bronnen",
+    "COMPANY_POLICY": "Bedrijfsbeleid",
+    "VALIDATED": "Juridisch gevalideerd",
+    "PENDING_LEGAL_VALIDATION": "Juridische validatie vereist"
+  },
+  "tax": {
+    "title": "Belasting & Aangiften",
+    "subtitle": "Loonbelasting, AOV en wettelijke aangiften — opgesteld op basis van goedgekeurde salarisadministratie.",
+    "tabs": {
+      "declarations": "Aangiften",
+      "payrollTax": "Loonbelasting",
+      "aov": "AOV",
+      "history": "Aangiftehistorie",
+      "rules": "Belastingregels",
+      "aovRules": "AOV-regels",
+      "legal": "Wettelijke bronnen"
+    },
+    "rulesPending": "De gebruikte wettelijke regels moeten nog juridisch worden geverifieerd. Berekeningen en aangiften zijn gemarkeerd als “juridische validatie vereist” en kunnen niet zonder uitdrukkelijke bevestiging worden goedgekeurd.",
+    "viewLegal": "Wettelijke bronnen bekijken",
+    "stats": {
+      "nextDeadline": "Volgende uiterste datum",
+      "outstanding": "Openstaand (niet betaald)",
+      "open": "Openstaande aangiften",
+      "overdue": "Te laat"
+    },
+    "notifications": "Meldingen",
+    "markRead": "Alles als gelezen markeren",
+    "notification": {
+      "draft": "Conceptaangifte opgesteld voor {period}"
+    },
+    "dashboardTitle": "Aangiften loonbelasting en AOV",
+    "dashboardSub": "Maandaangifte “loonbelasting en premie AOV”. Concepten worden automatisch opgesteld zodra de salarisadministratie is goedgekeurd.",
+    "cols": {
+      "period": "Periode",
+      "deadline": "Uiterste datum",
+      "payable": "Te betalen",
+      "status": "Status",
+      "download": "Download",
+      "submission": "Indiening",
+      "payment": "Betaling",
+      "declaration": "Aangifte",
+      "files": "Bestanden",
+      "ruleSet": "Regelset",
+      "zuiverLoon": "Zuiver loon (jaar)",
+      "taxFree": "Belastingvrije som",
+      "annualTaxable": "Belastbaar (jaar)",
+      "legal": "Juridische status"
+    },
+    "download": {
+      "none": "Geen bestanden",
+      "ready": "Gereed",
+      "downloaded": "{count}× gedownload"
+    },
+    "notSubmitted": "Niet ingediend",
+    "notPaid": "Niet betaald",
+    "prepare": "Opstellen",
+    "noPeriods": "Nog geen salarisperiodes.",
+    "howTitle": "Een aangifte indienen",
+    "howSub": "ARA Payroll stelt de aangifte op; u dient deze zelf in via het officiële kanaal.",
+    "how": {
+      "1": "Controleer het concept en keur het goed — de bestanden worden aangemaakt (PDF, Excel, CSV).",
+      "2": "Download de aangifte en de onderliggende specificaties.",
+      "3": "Doe de maandaangifte loonbelasting en premie AOV in het online portaal van de Belastingdienst (aangifteperiode volgens bronnen van de 26e tot en met de 10e van de volgende maand — verifiëren).",
+      "4": "Leg de indieningsdatum en het kenmerk vast in ARA Payroll en upload het ontvangstbewijs.",
+      "5": "Leg acceptatie en betaling vast zodra deze bevestigd zijn. ARA Payroll markeert een aangifte nooit zelf als ingediend."
+    },
+    "noApi": "Er is geen officiële API of geautomatiseerde indieningsmethode van de Belastingdienst gevonden; ARA Payroll meldt zich niet aan bij overheidsportalen.",
+    "prepareTitle": "Aangifte opstellen",
+    "prepareSub": "Stel een concept op of werk het bij voor een periode op basis van goedgekeurde en betaalde salarisadministratie.",
+    "annualStatement": "Verzamelloonstaat (jaar)",
+    "payrollTaxIntro": "Berekening van de loonbelasting per werknemer, overgenomen uit de opgeslagen berekening van elke loonstrook.",
+    "breakdownTitle": "Specificatie loonbelasting — {period}",
+    "runStatus": "Status salarisadministratie",
+    "noRun": "Geen berekende salarisadministratie voor deze periode",
+    "inspect": "Bekijken",
+    "yearOverview": "Overzicht {year}",
+    "aovIntro": "AOV wordt apart van de loonbelasting gerapporteerd. Volgens de onderzochte regels wordt de premie op het loon van de werknemer ingehouden; een eventueel werkgeversdeel is een werkgeversverplichting en wordt nooit van het nettoloon afgetrokken.",
+    "aov": {
+      "base": "AOV-grondslag",
+      "employee": "Ingehouden bij werknemers",
+      "employeeSub": "Inhouding werknemer",
+      "employer": "Werkgeversdeel",
+      "employerSub": "Werkgeversverplichting",
+      "payable": "Af te dragen aan de overheid",
+      "payableSub": "Werknemer + werkgever",
+      "reportTitle": "AOV-rapport — {period}",
+      "baseType": "Grondslag",
+      "rate": "Tarief",
+      "ageExempt": "Vrijgesteld (leeftijdsgrens)"
+    },
+    "historyTitle": "Alle aangiften",
+    "noDeclarations": "Nog geen aangiften",
+    "recentEvents": "Recente statuswijzigingen"
+  },
+  "decl": {
+    "type": {
+      "LB_AOV_MONTHLY": "Aangifte loonbelasting en premie AOV",
+      "VERZAMELLOONSTAAT": "Verzamelloonstaat"
+    },
+    "status": {
+      "NOT_STARTED": "Niet gestart",
+      "IN_PREPARATION": "In voorbereiding",
+      "CALCULATED": "Berekend",
+      "UNDER_REVIEW": "In beoordeling",
+      "APPROVED": "Goedgekeurd",
+      "READY_FOR_DOWNLOAD": "Gereed voor download",
+      "DOWNLOADED": "Gedownload",
+      "SUBMITTED": "Ingediend",
+      "ACCEPTED": "Geaccepteerd",
+      "REJECTED": "Afgewezen",
+      "PAID": "Betaald"
+    },
+    "deadline": "Uiterste datum {date}",
+    "legalPending": "Deze aangifte is gebaseerd op wettelijke regels waarvan de juridische validatie nog ontbreekt. Zij geldt niet als juridisch goedgekeurd.",
+    "acknowledgedBy": "Goedkeuring bevestigd door {name}.",
+    "rejectedInfo": "Afgewezen door de Belastingdienst: {reason}. Maak een suppletieaangifte om dit te corrigeren.",
+    "supplementaryInfo": "Suppletieaangifte (versie {version}). Het te betalen bedrag is het verschil met eerder ingediende versies.",
+    "mixedCurrencies": "Deze periode bevat loonstroken die in verschillende valuta zijn berekend. Controleer dit vóór goedkeuring.",
+    "preview": "Voorbeeld van de aangifte",
+    "previewSub": "Belastingregels: {tax} · AOV-regels: {aov}",
+    "months": "{count, plural, one {# maand} other {# maanden}}",
+    "snapshotAt": "Berekeningsmomentopname van {date}",
+    "viewRun": "salarisrun",
+    "actions": "Acties",
+    "recalculate": "Opnieuw berekenen uit salarisadministratie",
+    "submitForReview": "Ter beoordeling indienen",
+    "fileLanguage": "Taal van de bestanden",
+    "acknowledge": "Ik bevestig dat de wettelijke regels nog juridisch moeten worden gevalideerd en dat deze goedkeuring geen juridische bevestiging is.",
+    "approve": "Goedkeuren en bestanden aanmaken",
+    "return": "Terugsturen voor wijzigingen",
+    "regenerate": "Bestanden opnieuw aanmaken",
+    "revoke": "Goedkeuring intrekken",
+    "revokeConfirm": "De goedkeuring intrekken en de aangemaakte bestanden verwijderen?",
+    "recordSubmission": "Indiening vastleggen",
+    "manualSubmission": "Dien de gedownloade aangifte in via het officiële portaal van de Belastingdienst en leg daarna de gegevens hier vast.",
+    "submittedAt": "Datum van indiening",
+    "reference": "Kenmerk van indiening",
+    "receipt": "Ontvangstbewijs (optioneel)",
+    "receiptHint": "PDF, PNG of JPEG, maximaal 8 MB.",
+    "saveSubmission": "Indiening opslaan",
+    "recordOutcome": "Uitkomst vastleggen",
+    "accepted": "Geaccepteerd",
+    "rejected": "Afgewezen",
+    "rejectionReason": "Reden van afwijzing",
+    "recordPayment": "Betaling vastleggen",
+    "paidAt": "Betaaldatum",
+    "paymentReference": "Betalingskenmerk",
+    "savePayment": "Betaling opslaan",
+    "createSupplementary": "Suppletieaangifte maken",
+    "supplementaryConfirm": "Een suppletieaangifte voor deze periode maken?",
+    "submittedInfo": "Ingediend op {date}, kenmerk {reference}",
+    "paidInfo": "Betaald op {date}, kenmerk {reference}",
+    "approvedInfo": "Goedgekeurd door {name} op {date}",
+    "files": "Bestanden",
+    "filesSub": "Bewaarde kopieën — kunnen op elk moment opnieuw worden gedownload.",
+    "noFiles": "Bestanden worden aangemaakt zodra de aangifte is goedgekeurd.",
+    "history": "Statushistorie",
+    "transition": "Statuswijziging",
+    "note": "Opmerking",
+    "autoPrepared": "Automatisch opgesteld na goedkeuring van de salarisadministratie",
+    "msg": {
+      "recalculated": "Aangifte opnieuw berekend uit de goedgekeurde salarisadministratie.",
+      "underReview": "Aangifte ter beoordeling ingediend.",
+      "returned": "Aangifte teruggestuurd voor wijzigingen.",
+      "approved": "Aangifte goedgekeurd en bestanden aangemaakt.",
+      "generated": "Bestanden opnieuw aangemaakt.",
+      "revoked": "Goedkeuring ingetrokken.",
+      "submitted": "Indiening vastgelegd.",
+      "accepted": "Acceptatie vastgelegd.",
+      "rejected": "Afwijzing vastgelegd.",
+      "paid": "Betaling vastgelegd."
+    },
+    "file": {
+      "company": "Bedrijf",
+      "kkf": "KKF-nummer",
+      "taxNumber": "Fiscaal identificatienummer (FIB)",
+      "address": "Adres",
+      "period": "Aangifteperiode",
+      "currency": "Valuta",
+      "version": "Versie",
+      "supplementary": "{version} (suppletie)",
+      "deadline": "Uiterste datum",
+      "status": "Status",
+      "employees": "Aantal werknemers",
+      "gross": "Brutoloon",
+      "taxable": "Belastbaar loon",
+      "wageTaxRegular": "Loonbelasting (regulier)",
+      "wageTaxSpecial": "Loonbelasting (bijzondere beloningen)",
+      "wageTaxOvertime": "Loonbelasting (overwerk)",
+      "wageTax": "Totaal loonbelasting",
+      "aov": "AOV-premie",
+      "previousAdjustments": "Correcties vorige periodes",
+      "totalPayable": "Totaal te betalen",
+      "summary": "Samenvatting",
+      "schedule": "Specificatie per werknemer",
+      "ruleSets": "Belastingregels: {tax} — AOV-regels: {aov}",
+      "legalPending": "JURIDISCHE VALIDATIE VEREIST — wettelijke regels nog niet geverifieerd",
+      "generated": "Aangemaakt {date} door ARA Payroll",
+      "notSubmitted": "Opgesteld document — niet ingediend door ARA Payroll",
+      "titleTax": "Aangifte loonbelasting en premie AOV",
+      "titleAnnual": "Verzamelloonstaat",
+      "titleAov": "AOV-rapport",
+      "aovTotals": "AOV-grondslag {base} · werknemerspremie {employee} · werkgeversdeel {employer}",
+      "colNumber": "Nr.",
+      "colName": "Naam",
+      "colIdNumber": "ID-nummer",
+      "colTaxable": "Belastbaar",
+      "colWageTax": "Loonbelasting",
+      "colAov": "AOV",
+      "colAovBase": "AOV-grondslag",
+      "colAovEmployer": "AOV werkgever",
+      "colTotal": "Totaal",
+      "colMonths": "Maanden",
+      "total": "TOTAAL",
+      "sheetDeclaration": "Aangifte",
+      "sheetEmployees": "Werknemers",
+      "sheetAov": "AOV",
+      "sheetSchedule": "Specificatie"
+    }
+  },
+  "rules": {
+    "versionsSub": "Geversioneerd op ingangsdatum. De meest recente goedgekeurde versie die op de laatste dag van de periode geldt, wordt gebruikt; bedrijfsversies gaan vóór platformstandaarden. Ingetrokken versies blijven bewaard voor de historie.",
+    "regime": {
+      "STANDARD": "Standaard (art. 14)",
+      "ART17A": "Art. 17a (afzonderlijk tarief)"
+    },
+    "withdrawn": "Ingetrokken",
+    "validity": "Geldig",
+    "open": "onbepaald",
+    "verifiedUntil": "Geverifieerd tot",
+    "taxFree": "Belastingvrije som (jaar / maand)",
+    "inBrackets": "in schijf van 0%",
+    "lumpSum": "Beroepskostenaftrek",
+    "brackets": "Schijven",
+    "above": "daarboven",
+    "method": "Berekeningsmethode",
+    "calcMethod": {
+      "ANNUALIZED": "Op jaarbasis (× 12)",
+      "MONTHLY_TABLE": "Maandbedragen"
+    },
+    "methodHint": "Jaar- en maandbedragen worden nooit samen toegepast.",
+    "formSub": "Bedragen in de rekenvaluta; tarieven in procenten. Opslaan zet de verificatiestatus terug.",
+    "regimeLabel": "Belastingregime",
+    "regimeHint": "Art. 17a wordt alleen gebruikt voor werknemers die er uitdrukkelijk aan zijn gekoppeld, nadat het toepassingsbereik is geverifieerd.",
+    "effectiveTo": "Geldig tot (optioneel)",
+    "verificationStatus": "Verificatiestatus",
+    "verificationHint": "“Geverifieerd” kan alleen via de verificatiestap worden ingesteld.",
+    "taxFreeAnnual": "Belastingvrije som per jaar",
+    "taxFreeHint": "0 = opgenomen als schijf van 0%.",
+    "taxFreeMonthly": "Belastingvrije som per maand",
+    "lumpSumMode": "Soort aftrek",
+    "lumpSumModes": {
+      "FIXED": "Vast bedrag",
+      "PERCENT_CAPPED": "Percentage met maximum"
+    },
+    "lumpSumMonthly": "Aftrek per maand",
+    "aovLegacyRate": "AOV-tarief (terugvaloptie, %)",
+    "aovLegacyHint": "Alleen gebruikt als er geen AOV-regelset van toepassing is.",
+    "citations": "Wettelijke bronvermeldingen",
+    "citationsHint": "Eén per regel: bron | artikel | onderwerp",
+    "reviewer": "Gecontroleerd door / bron van bevestiging",
+    "reviewerPlaceholder": "bijv. belastingadviseur, circulaire Belastingdienst"
+  },
+  "aovRules": {
+    "intro": "AOV (Algemene Oudedagsvoorziening) wordt met eigen, geversioneerde regels berekend, los van de loonbelasting.",
+    "versions": "Versies AOV-regels",
+    "versionsSub": "De meest recente goedgekeurde versie die op de laatste dag van de periode geldt, wordt gebruikt.",
+    "none": "Geen AOV-regels ingesteld — de AOV-velden van de belastingregels worden gebruikt.",
+    "newTitle": "Nieuwe versie AOV-regels",
+    "formSub": "Alleen activeren na bevestiging aan de hand van gezaghebbende wettelijke bronnen.",
+    "rate": "Premiepercentage",
+    "baseLabel": "Grondslag",
+    "base": {
+      "TAXABLE_WAGE": "Zuiver loon",
+      "GROSS_WAGE": "Brutoloon (geselecteerde componenten)"
+    },
+    "franchise": "Franchise per maand",
+    "min": "Minimumpremie per maand",
+    "max": "Maximumpremie per maand",
+    "minMax": "Minimum / maximum",
+    "responsibility": "Verantwoordelijkheid",
+    "split": "werknemer {employee} · werkgever {employer}",
+    "employeeShare": "Aandeel werknemer (%)",
+    "employeeShareHint": "100% = volledig ingehouden bij de werknemer.",
+    "exemptFromAge": "Geen premie vanaf leeftijd",
+    "saved": "AOV-regels opgeslagen."
+  },
+  "legalRegister": {
+    "intro": "Register van wettelijke bronnen. De statussen geven weer wat kon worden bevestigd; niets hiervan vervangt de beoordeling door een gekwalificeerde belastingadviseur. Controleer latere staatsbesluiten en officiële instructies vóór productiegebruik.",
+    "published": "gepubliceerd {date}",
+    "effective": "in werking {date}",
+    "article": "Art."
+  },
+  "components": {
+    "intro": "Looncomponenten per categorie. Standaardcomponenten komen uit de centrale ARA-bibliotheek; bedrijven kunnen eigen componenten toevoegen.",
+    "newCustom": "Nieuw component",
+    "category": {
+      "SALARY": "Salaris",
+      "ALLOWANCE": "Toelagen en vergoedingen",
+      "OVERTIME": "Overwerk en bijzondere uren",
+      "BONUS": "Bonussen en bijzondere uitkeringen",
+      "DEDUCTION": "Inhoudingen werknemer",
+      "EMPLOYER": "Werkgeversbijdragen",
+      "LEAVE": "Verlof en verzuim"
+    },
+    "categoryHint": {
+      "SALARY": "Het basisloon volgt de arbeidsovereenkomst (maand, week, dag of uur).",
+      "ALLOWANCE": "Wordt bij het brutoloon opgeteld; fiscale behandeling per component.",
+      "OVERTIME": "Percentages zijn instelbaar; koppel ze aan wetgeving of de toepasselijke (collectieve) overeenkomst.",
+      "BONUS": "Bijzondere beloningen met de jaarlijkse vrijstelling uit de belastingregels.",
+      "DEDUCTION": "Wordt op het nettoloon ingehouden.",
+      "EMPLOYER": "Wordt apart als werkgeverslast berekend — nooit op het nettoloon ingehouden.",
+      "LEAVE": "Wordt aangemaakt uit goedgekeurd verlof."
+    },
+    "cols": {
+      "code": "Code",
+      "name": "Naam",
+      "method": "Berekening",
+      "tax": "Belasting",
+      "flags": "Meegenomen in",
+      "legal": "Juridisch",
+      "status": "Status"
+    },
+    "calc": {
+      "FIXED": "Vast bedrag",
+      "PERCENT_OF_BASE": "% van basissalaris",
+      "PERCENT_OF_COMPONENT": "% van component",
+      "HOURS_X_RATE": "Uren × uurtarief",
+      "DAYS_X_RATE": "Dagen × dagtarief",
+      "QTY_X_PRICE": "Aantal × stukprijs",
+      "FORMULA": "Formule",
+      "MANUAL": "Handmatige invoer"
+    },
+    "freq": {
+      "RECURRING": "Elke periode",
+      "ONE_OFF": "Eenmalig",
+      "ANNUAL": "Jaarlijks"
+    },
+    "systemCalculated": "Berekend door de salarisberekening",
+    "system": "Systeem",
+    "custom": "Eigen",
+    "preTax": "Vóór belasting",
+    "afterTax": "Na belasting",
+    "employerOnly": "Werkgeverslast",
+    "pension": "Pensioen",
+    "inKind": "In natura",
+    "draft": "Concept",
+    "approved": "Goedgekeurd",
+    "libraryTitle": "Centrale componentenbibliotheek",
+    "librarySub": "{count, plural, =0 {Alle bibliotheekcomponenten zijn in gebruik.} one {# bibliotheekcomponent nog niet toegevoegd.} other {# bibliotheekcomponenten nog niet toegevoegd.}}",
+    "adoptAll": "Alles toevoegen",
+    "adopted": "{count, plural, =0 {Niets om toe te voegen.} one {# component toegevoegd.} other {# componenten toegevoegd.}}",
+    "configTitle": "Looncomponent",
+    "back": "Looncomponenten",
+    "fromLibrary": "Gebaseerd op bibliotheekcomponent {code}. Wijzigingen gelden alleen voor dit bedrijf.",
+    "configSub": "Identificatie en categorie. De behandeling voor bruto, netto en werkgeverslasten volgt uit de categorie.",
+    "calculationTitle": "Berekening",
+    "calculationSub": "Alleen de velden van de gekozen methode worden gebruikt.",
+    "treatmentTitle": "Belasting, AOV en pensioen",
+    "treatmentSub": "Elk component volgt de loonbelastinginrichting en kan deze niet omzeilen.",
+    "derivedTreatment": "Toelagen, overwerk en bonussen tellen mee in het brutoloon (verstrekkingen in natura worden niet uitbetaald); inhoudingen verlagen het nettoloon; werkgeversbijdragen zijn uitsluitend werkgeverslast en verlagen het nettoloon nooit.",
+    "adminTitle": "Administratie en juridisch",
+    "companyScope": "Geldt voor {company}.",
+    "f": {
+      "code": "Componentcode",
+      "nameNl": "Nederlandse omschrijving",
+      "nameEn": "Engelse omschrijving",
+      "category": "Categorie",
+      "categoryHint": "Verlofcomponenten worden aangemaakt uit goedgekeurd verlof.",
+      "method": "Berekeningsmethode",
+      "defaultAmount": "Standaardbedrag",
+      "defaultAmountHint": "Gebruikt als voor de werknemer geen bedrag is ingevoerd.",
+      "currency": "Valuta",
+      "frequency": "Frequentie",
+      "percentage": "Percentage",
+      "percentageHint": "Voor % van basis / % van component",
+      "baseComponent": "Basiscomponent",
+      "multiplier": "Tariefsfactor (%)",
+      "multiplierHint": "Uren/dagen × tarief × factor, bijv. 250",
+      "unitPrice": "Stukprijs",
+      "formula": "Formule",
+      "formulaHint": "Variabelen: BASE, HOURLY_RATE, DAILY_RATE, QTY en componentcodes; functies MIN, MAX, ROUND. Bedragen in valuta-eenheden.",
+      "tax": "Fiscale behandeling",
+      "taxHint": "Alleen voor toelagen; bonussen volgen de regels voor bijzondere beloningen, overwerk de overwerkschijven.",
+      "aov": "Onderdeel van de AOV-grondslag (brutoloongrondslag)",
+      "pension": "Onderdeel van de pensioengrondslag",
+      "preTax": "Inhouden vóór belasting (inhoudingen)",
+      "benefitInKind": "Verstrekking in natura (belast, niet uitbetaald)",
+      "gl": "Grootboekrekening",
+      "effectiveFrom": "Geldig vanaf",
+      "effectiveTo": "Geldig tot",
+      "approval": "Goedkeuringsstatus",
+      "legalStatus": "Juridische status",
+      "legalReference": "Wettelijke verwijzing",
+      "active": "Actief"
+    }
+  },
+  "parental": {
+    "title": "Ouderschapsverlof",
+    "subtitle": "Zwangerschaps-, vaderschaps-, adoptie- en ouderschapsverlof — gekoppeld aan personeelsadministratie en salarisadministratie.",
+    "legalNote": "De wettelijke aanspraken zijn gebaseerd op de Wet Arbeidsbescherming Gezin (S.B. 2019 no. 64) zoals onderzocht en moeten nog worden geverifieerd; de duur van het vaderschapsverlof wordt door bronnen verschillend vermeld (5, 7 of 8 dagen). Het salaris tijdens verlof wordt alleen aangepast volgens het goedgekeurde beleid van elke verlofsoort.",
+    "policies": "Verlofbeleid",
+    "policiesSub": "Wettelijke aanspraak en aanvullende bedrijfsregeling per verlofsoort.",
+    "cols": {
+      "type": "Verlofsoort",
+      "statutory": "Wettelijk",
+      "companyExtra": "Bedrijfsregeling",
+      "pay": "Doorbetaald salaris",
+      "partTime": "Deeltijd",
+      "legal": "Juridische status",
+      "reference": "Verwijzing",
+      "usage": "Opgenomen / resterend per kind"
+    },
+    "days": "{days} dagen",
+    "requests": "Aanvragen ouderschapsverlof",
+    "none": "Geen ouderschapsverlof geregistreerd",
+    "requested": "{days} dagen aangevraagd",
+    "approvedDays": "{days} dagen goedgekeurd",
+    "partTime": "deeltijd {pct}",
+    "child": "kind {date}",
+    "decidedBy": "Besloten door {name} op {date}",
+    "register": "Ouderschapsverlof registreren",
+    "registerSub": "Ouderschapsverlof doorloopt altijd een goedkeuringsstap.",
+    "submit": "Aanvraag indienen",
+    "selfTitle": "Ouderschapsverlof aanvragen",
+    "manage": "Ouderschapsverlof beheren",
+    "entitlements": "Aanspraken",
+    "entitlementsSub": "Wettelijke aanspraak en bedrijfsregeling, per kind.",
+    "usedRemaining": "{used} opgenomen, {remaining} resterend",
+    "paymentUpdated": "Betalingsstatus bijgewerkt.",
+    "payment": {
+      "NOT_APPLICABLE": "Niet van toepassing",
+      "PENDING": "Betaling in behandeling",
+      "PAID_BY_EMPLOYER": "Betaald door werkgever",
+      "PARTIALLY_PAID": "Gedeeltelijk betaald",
+      "UNPAID": "Onbetaald",
+      "PAID_BY_FUND": "Betaald door fonds"
+    },
+    "f": {
+      "category": "Verlofcategorie",
+      "childBirthDate": "Geboorte-/aankomstdatum kind",
+      "childBirthDateHint": "Verwachte datum bij verlof vóór de geboorte",
+      "start": "Begindatum verlof",
+      "expectedEnd": "Verwachte einddatum",
+      "days": "Aangevraagde dagen",
+      "hours": "Aangevraagde uren (optioneel)",
+      "schedule": "Verlofpercentage van de arbeidstijd",
+      "scheduleHint": "100 = voltijds verlof; bijv. 50 voor halftijds (als de verlofsoort deeltijd toestaat)",
+      "scheduleNote": "Verlofrooster",
+      "scheduleNotePlaceholder": "bijv. maandag en dinsdag",
+      "documents": "Onderbouwende documenten",
+      "documentsHint": "bijv. medische verklaring of geboorteakte (PDF, PNG, JPEG)",
+      "approvedDays": "Goedgekeurde dagen",
+      "paymentStatus": "Betalingsstatus"
+    }
+  },
+  "leaveTypes": {
+    "sub": "Stel elke verlofcategorie apart in: wettelijke aanspraak, bedrijfsregeling en welk deel van het salaris tijdens het verlof wordt doorbetaald.",
+    "category": "Categorie",
+    "categories": {
+      "ANNUAL": "Jaarlijks verlof",
+      "SICK": "Ziekteverlof",
+      "SPECIAL": "Bijzonder verlof",
+      "UNPAID": "Onbetaald verlof",
+      "PUBLIC_HOLIDAY": "Feestdagen",
+      "PARENTAL": "Ouderschapsverlof",
+      "MATERNITY": "Zwangerschapsverlof",
+      "PATERNITY": "Vaderschapsverlof",
+      "ADOPTION": "Adoptieverlof",
+      "UNAUTHORIZED": "Afwezigheid zonder toestemming"
+    },
+    "payPercent": "Doorbetaald salaris (%)",
+    "payPercentHint": "Onder 100% verlaagt het loon in de salarisadministratie",
+    "unit": "Eenheid",
+    "units": {
+      "DAYS": "Dagen",
+      "HOURS": "Uren"
+    },
+    "annualHint": "Jaarlijkse aanspraak",
+    "statutory": "Wettelijke dagen",
+    "statutoryHint": "Per gebeurtenis (ouderschap)",
+    "companyExtra": "Extra dagen bedrijf",
+    "maxCarry": "Max. overdracht",
+    "legalStatus": "Juridische status",
+    "legalReference": "Wettelijke verwijzing",
+    "allowPartTime": "Deeltijdverlof toegestaan",
+    "carryForward": "Niet-opgenomen dagen overdragen"
+  },
+  "breakdown": {
+    "title": "Specificatie van de berekening",
+    "wageTax": "Loonbelasting",
+    "regularTaxable": "Regulier belastbaar loon (na aftrekbare inhoudingen)",
+    "lumpSum": "Beroepskostenaftrek",
+    "zuiverLoon": "Zuiver loon per maand",
+    "annualZuiver": "Zuiver loon per jaar",
+    "taxFree": "Belastingvrije som per jaar",
+    "taxFreeMonthly": "Belastingvrije som per maand",
+    "annualTaxable": "Belastbaar loon",
+    "slice": "{rate} over {from} – {to}",
+    "annualTax": "Belasting per jaar",
+    "perMonth": "Per maand (÷ 12)",
+    "monthlyTax": "Belasting per maand",
+    "taxCredit": "Heffingskorting",
+    "wageTaxRegular": "Loonbelasting (regulier)",
+    "specialRewards": "Bijzondere beloningen",
+    "exemptUsed": "Gebruikte vrijstelling",
+    "bonusTax": "Loonbelasting bijzondere beloningen",
+    "overtimePay": "Overwerkloon",
+    "overtimeTax": "Loonbelasting overwerk",
+    "aov": "AOV",
+    "aovBaseType": "Grondslag",
+    "aovExempt": "Vrijgesteld (leeftijdsgrens)",
+    "aovBase": "AOV-grondslag",
+    "aovTotal": "AOV-premie",
+    "aovEmployee": "Ingehouden bij werknemer",
+    "aovEmployer": "Werkgeversdeel",
+    "leave": "Verlofcorrecties",
+    "leaveLine": "{days} dagen, {pct} doorbetaald",
+    "audit": "Audit",
+    "taxRules": "Belastingregels",
+    "regime": "Belastingregime",
+    "aovRules": "AOV-regels",
+    "method": "Methode",
+    "calculatedAt": "Berekend"
   }
 }

@@ -40,6 +40,16 @@ tests/                  unit, integration, e2e
 - Payslip stores amounts in the calculation currency plus `netPayPayment` (payment currency), `*Base` amounts (base currency) and the `conversions` audit trail. Run totals are base-currency sums; reports never add different currencies together.
 - Migrations backfill existing data as SRD and pin the currency of existing components so later salary-currency changes cannot reinterpret them.
 
+## Payroll components, tax rules and declarations
+
+- `src/lib/payroll/library.ts` — central component library (also inserted into `ComponentLibrary` by migration). System entries map to engine line codes (`LINE_TO_LIBRARY`), so every payslip line traces to a library code.
+- `src/lib/payroll/formula.ts` — safe arithmetic evaluator (tokenizer + recursive descent; no `eval`).
+- `src/lib/payroll/engine.ts` — `resolveComponentAmounts` evaluates components in dependency order (cycles rejected); gross/net/employer treatment follows the component kind, so custom components cannot bypass the tax configuration. Employer contributions never reduce net pay.
+- Tax rule sets (`TaxRuleSet`) carry regime, effective/verified-until dates, tax-free amounts (annual and monthly stored separately), deduction mode, calculation method and citations. AOV has its own `AovRuleSet` (rate, base, franchise, min/max, employee share, age exemption).
+- Legal validation: a payslip is `VALIDATED` only if the tax and AOV rules are `VERIFIED` and valid for the period, and no pending-status component contributed. Approval of pending payroll or declarations requires an explicit acknowledgement that is stored and audited.
+- Declarations (`Declaration`, `DeclarationFile`, `DeclarationEvent`): drafts are created when payroll is approved; the snapshot is immutable after approval; files are stored in the database (serverless-safe); the status machine (`src/lib/declarations/status.ts`) never moves to SUBMITTED/ACCEPTED automatically. Reopening payroll is blocked once its declaration is approved — corrections use supplementary declarations.
+- Leave: `LeaveType` holds category, statutory and company entitlement, paid share and legal status; approved leave becomes engine input (`leaveInputsForPeriod`) and appears as a separate payslip line.
+
 ## Calculation (per employee, per month)
 
 1. Base pay: monthly salary × employed fraction − unpaid days (salary ÷ 21.75 per day), or hours × hourly rate.

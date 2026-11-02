@@ -20,6 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ...(can(r, "employees.view") ? [{ href: "/app/employees", label: t("nav.employees"), icon: "employees" } as NavItem] : []),
     ...(can(r, "payroll.view") ? [{ href: "/app/payroll", label: t("nav.payroll"), icon: "payroll" } as NavItem] : []),
     ...(can(r, "leave.view") ? [{ href: "/app/leave", label: t("nav.leave"), icon: "leave" } as NavItem] : []),
+    ...(can(r, "tax.view") ? [{ href: "/app/tax", label: t("nav.tax"), icon: "tax" } as NavItem] : []),
     ...(can(r, "reports.view") ? [{ href: "/app/reports", label: t("nav.reports"), icon: "reports" } as NavItem] : []),
     ...(can(r, "payroll.view") ? [{ href: "/app/exchange-rates", label: t("nav.exchangeRates"), icon: "rates" } as NavItem] : []),
     { href: "/app/companies", label: t("nav.companies"), icon: "companies" },

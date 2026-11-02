@@ -46,7 +46,9 @@
     "errorText": "The error has been logged. Please try again.",
     "tryAgain": "Try again",
     "perHour": "/h",
-    "employeesCount": "{count, plural, one {# employee} other {# employees}}"
+    "employeesCount": "{count, plural, one {# employee} other {# employees}}",
+    "yes": "Yes",
+    "no": "No"
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -64,7 +66,8 @@
     "overview": "Overview",
     "payslips": "Payslips",
     "profile": "Profile",
-    "adminArea": "Administration"
+    "adminArea": "Administration",
+    "tax": "Tax & Declarations"
   },
   "roles": {
     "OWNER": "Owner",
@@ -93,19 +96,59 @@
       "TEMPORARY": "Temporary",
       "PROBATION": "Probation"
     },
-    "payType": { "MONTHLY": "Monthly salary", "HOURLY": "Hourly wage" },
-    "frequency": { "MONTHLY": "Per month", "HOURLY": "Per hour" },
-    "componentKind": { "ALLOWANCE": "Allowance", "DEDUCTION": "Deduction" },
-    "calcType": { "FIXED": "Fixed amount", "PERCENT_OF_BASE": "% of base salary" },
+    "payType": {
+      "MONTHLY": "Monthly salary",
+      "HOURLY": "Hourly wage",
+      "WEEKLY": "Weekly salary",
+      "DAILY": "Daily wage"
+    },
+    "frequency": {
+      "MONTHLY": "Per month",
+      "HOURLY": "Per hour",
+      "WEEKLY": "Per week",
+      "DAILY": "Per day"
+    },
+    "componentKind": {
+      "ALLOWANCE": "Allowance",
+      "DEDUCTION": "Deduction",
+      "EMPLOYER": "Employer contribution"
+    },
+    "calcType": {
+      "FIXED": "Fixed amount",
+      "PERCENT_OF_BASE": "% of base salary",
+      "PERCENT_OF_COMPONENT": "% of component",
+      "HOURS_X_RATE": "Hours × hourly rate",
+      "DAYS_X_RATE": "Days × daily rate",
+      "QTY_X_PRICE": "Quantity × unit price",
+      "FORMULA": "Formula",
+      "MANUAL": "Manual entry"
+    },
     "taxTreatment": {
       "TAXABLE": "Taxable",
       "EXEMPT": "Tax-free",
       "EXEMPT_UP_TO_LIMIT": "Tax-free up to a limit",
-      "CHILD_ALLOWANCE": "Child allowance (statutory limit)"
+      "CHILD_ALLOWANCE": "Child allowance (statutory limit)",
+      "SPECIAL_REWARD": "Special reward (bijzondere beloning)",
+      "OVERTIME": "Overtime (overtime brackets)"
     },
-    "rateSource": { "MANUAL": "Manual", "API": "External provider", "INVERSE": "Inverse of approved rate", "IDENTITY": "Same currency" },
-    "gender": { "Female": "Female", "Male": "Male", "Other": "Other" },
-    "marital": { "Single": "Single", "Married": "Married", "Livingtogether": "Living together", "Divorced": "Divorced", "Widowed": "Widowed" }
+    "rateSource": {
+      "MANUAL": "Manual",
+      "API": "External provider",
+      "INVERSE": "Inverse of approved rate",
+      "IDENTITY": "Same currency"
+    },
+    "gender": {
+      "Female": "Female",
+      "Male": "Male",
+      "Other": "Other"
+    },
+    "marital": {
+      "Single": "Single",
+      "Married": "Married",
+      "Livingtogether": "Living together",
+      "Divorced": "Divorced",
+      "Widowed": "Widowed"
+    }
   },
   "auth": {
     "signInTitle": "Sign in",
@@ -149,12 +192,30 @@
     "signIn": "Sign in",
     "startFree": "Start free",
     "features": {
-      "employees": { "title": "Employee administration", "text": "Personnel files, contracts, salary history, bank details and documents in one secure place." },
-      "engine": { "title": "Surinamese payroll engine", "text": "Loonbelasting, AOV, heffingskorting, forfaitaire aftrek, overtime and special rewards — with versioned, editable tax tables." },
-      "multicurrency": { "title": "Multicurrency", "text": "Salaries in SRD, USD, EUR and more, with approved, recorded exchange rates and reporting in your base currency." },
-      "payslips": { "title": "Professional payslips", "text": "Clear PDF payslips in Dutch or English, available instantly through employee self-service." },
-      "leave": { "title": "Leave management", "text": "Requests, approvals and balances for annual, sick, maternity and other leave types." },
-      "security": { "title": "Secure by design", "text": "Role-based access, full audit trail, approval workflow and locked payroll periods." }
+      "employees": {
+        "title": "Employee administration",
+        "text": "Personnel files, contracts, salary history, bank details and documents in one secure place."
+      },
+      "engine": {
+        "title": "Surinamese payroll engine",
+        "text": "Loonbelasting, AOV, heffingskorting, forfaitaire aftrek, overtime and special rewards — with versioned, editable tax tables."
+      },
+      "multicurrency": {
+        "title": "Multicurrency",
+        "text": "Salaries in SRD, USD, EUR and more, with approved, recorded exchange rates and reporting in your base currency."
+      },
+      "payslips": {
+        "title": "Professional payslips",
+        "text": "Clear PDF payslips in Dutch or English, available instantly through employee self-service."
+      },
+      "leave": {
+        "title": "Leave management",
+        "text": "Requests, approvals and balances for annual, sick, maternity and other leave types."
+      },
+      "security": {
+        "title": "Secure by design",
+        "text": "Role-based access, full audit trail, approval workflow and locked payroll periods."
+      }
     }
   },
   "dashboard": {
@@ -185,7 +246,12 @@
     "payrollPeriod": "Payroll {period}",
     "payBy": "Pay {period} by {date}"
   },
-  "charts": { "net": "Net pay", "tax": "Wage tax", "aov": "AOV", "employerCost": "Employer cost" },
+  "charts": {
+    "net": "Net pay",
+    "tax": "Wage tax",
+    "aov": "AOV",
+    "employerCost": "Employer cost"
+  },
   "employees": {
     "title": "Employees",
     "shown": "{count, plural, one {# employee shown} other {# employees shown}}",
@@ -196,7 +262,15 @@
     "allDepartments": "All departments",
     "noneFound": "No employees found",
     "noneFoundText": "Add your first employee to start running payroll.",
-    "cols": { "number": "No.", "name": "Name", "jobTitle": "Job title", "department": "Department", "hired": "Hired", "salary": "Salary", "status": "Status" },
+    "cols": {
+      "number": "No.",
+      "name": "Name",
+      "jobTitle": "Job title",
+      "department": "Department",
+      "hired": "Hired",
+      "salary": "Salary",
+      "status": "Status"
+    },
     "addTitle": "Add employee",
     "addSubtitle": "Register a new employee with their first employment contract.",
     "contractSection": "Employment contract & salary",
@@ -206,7 +280,11 @@
     "saved": "Employee details saved."
   },
   "employee": {
-    "sections": { "personal": "Personal details", "contact": "Contact", "employment": "Employment & payment" },
+    "sections": {
+      "personal": "Personal details",
+      "contact": "Contact",
+      "employment": "Employment & payment"
+    },
     "employeeNumber": "Employee number",
     "firstName": "First name(s)",
     "lastName": "Surname",
@@ -236,8 +314,8 @@
       "payType": "Pay type",
       "hoursPerWeek": "Hours per week",
       "salaryCurrency": "Salary currency",
-      "baseSalary": "Monthly salary",
-      "baseSalaryHint": "For monthly-paid employees",
+      "baseSalary": "Salary per pay period",
+      "baseSalaryHint": "Per month, week or day according to the pay type",
       "hourlyRate": "Hourly rate",
       "hourlyRateHint": "For hourly-paid employees",
       "effectiveFrom": "Effective from",
@@ -245,7 +323,15 @@
       "pensionEmployee": "Pension — employee %",
       "pensionEmployer": "Pension — employer %"
     },
-    "tabs": { "details": "Details", "contracts": "Contracts & salary", "pay": "Allowances & deductions", "payslips": "Payslips", "leave": "Leave", "documents": "Documents" },
+    "tabs": {
+      "details": "Details",
+      "contracts": "Contracts & salary",
+      "pay": "Allowances & deductions",
+      "payslips": "Payslips",
+      "leave": "Leave",
+      "documents": "Documents",
+      "parental": "Parental leave"
+    },
     "noJobTitle": "No job title",
     "selfServiceEnabled": "Self-service enabled",
     "enableSelfService": "Enable self-service",
@@ -260,7 +346,15 @@
     "statutoryNote": "Statutory deductions are calculated in {currency}.",
     "contractsTitle": "Contract & salary history",
     "contractsSub": "The most recent contract effective in a period is used for payroll.",
-    "contractCols": { "effective": "Effective", "ends": "Ends", "type": "Type", "pay": "Pay", "amount": "Amount", "hours": "Hours/wk", "pension": "Pension (ee/er)" },
+    "contractCols": {
+      "effective": "Effective",
+      "ends": "Ends",
+      "type": "Type",
+      "pay": "Pay",
+      "amount": "Amount",
+      "hours": "Hours/wk",
+      "pension": "Pension (ee/er)"
+    },
     "current": "Current",
     "newContract": "Record a new contract or salary change",
     "newContractSub": "Previous records are retained for history and audit purposes.",
@@ -269,7 +363,13 @@
     "componentsTitle": "Recurring allowances & deductions",
     "componentsSub": "Applied automatically in every payroll run within the active date range.",
     "noComponents": "No recurring components",
-    "componentCols": { "component": "Component", "kind": "Type", "amount": "Amount", "from": "From", "until": "Until" },
+    "componentCols": {
+      "component": "Component",
+      "kind": "Type",
+      "amount": "Amount",
+      "from": "From",
+      "until": "Until"
+    },
     "ofBase": "{pct} of base",
     "removeComponentConfirm": "Remove this component?",
     "addComponentTitle": "Add allowance or deduction",
@@ -284,12 +384,30 @@
     "componentAdded": "{name} added.",
     "removed": "Removed.",
     "noPayslips": "No payslips yet",
-    "payslipCols": { "period": "Period", "runStatus": "Run status", "gross": "Gross", "wageTax": "Wage tax", "aov": "AOV", "net": "Net", "netPaid": "Net paid" },
+    "payslipCols": {
+      "period": "Period",
+      "runStatus": "Run status",
+      "gross": "Gross",
+      "wageTax": "Wage tax",
+      "aov": "AOV",
+      "net": "Net",
+      "netPaid": "Net paid"
+    },
     "noLeave": "No leave recorded",
-    "leaveCols": { "type": "Type", "from": "From", "to": "To", "days": "Days", "status": "Status" },
+    "leaveCols": {
+      "type": "Type",
+      "from": "From",
+      "to": "To",
+      "days": "Days",
+      "status": "Status"
+    },
     "noDocuments": "No documents",
     "noDocumentsText": "Upload signed contracts, ID copies and other personnel documents.",
-    "docCols": { "file": "File", "size": "Size", "uploaded": "Uploaded" },
+    "docCols": {
+      "file": "File",
+      "size": "Size",
+      "uploaded": "Uploaded"
+    },
     "deleteDocConfirm": "Delete this document permanently?",
     "uploadTitle": "Upload document",
     "uploadHint": "PDF, PNG, JPEG or DOCX, up to 8 MB.",
@@ -299,7 +417,10 @@
     "docUploaded": "Document uploaded.",
     "docDeleted": "Document deleted.",
     "selfServiceNew": "Self-service enabled. Share these credentials securely: {email} / temporary password {password} (shown only once — ask the employee to change it after first sign-in).",
-    "selfServiceExisting": "Self-service enabled. {email} already has an ARA account and can sign in with their existing password."
+    "selfServiceExisting": "Self-service enabled. {email} already has an ARA account and can sign in with their existing password.",
+    "taxRegime": "Tax regime",
+    "taxRegimeHint": "Art. 17a only applies to employees within its verified legal scope.",
+    "taxRegimeLocked": "Art. 17a can be selected once a verified rule set for its scope exists."
   },
   "payroll": {
     "title": "Payroll runs",
@@ -307,7 +428,16 @@
     "newRun": "New payroll run",
     "noRuns": "No payroll runs yet",
     "noRunsText": "Create a payroll run for the current month to calculate salaries and generate payslips.",
-    "cols": { "period": "Period", "payDate": "Pay date", "status": "Status", "employees": "Employees", "gross": "Gross", "wageTax": "Wage tax", "aov": "AOV", "net": "Net" },
+    "cols": {
+      "period": "Period",
+      "payDate": "Pay date",
+      "status": "Status",
+      "employees": "Employees",
+      "gross": "Gross",
+      "wageTax": "Wage tax",
+      "aov": "AOV",
+      "net": "Net"
+    },
     "newTitle": "New payroll run",
     "newSubtitle": "All active employees in the period are included automatically.",
     "month": "Month",
@@ -329,19 +459,46 @@
     "reopen": "Reopen",
     "markPaid": "Mark as paid",
     "markPaidConfirm": "Confirm that salaries have been paid. This permanently closes the period.",
-    "steps": { "DRAFT": "Inputs", "CALCULATED": "Calculated", "APPROVED": "Approved", "PAID": "Paid" },
+    "steps": {
+      "DRAFT": "Inputs",
+      "CALCULATED": "Calculated",
+      "APPROVED": "Approved",
+      "PAID": "Paid"
+    },
     "unverified": "Calculated with an unverified tax rule set. Verify the statutory rates under Settings → Tax rules before paying.",
     "inputsChanged": "Inputs changed since the last calculation. Recalculate to update the payslips.",
-    "stats": { "employees": "Employees", "gross": "Gross pay", "wageTax": "Wage tax", "aov": "AOV", "net": "Net pay" },
+    "stats": {
+      "employees": "Employees",
+      "gross": "Gross pay",
+      "wageTax": "Wage tax",
+      "aov": "AOV",
+      "net": "Net pay"
+    },
     "inputsTitle": "Period inputs",
     "inputsSub": "Hours for hourly staff (leave empty to use contract hours), overtime, special rewards (in the salary currency) and unpaid days.",
-    "inputCols": { "employee": "Employee", "pay": "Pay", "hours": "Hours worked", "ot1": "OT {pct} (h)", "ot2": "OT {pct} (h)", "bonus": "Bonus", "unpaid": "Unpaid days" },
+    "inputCols": {
+      "employee": "Employee",
+      "pay": "Pay",
+      "hours": "Hours worked",
+      "ot1": "OT {pct} (h)",
+      "ot2": "OT {pct} (h)",
+      "bonus": "Bonus",
+      "unpaid": "Unpaid days",
+      "days": "Days worked"
+    },
     "noContract": "No contract",
     "saveInputs": "Save inputs",
     "inputsSaved": "Inputs saved. Recalculate the payroll to update payslips.",
     "adjTitle": "One-off adjustments",
     "adjSub": "Allowances or deductions that apply to this period only.",
-    "adjCols": { "employee": "Employee", "component": "Component", "description": "Description", "amount": "Amount", "currency": "Currency" },
+    "adjCols": {
+      "employee": "Employee",
+      "component": "Component",
+      "description": "Description",
+      "amount": "Amount",
+      "currency": "Currency",
+      "quantity": "Quantity"
+    },
     "addAdjustment": "Add adjustment",
     "adjAdded": "Adjustment added.",
     "adjRemoved": "Adjustment removed.",
@@ -352,7 +509,16 @@
     "bankFile": "Bank payment file",
     "notCalculated": "Not calculated yet",
     "notCalculatedText": "Save the period inputs and click “Calculate payroll” to generate payslips.",
-    "slipCols": { "employee": "Employee", "gross": "Gross", "wageTax": "Wage tax", "aov": "AOV", "deductions": "Deductions", "net": "Net pay", "netPaid": "Paid out", "employerCost": "Employer cost" },
+    "slipCols": {
+      "employee": "Employee",
+      "gross": "Gross",
+      "wageTax": "Wage tax",
+      "aov": "AOV",
+      "deductions": "Deductions",
+      "net": "Net pay",
+      "netPaid": "Paid out",
+      "employerCost": "Employer cost"
+    },
     "deleteRun": "Delete payroll run",
     "deleteConfirm": "Delete this payroll run and all its payslips?",
     "notices": {
@@ -362,7 +528,13 @@
     },
     "calculated": "Calculated {count, plural, one {# payslip} other {# payslips}}.",
     "skipped": "Skipped: {list}.",
-    "skipReasons": { "noContract": "no contract effective in this period" }
+    "skipReasons": {
+      "noContract": "no contract effective in this period"
+    },
+    "acknowledge": "I acknowledge that the statutory rules are pending legal validation",
+    "legalPending": "This payroll was calculated with statutory rules that are pending legal validation. It can only be approved with an explicit acknowledgement and does not count as legally approved.",
+    "acknowledged": "approved with acknowledgement",
+    "quantityHint": "Hours, days or units"
   },
   "payslip": {
     "title": "Payslip",
@@ -386,8 +558,21 @@
     "kkf": "KKF {value}",
     "calcIn": "Statutory calculation in {currency}",
     "conversions": "Currency conversions",
-    "convCols": { "item": "Item", "original": "Original", "rate": "Rate", "rateDate": "Rate date", "converted": "Converted", "source": "Source" },
-    "convPurpose": { "BASE": "Base salary", "HOURLY_RATE": "Hourly rate", "BONUS": "Special reward", "NET_PAY": "Net pay", "REPORTING": "Reporting (base currency)" },
+    "convCols": {
+      "item": "Item",
+      "original": "Original",
+      "rate": "Rate",
+      "rateDate": "Rate date",
+      "converted": "Converted",
+      "source": "Source"
+    },
+    "convPurpose": {
+      "BASE": "Base salary",
+      "HOURLY_RATE": "Hourly rate",
+      "BONUS": "Special reward",
+      "NET_PAY": "Net pay",
+      "REPORTING": "Reporting (base currency)"
+    },
     "lines": {
       "BASE": "Base salary",
       "BASE_PRORATED": "Base salary (prorated)",
@@ -400,8 +585,15 @@
       "LB-OT": "Wage tax on overtime",
       "AOV": "AOV premium",
       "PENS": "Pension contribution",
-      "PENS-ER": "Employer pension contribution"
-    }
+      "PENS-ER": "Employer pension contribution",
+      "SAL001": "Gross monthly salary",
+      "SAL002": "Gross weekly salary",
+      "SAL003": "Daily wages",
+      "SAL004": "Hourly wages",
+      "SAL008": "Pro-rata salary",
+      "AOV-ER": "AOV employer share"
+    },
+    "paidShare": "{pct} paid"
   },
   "leave": {
     "title": "Leave management",
@@ -411,9 +603,20 @@
     "types": "Leave types",
     "manageTypes": "Manage types",
     "requests": "Requests",
-    "filter": { "all": "All", "PENDING": "Pending", "APPROVED": "Approved", "REJECTED": "Rejected" },
+    "filter": {
+      "all": "All",
+      "PENDING": "Pending",
+      "APPROVED": "Approved",
+      "REJECTED": "Rejected"
+    },
     "none": "No leave requests",
-    "cols": { "employee": "Employee", "type": "Type", "period": "Period", "days": "Days", "status": "Status" },
+    "cols": {
+      "employee": "Employee",
+      "type": "Type",
+      "period": "Period",
+      "days": "Days",
+      "status": "Status"
+    },
     "approve": "Approve",
     "reject": "Reject",
     "cancel": "Cancel",
@@ -450,11 +653,28 @@
     "deptSub": "Approved and paid runs",
     "remitTitle": "Wage tax & AOV remittance",
     "remitSub": "Monthly amounts withheld, for filing the wage tax return with the Belastingdienst.",
-    "cols": { "month": "Month", "status": "Status", "employees": "Employees", "currency": "Currency", "gross": "Gross wages", "wageTax": "Wage tax", "aov": "AOV", "remit": "Total to remit" },
+    "cols": {
+      "month": "Month",
+      "status": "Status",
+      "employees": "Employees",
+      "currency": "Currency",
+      "gross": "Gross wages",
+      "wageTax": "Wage tax",
+      "aov": "AOV",
+      "remit": "Total to remit"
+    },
     "annualTitle": "Annual statements {year}",
     "annualSub": "Per-employee year totals (approved and paid runs), in the statutory calculation currency.",
     "annualEmpty": "No approved payroll this year",
-    "annualCols": { "employee": "Employee", "months": "Months", "gross": "Gross", "taxable": "Taxable", "wageTax": "Wage tax", "aov": "AOV", "net": "Net" },
+    "annualCols": {
+      "employee": "Employee",
+      "months": "Months",
+      "gross": "Gross",
+      "taxable": "Taxable",
+      "wageTax": "Wage tax",
+      "aov": "AOV",
+      "net": "Net"
+    },
     "unassigned": "Unassigned",
     "mixedCurrencies": "The base currency changed during this year; totals are shown per currency."
   },
@@ -512,7 +732,15 @@
   "settings": {
     "title": "Settings",
     "subtitle": "Company configuration, payroll rules and user access.",
-    "tabs": { "company": "Company", "currency": "Currency & rates", "components": "Pay components", "tax": "Tax rules", "leave": "Leave types", "departments": "Departments", "users": "Users & roles" },
+    "tabs": {
+      "company": "Company",
+      "currency": "Currency & rates",
+      "components": "Pay components",
+      "tax": "Tax rules",
+      "leave": "Leave types",
+      "departments": "Departments",
+      "users": "Users & roles"
+    },
     "company": {
       "employer": "Employer details",
       "displayName": "Display name",
@@ -610,7 +838,10 @@
       "createVersion": "Create version",
       "saved": "Tax rule set saved. Mark it as verified once checked against current legislation.",
       "verifiedMsg": "Marked as verified.",
-      "tables": { "lb": "Wage tax table", "ot": "Overtime table" }
+      "tables": {
+        "lb": "Wage tax table",
+        "ot": "Overtime table"
+      }
     },
     "leaveTypes": {
       "title": "Leave types",
@@ -633,7 +864,12 @@
     "users": {
       "title": "People with access",
       "sub": "Roles control what each user can see and do in {company}.",
-      "cols": { "name": "Name", "email": "Email", "lastLogin": "Last sign-in", "role": "Role" },
+      "cols": {
+        "name": "Name",
+        "email": "Email",
+        "lastLogin": "Last sign-in",
+        "role": "Role"
+      },
       "role": "Role",
       "removeConfirm": "Remove this user's access to the company?",
       "addTitle": "Add a user",
@@ -670,7 +906,15 @@
     "fetch": "Fetch rates",
     "providerOff": "The platform administrator has not enabled an exchange-rate provider.",
     "apiOff": "Your company policy does not allow provider rates.",
-    "cols": { "pair": "Pair", "rate": "Rate", "effective": "Effective", "source": "Source", "status": "Status", "scope": "Scope", "notes": "Notes" },
+    "cols": {
+      "pair": "Pair",
+      "rate": "Rate",
+      "effective": "Effective",
+      "source": "Source",
+      "status": "Status",
+      "scope": "Scope",
+      "notes": "Notes"
+    },
     "scopeCompany": "Company",
     "scopePlatform": "Platform",
     "approve": "Approve",
@@ -689,7 +933,12 @@
   "companies": {
     "title": "Companies",
     "subtitle": "Manage payroll for multiple employers from one account — ideal for groups and accounting firms.",
-    "cols": { "company": "Company", "role": "Your role", "currency": "Base currency", "employees": "Employees" },
+    "cols": {
+      "company": "Company",
+      "role": "Your role",
+      "currency": "Base currency",
+      "employees": "Employees"
+    },
     "activeBadge": "Active",
     "addTitle": "Add a company",
     "addSub": "Created in the same organisation, with default Surinamese payroll configuration.",
@@ -709,7 +958,13 @@
     "title": "Audit log",
     "subtitle": "Every change to employees, payroll, settings and access is recorded.",
     "none": "No activity yet",
-    "cols": { "when": "When", "user": "User", "action": "Action", "record": "Record", "details": "Details" },
+    "cols": {
+      "when": "When",
+      "user": "User",
+      "action": "Action",
+      "record": "Record",
+      "details": "Details"
+    },
     "system": "System",
     "newer": "← Newer",
     "older": "Older →"
@@ -728,7 +983,12 @@
     "requestLeave": "Request leave",
     "payslipsTitle": "My payslips",
     "payslipsEmptyText": "Payslips appear here once payroll has been approved.",
-    "payslipCols": { "period": "Period", "gross": "Gross", "deductions": "Deductions", "net": "Net pay" },
+    "payslipCols": {
+      "period": "Period",
+      "gross": "Gross",
+      "deductions": "Deductions",
+      "net": "Net pay"
+    },
     "leaveTitle": "My leave",
     "daysLeft": "days left",
     "usedOfTotal": "{taken} used of {total}",
@@ -756,7 +1016,13 @@
     "subtitle": "Platform-wide currencies and exchange-rate provider for all companies.",
     "currencies": "Currency register (ISO 4217)",
     "currenciesSub": "Only active currencies can be selected for new salaries, components and rates. Existing records keep their currency.",
-    "cols": { "code": "Code", "name": "Name", "symbol": "Symbol", "decimals": "Decimals", "status": "Status" },
+    "cols": {
+      "code": "Code",
+      "name": "Name",
+      "symbol": "Symbol",
+      "decimals": "Decimals",
+      "status": "Status"
+    },
     "activate": "Activate",
     "deactivate": "Deactivate",
     "currencyUpdated": "Currency {code} updated.",
@@ -828,7 +1094,24 @@
     "apiNotAllowed": "Your company policy does not allow provider rates.",
     "notPlatformAdmin": "Platform administrators only.",
     "rateNotPending": "Only pending rates can be approved or rejected.",
-    "notSignedIn": "Not signed in."
+    "notSignedIn": "Not signed in.",
+    "acknowledgeLegalPending": "The statutory rules are pending legal validation. Tick the acknowledgement to approve.",
+    "noRegimeRuleSet": "No approved tax rule set exists for tax regime {regime}.",
+    "componentCalc": "Component {code} for {employee} could not be calculated: {error}",
+    "enterQuantity": "Enter a quantity (hours, days or units).",
+    "declarationLocked": "The declaration for this period has already been approved. Corrections require a supplementary declaration.",
+    "declarationTransition": "This action is not possible in the current status ({status}).",
+    "supplementaryExists": "A newer version of this declaration already exists.",
+    "receiptType": "Only PDF, PNG and JPEG files are allowed.",
+    "reservedCode": "This code is reserved for a system component.",
+    "baseComponentRequired": "Select the component the percentage applies to.",
+    "formulaRequired": "Enter a formula.",
+    "formulaInvalid": "The formula is not valid.",
+    "treatmentNotAllowed": "This tax treatment is not allowed for this category.",
+    "regimeNotVerified": "Art. 17a can only be assigned once a verified rule set for its scope exists.",
+    "manualPerRun": "Manual-entry components are entered per payroll run as an adjustment.",
+    "childBirthDateRequired": "Enter the child's (expected) date of birth or arrival.",
+    "partTimeNotAllowed": "This leave type does not allow part-time leave."
   },
   "bracket": {
     "required": "at least one bracket is required",
@@ -859,7 +1142,8 @@
     "code": "Letters, digits, + - _ only",
     "selectEmployee": "Select an employee",
     "selectComponent": "Select a component",
-    "selectLeaveType": "Select a leave type"
+    "selectLeaveType": "Select a leave type",
+    "confirmRequired": "Confirmation required"
   },
   "defaults": {
     "components": {
@@ -880,8 +1164,544 @@
       "MAT": "Maternity leave",
       "PAT": "Paternity leave",
       "CAL": "Special / calamity leave",
-      "UNP": "Unpaid leave"
+      "UNP": "Unpaid leave",
+      "ADO": "Adoption leave",
+      "OUD": "Parental leave",
+      "FEEST": "Public holidays",
+      "AZT": "Unauthorized absence"
     },
-    "departments": { "admin": "Administration", "ops": "Operations", "sales": "Sales" }
+    "departments": {
+      "admin": "Administration",
+      "ops": "Operations",
+      "sales": "Sales"
+    }
+  },
+  "legal": {
+    "VERIFIED": "Verified",
+    "PENDING_VERIFICATION": "Pending verification",
+    "CONFLICT": "Conflicting sources",
+    "COMPANY_POLICY": "Company policy",
+    "VALIDATED": "Legally validated",
+    "PENDING_LEGAL_VALIDATION": "Pending legal validation"
+  },
+  "tax": {
+    "title": "Tax & Declarations",
+    "subtitle": "Payroll tax (loonbelasting), AOV and statutory declarations — prepared from approved payroll.",
+    "tabs": {
+      "declarations": "Declarations",
+      "payrollTax": "Payroll tax",
+      "aov": "AOV",
+      "history": "Declaration history",
+      "rules": "Tax rules",
+      "aovRules": "AOV rules",
+      "legal": "Legal sources"
+    },
+    "rulesPending": "The statutory rules in use are pending legal verification. Calculations and declarations are marked “pending legal validation” and cannot be approved without an explicit acknowledgement.",
+    "viewLegal": "View legal sources",
+    "stats": {
+      "nextDeadline": "Next deadline",
+      "outstanding": "Outstanding (not paid)",
+      "open": "Open declarations",
+      "overdue": "Overdue"
+    },
+    "notifications": "Notifications",
+    "markRead": "Mark all as read",
+    "notification": {
+      "draft": "Draft declaration prepared for {period}"
+    },
+    "dashboardTitle": "Payroll tax & AOV declarations",
+    "dashboardSub": "Monthly return “loonbelasting en premie AOV”. Drafts are prepared automatically when payroll is approved.",
+    "cols": {
+      "period": "Period",
+      "deadline": "Deadline",
+      "payable": "Amount payable",
+      "status": "Status",
+      "download": "Download",
+      "submission": "Submission",
+      "payment": "Payment",
+      "declaration": "Declaration",
+      "files": "Files",
+      "ruleSet": "Rule set",
+      "zuiverLoon": "Net wage (annual)",
+      "taxFree": "Tax-free amount",
+      "annualTaxable": "Taxable (annual)",
+      "legal": "Legal status"
+    },
+    "download": {
+      "none": "No files",
+      "ready": "Ready",
+      "downloaded": "Downloaded {count}×"
+    },
+    "notSubmitted": "Not submitted",
+    "notPaid": "Not paid",
+    "prepare": "Prepare",
+    "noPeriods": "No payroll periods yet.",
+    "howTitle": "Submitting a declaration",
+    "howSub": "ARA Payroll prepares the declaration; you submit it yourself through the official channel.",
+    "how": {
+      "1": "Review the draft and approve it — the files are generated (PDF, Excel, CSV).",
+      "2": "Download the declaration and the supporting schedules.",
+      "3": "File the monthly return for loonbelasting and AOV premium in the online portal of the Belastingdienst (filing window reported as the 26th to the 10th of the following month — verify).",
+      "4": "Record the submission date and reference in ARA Payroll and upload the receipt.",
+      "5": "Record acceptance and payment when confirmed. ARA Payroll never marks a declaration as submitted on its own."
+    },
+    "noApi": "No official API or automated submission method of the tax authorities was found; ARA Payroll does not log in to government portals.",
+    "prepareTitle": "Prepare a declaration",
+    "prepareSub": "Prepare or refresh a draft for a period from approved and paid payroll.",
+    "annualStatement": "Annual statement (verzamelloonstaat)",
+    "payrollTaxIntro": "Per-employee wage tax calculation, taken from the stored calculation of each payslip.",
+    "breakdownTitle": "Wage tax breakdown — {period}",
+    "runStatus": "Payroll status",
+    "noRun": "No calculated payroll for this period",
+    "inspect": "Inspect",
+    "yearOverview": "Overview {year}",
+    "aovIntro": "AOV is reported separately from payroll tax. Under the researched rules the premium is withheld from the employee; any employer share is an employer obligation and is never deducted from net pay.",
+    "aov": {
+      "base": "AOV base",
+      "employee": "Withheld from employees",
+      "employeeSub": "Employee deduction",
+      "employer": "Employer share",
+      "employerSub": "Employer obligation",
+      "payable": "Payable to the government",
+      "payableSub": "Employee + employer",
+      "reportTitle": "AOV report — {period}",
+      "baseType": "Base",
+      "rate": "Rate",
+      "ageExempt": "Exempt (age limit)"
+    },
+    "historyTitle": "All declarations",
+    "noDeclarations": "No declarations yet",
+    "recentEvents": "Recent status changes"
+  },
+  "decl": {
+    "type": {
+      "LB_AOV_MONTHLY": "Payroll tax & AOV return",
+      "VERZAMELLOONSTAAT": "Annual statement (verzamelloonstaat)"
+    },
+    "status": {
+      "NOT_STARTED": "Not started",
+      "IN_PREPARATION": "In preparation",
+      "CALCULATED": "Calculated",
+      "UNDER_REVIEW": "Under review",
+      "APPROVED": "Approved",
+      "READY_FOR_DOWNLOAD": "Ready for download",
+      "DOWNLOADED": "Downloaded",
+      "SUBMITTED": "Submitted",
+      "ACCEPTED": "Accepted",
+      "REJECTED": "Rejected",
+      "PAID": "Paid"
+    },
+    "deadline": "Deadline {date}",
+    "legalPending": "This declaration is based on statutory rules that are pending legal validation. It cannot be treated as legally approved.",
+    "acknowledgedBy": "Approval acknowledged by {name}.",
+    "rejectedInfo": "Rejected by the tax authorities: {reason}. Create a supplementary declaration to correct it.",
+    "supplementaryInfo": "Supplementary declaration (version {version}). The amount payable is the difference with earlier submitted versions.",
+    "mixedCurrencies": "This period contains payslips calculated in different currencies. Review before approving.",
+    "preview": "Declaration preview",
+    "previewSub": "Tax rules: {tax} · AOV rules: {aov}",
+    "months": "{count, plural, one {# month} other {# months}}",
+    "snapshotAt": "Calculation snapshot of {date}",
+    "viewRun": "payroll run",
+    "actions": "Actions",
+    "recalculate": "Recalculate from payroll",
+    "submitForReview": "Submit for review",
+    "fileLanguage": "File language",
+    "acknowledge": "I acknowledge that the statutory rules are pending legal validation and that this approval is not a legal confirmation.",
+    "approve": "Approve and generate files",
+    "return": "Return for changes",
+    "regenerate": "Regenerate files",
+    "revoke": "Revoke approval",
+    "revokeConfirm": "Revoke the approval and delete the generated files?",
+    "recordSubmission": "Record submission",
+    "manualSubmission": "Submit the downloaded return through the official portal of the Belastingdienst, then record the details here.",
+    "submittedAt": "Submission date",
+    "reference": "Submission reference",
+    "receipt": "Receipt (optional)",
+    "receiptHint": "PDF, PNG or JPEG, up to 8 MB.",
+    "saveSubmission": "Save submission",
+    "recordOutcome": "Record outcome",
+    "accepted": "Accepted",
+    "rejected": "Rejected",
+    "rejectionReason": "Reason for rejection",
+    "recordPayment": "Record payment",
+    "paidAt": "Payment date",
+    "paymentReference": "Payment reference",
+    "savePayment": "Save payment",
+    "createSupplementary": "Create supplementary declaration",
+    "supplementaryConfirm": "Create a supplementary declaration for this period?",
+    "submittedInfo": "Submitted on {date}, reference {reference}",
+    "paidInfo": "Paid on {date}, reference {reference}",
+    "approvedInfo": "Approved by {name} on {date}",
+    "files": "Files",
+    "filesSub": "Stored copies — can be downloaded again at any time.",
+    "noFiles": "Files are generated when the declaration is approved.",
+    "history": "Status history",
+    "transition": "Status change",
+    "note": "Note",
+    "autoPrepared": "Prepared automatically after payroll approval",
+    "msg": {
+      "recalculated": "Declaration recalculated from approved payroll.",
+      "underReview": "Declaration submitted for review.",
+      "returned": "Declaration returned for changes.",
+      "approved": "Declaration approved and files generated.",
+      "generated": "Files regenerated.",
+      "revoked": "Approval revoked.",
+      "submitted": "Submission recorded.",
+      "accepted": "Acceptance recorded.",
+      "rejected": "Rejection recorded.",
+      "paid": "Payment recorded."
+    },
+    "file": {
+      "company": "Company",
+      "kkf": "KKF number",
+      "taxNumber": "Tax identification number (FIB)",
+      "address": "Address",
+      "period": "Reporting period",
+      "currency": "Currency",
+      "version": "Version",
+      "supplementary": "{version} (supplementary)",
+      "deadline": "Deadline",
+      "status": "Status",
+      "employees": "Number of employees",
+      "gross": "Gross remuneration",
+      "taxable": "Taxable remuneration",
+      "wageTaxRegular": "Wage tax (regular)",
+      "wageTaxSpecial": "Wage tax (special rewards)",
+      "wageTaxOvertime": "Wage tax (overtime)",
+      "wageTax": "Total payroll tax",
+      "aov": "AOV premium",
+      "previousAdjustments": "Previous adjustments",
+      "totalPayable": "Total amount payable",
+      "summary": "Summary",
+      "schedule": "Employee schedule",
+      "ruleSets": "Tax rules: {tax} — AOV rules: {aov}",
+      "legalPending": "PENDING LEGAL VALIDATION — statutory rules not yet verified",
+      "generated": "Generated {date} by ARA Payroll",
+      "notSubmitted": "Prepared document — not submitted by ARA Payroll",
+      "titleTax": "Payroll tax and AOV premium return",
+      "titleAnnual": "Annual statement (verzamelloonstaat)",
+      "titleAov": "AOV report",
+      "aovTotals": "AOV base {base} · employee premium {employee} · employer share {employer}",
+      "colNumber": "No.",
+      "colName": "Name",
+      "colIdNumber": "ID number",
+      "colTaxable": "Taxable",
+      "colWageTax": "Wage tax",
+      "colAov": "AOV",
+      "colAovBase": "AOV base",
+      "colAovEmployer": "AOV employer",
+      "colTotal": "Total",
+      "colMonths": "Months",
+      "total": "TOTAL",
+      "sheetDeclaration": "Declaration",
+      "sheetEmployees": "Employees",
+      "sheetAov": "AOV",
+      "sheetSchedule": "Schedule"
+    }
+  },
+  "rules": {
+    "versionsSub": "Versioned by effective date. The most recent approved version effective on the last day of the period is used; company versions take precedence over platform defaults. Withdrawn versions remain for history.",
+    "regime": {
+      "STANDARD": "Standard (art. 14)",
+      "ART17A": "Art. 17a (separate rates)"
+    },
+    "withdrawn": "Withdrawn",
+    "validity": "Effective",
+    "open": "open",
+    "verifiedUntil": "Verified until",
+    "taxFree": "Tax-free amount (year / month)",
+    "inBrackets": "in 0% bracket",
+    "lumpSum": "Professional expense deduction",
+    "brackets": "Brackets",
+    "above": "above",
+    "method": "Calculation method",
+    "calcMethod": {
+      "ANNUALIZED": "Annualised (× 12)",
+      "MONTHLY_TABLE": "Monthly equivalents"
+    },
+    "methodHint": "Annual and monthly amounts are never combined.",
+    "formSub": "Monetary amounts in the calculation currency; rates in percent. Saving resets the verification status.",
+    "regimeLabel": "Tax regime",
+    "regimeHint": "Art. 17a is only used for employees explicitly linked to it after its scope is verified.",
+    "effectiveTo": "Effective until (optional)",
+    "verificationStatus": "Verification status",
+    "verificationHint": "“Verified” can only be set through the verification step.",
+    "taxFreeAnnual": "Tax-free amount per year",
+    "taxFreeHint": "Belastingvrije som; 0 = included as a 0% bracket.",
+    "taxFreeMonthly": "Tax-free amount per month",
+    "lumpSumMode": "Deduction type",
+    "lumpSumModes": {
+      "FIXED": "Fixed amount",
+      "PERCENT_CAPPED": "Percentage with maximum"
+    },
+    "lumpSumMonthly": "Deduction per month",
+    "aovLegacyRate": "AOV rate (legacy fallback, %)",
+    "aovLegacyHint": "Only used when no AOV rule set applies.",
+    "citations": "Legal citations",
+    "citationsHint": "One per line: source | article | subject",
+    "reviewer": "Reviewed by / source of confirmation",
+    "reviewerPlaceholder": "e.g. tax adviser, Belastingdienst circular"
+  },
+  "aovRules": {
+    "intro": "AOV (Algemene Oudedagsvoorziening) is calculated with its own versioned rules, separately from payroll tax.",
+    "versions": "AOV rule versions",
+    "versionsSub": "The most recent approved version effective on the last day of the period is used.",
+    "none": "No AOV rules configured — the legacy AOV fields of the tax rules are used.",
+    "newTitle": "New AOV rule version",
+    "formSub": "Activate only after confirmation against authoritative legal sources.",
+    "rate": "Premium rate",
+    "baseLabel": "Calculation base",
+    "base": {
+      "TAXABLE_WAGE": "Net wage (zuiver loon)",
+      "GROSS_WAGE": "Gross wage (selected components)"
+    },
+    "franchise": "Franchise per month",
+    "min": "Minimum premium per month",
+    "max": "Maximum premium per month",
+    "minMax": "Minimum / maximum",
+    "responsibility": "Responsibility",
+    "split": "employee {employee} · employer {employer}",
+    "employeeShare": "Employee share (%)",
+    "employeeShareHint": "100% = fully withheld from the employee.",
+    "exemptFromAge": "No premium from age",
+    "saved": "AOV rules saved."
+  },
+  "legalRegister": {
+    "intro": "Legal sources register. Statuses reflect what could be confirmed; nothing here replaces review by a qualified tax professional. Verify later decrees and official instructions before production use.",
+    "published": "published {date}",
+    "effective": "in force {date}",
+    "article": "Art."
+  },
+  "components": {
+    "intro": "Payroll components by category. Standard components come from the central ARA library; companies can add their own.",
+    "newCustom": "New component",
+    "category": {
+      "SALARY": "Salary",
+      "ALLOWANCE": "Allowances & reimbursements",
+      "OVERTIME": "Overtime & special hours",
+      "BONUS": "Bonuses & special payments",
+      "DEDUCTION": "Employee deductions",
+      "EMPLOYER": "Employer contributions",
+      "LEAVE": "Leave & absence"
+    },
+    "categoryHint": {
+      "SALARY": "Base pay follows the contract (month, week, day or hour).",
+      "ALLOWANCE": "Added to gross pay; tax treatment per component.",
+      "OVERTIME": "Percentages are configurable; link them to legislation or the applicable agreement.",
+      "BONUS": "Special rewards (bijzondere beloningen) with the annual exemption from the tax rules.",
+      "DEDUCTION": "Deducted from net pay.",
+      "EMPLOYER": "Calculated separately as employer cost — never deducted from net pay.",
+      "LEAVE": "Generated from approved leave."
+    },
+    "cols": {
+      "code": "Code",
+      "name": "Name",
+      "method": "Calculation",
+      "tax": "Tax",
+      "flags": "Included in",
+      "legal": "Legal",
+      "status": "Status"
+    },
+    "calc": {
+      "FIXED": "Fixed amount",
+      "PERCENT_OF_BASE": "% of base salary",
+      "PERCENT_OF_COMPONENT": "% of component",
+      "HOURS_X_RATE": "Hours × hourly rate",
+      "DAYS_X_RATE": "Days × daily rate",
+      "QTY_X_PRICE": "Quantity × unit price",
+      "FORMULA": "Formula",
+      "MANUAL": "Manual entry"
+    },
+    "freq": {
+      "RECURRING": "Every period",
+      "ONE_OFF": "One-off",
+      "ANNUAL": "Annual"
+    },
+    "systemCalculated": "Calculated by the payroll engine",
+    "system": "System",
+    "custom": "Custom",
+    "preTax": "Before tax",
+    "afterTax": "After tax",
+    "employerOnly": "Employer cost",
+    "pension": "Pension",
+    "inKind": "In kind",
+    "draft": "Draft",
+    "approved": "Approved",
+    "libraryTitle": "Central component library",
+    "librarySub": "{count, plural, =0 {All library components are in use.} one {# library component not yet added.} other {# library components not yet added.}}",
+    "adoptAll": "Add all",
+    "adopted": "{count, plural, =0 {Nothing to add.} one {# component added.} other {# components added.}}",
+    "configTitle": "Pay component",
+    "back": "Pay components",
+    "fromLibrary": "Based on library component {code}. Changes apply to this company only.",
+    "configSub": "Identification and category. Gross, net and employer-cost treatment follow from the category.",
+    "calculationTitle": "Calculation",
+    "calculationSub": "Only the fields of the selected method are used.",
+    "treatmentTitle": "Tax, AOV and pension",
+    "treatmentSub": "Every component follows the payroll tax configuration; it cannot bypass it.",
+    "derivedTreatment": "Allowances, overtime and bonuses add to gross (benefits in kind are not paid out); deductions reduce net pay; employer contributions are employer cost only and never reduce net pay.",
+    "adminTitle": "Administration and legal",
+    "companyScope": "Applies to {company}.",
+    "f": {
+      "code": "Component code",
+      "nameNl": "Dutch description",
+      "nameEn": "English description",
+      "category": "Category",
+      "categoryHint": "Leave components are generated from approved leave.",
+      "method": "Calculation method",
+      "defaultAmount": "Default amount",
+      "defaultAmountHint": "Used when no amount is entered for the employee.",
+      "currency": "Currency",
+      "frequency": "Frequency",
+      "percentage": "Percentage",
+      "percentageHint": "For % of base / % of component",
+      "baseComponent": "Base component",
+      "multiplier": "Rate factor (%)",
+      "multiplierHint": "Hours/days × rate × factor, e.g. 250",
+      "unitPrice": "Unit price",
+      "formula": "Formula",
+      "formulaHint": "Variables: BASE, HOURLY_RATE, DAILY_RATE, QTY and component codes; functions MIN, MAX, ROUND. Amounts in currency units.",
+      "tax": "Tax treatment",
+      "taxHint": "Allowances only; bonuses use special-reward rules, overtime the overtime brackets.",
+      "aov": "Part of the AOV base (gross-wage base)",
+      "pension": "Part of the pension base",
+      "preTax": "Deducted before tax (deductions)",
+      "benefitInKind": "Benefit in kind (taxable, not paid out)",
+      "gl": "General ledger account",
+      "effectiveFrom": "Effective from",
+      "effectiveTo": "Effective until",
+      "approval": "Approval status",
+      "legalStatus": "Legal status",
+      "legalReference": "Legal reference",
+      "active": "Active"
+    }
+  },
+  "parental": {
+    "title": "Parental leave",
+    "subtitle": "Maternity, paternity, adoption and parental leave — linked to employee administration and payroll.",
+    "legalNote": "Statutory entitlements are based on the Wet Arbeidsbescherming Gezin (S.B. 2019 no. 64) as researched and are pending verification; the paternity leave duration is reported differently by sources (5, 7 or 8 days). Salary during leave is only adjusted according to the approved policy of each leave type.",
+    "policies": "Leave policies",
+    "policiesSub": "Statutory entitlement and additional company benefit per leave type.",
+    "cols": {
+      "type": "Leave type",
+      "statutory": "Statutory",
+      "companyExtra": "Company benefit",
+      "pay": "Salary paid",
+      "partTime": "Part-time",
+      "legal": "Legal status",
+      "reference": "Reference",
+      "usage": "Used / remaining per child"
+    },
+    "days": "{days} days",
+    "requests": "Parental leave requests",
+    "none": "No parental leave registered",
+    "requested": "{days} days requested",
+    "approvedDays": "{days} days approved",
+    "partTime": "part-time {pct}",
+    "child": "child {date}",
+    "decidedBy": "Decided by {name} on {date}",
+    "register": "Register parental leave",
+    "registerSub": "Parental leave always goes through approval.",
+    "submit": "Submit request",
+    "selfTitle": "Request parental leave",
+    "manage": "Manage parental leave",
+    "entitlements": "Entitlements",
+    "entitlementsSub": "Statutory entitlement and company benefit, per child.",
+    "usedRemaining": "{used} used, {remaining} remaining",
+    "paymentUpdated": "Payment status updated.",
+    "payment": {
+      "NOT_APPLICABLE": "Not applicable",
+      "PENDING": "Payment pending",
+      "PAID_BY_EMPLOYER": "Paid by employer",
+      "PARTIALLY_PAID": "Partially paid",
+      "UNPAID": "Unpaid",
+      "PAID_BY_FUND": "Paid by fund"
+    },
+    "f": {
+      "category": "Leave category",
+      "childBirthDate": "Child's date of birth / arrival",
+      "childBirthDateHint": "Expected date for leave before birth",
+      "start": "Leave start date",
+      "expectedEnd": "Expected end date",
+      "days": "Requested days",
+      "hours": "Requested hours (optional)",
+      "schedule": "Leave percentage of working time",
+      "scheduleHint": "100 = full-time leave; e.g. 50 for half-time (if the leave type allows part-time)",
+      "scheduleNote": "Leave schedule",
+      "scheduleNotePlaceholder": "e.g. Mondays and Tuesdays",
+      "documents": "Supporting documents",
+      "documentsHint": "e.g. medical statement or birth certificate (PDF, PNG, JPEG)",
+      "approvedDays": "Approved days",
+      "paymentStatus": "Payment status"
+    }
+  },
+  "leaveTypes": {
+    "sub": "Configure each leave category separately: statutory entitlement, company benefit and how much salary is paid during the leave.",
+    "category": "Category",
+    "categories": {
+      "ANNUAL": "Annual leave",
+      "SICK": "Sick leave",
+      "SPECIAL": "Special leave",
+      "UNPAID": "Unpaid leave",
+      "PUBLIC_HOLIDAY": "Public holidays",
+      "PARENTAL": "Parental leave",
+      "MATERNITY": "Maternity leave",
+      "PATERNITY": "Paternity leave",
+      "ADOPTION": "Adoption leave",
+      "UNAUTHORIZED": "Unauthorized absence"
+    },
+    "payPercent": "Salary paid (%)",
+    "payPercentHint": "Below 100% reduces pay in payroll",
+    "unit": "Unit",
+    "units": {
+      "DAYS": "Days",
+      "HOURS": "Hours"
+    },
+    "annualHint": "Annual entitlement",
+    "statutory": "Statutory days",
+    "statutoryHint": "Per event (parental)",
+    "companyExtra": "Company extra days",
+    "maxCarry": "Max. carry-forward",
+    "legalStatus": "Legal status",
+    "legalReference": "Legal reference",
+    "allowPartTime": "Part-time leave allowed",
+    "carryForward": "Unused days carried forward"
+  },
+  "breakdown": {
+    "title": "Calculation breakdown",
+    "wageTax": "Wage tax",
+    "regularTaxable": "Regular taxable wage (after pre-tax deductions)",
+    "lumpSum": "Professional expense deduction",
+    "zuiverLoon": "Net wage per month (zuiver loon)",
+    "annualZuiver": "Net wage per year",
+    "taxFree": "Tax-free amount per year",
+    "taxFreeMonthly": "Tax-free amount per month",
+    "annualTaxable": "Taxable wage",
+    "slice": "{rate} on {from} – {to}",
+    "annualTax": "Tax per year",
+    "perMonth": "Per month (÷ 12)",
+    "monthlyTax": "Tax per month",
+    "taxCredit": "Tax credit",
+    "wageTaxRegular": "Wage tax (regular)",
+    "specialRewards": "Special rewards",
+    "exemptUsed": "Exemption used",
+    "bonusTax": "Wage tax on special rewards",
+    "overtimePay": "Overtime pay",
+    "overtimeTax": "Wage tax on overtime",
+    "aov": "AOV",
+    "aovBaseType": "Base",
+    "aovExempt": "Exempt (age limit)",
+    "aovBase": "AOV base",
+    "aovTotal": "AOV premium",
+    "aovEmployee": "Withheld from employee",
+    "aovEmployer": "Employer share",
+    "leave": "Leave adjustments",
+    "leaveLine": "{days} days, {pct} paid",
+    "audit": "Audit",
+    "taxRules": "Tax rules",
+    "regime": "Tax regime",
+    "aovRules": "AOV rules",
+    "method": "Method",
+    "calculatedAt": "Calculated"
   }
 }

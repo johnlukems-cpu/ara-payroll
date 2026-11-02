@@ -20,6 +20,9 @@ ARA Payroll lets Surinamese employers and accounting firms run complete monthly 
 | **Self-service** | Employees view their payslips, download PDFs, request leave, see balances, change password |
 | **Bilingual (NL / EN)** | Complete Dutch and English interface, payslips, PDFs, CSV exports and validation messages. Dutch is the default; the choice is saved per user (all devices) and in a cookie for visitors. Locale-aware dates and numbers (nl-SR / en-GB), independent of currency |
 | **Multicurrency** | ISO 4217 currency register (SRD, USD, EUR, GYD, TTD, GBP, CAD, XCD), company base currency with a controlled change process, per-employee salary currency and payment currency, currency per allowance/deduction/adjustment, exchange-rate management (manual, approval workflow, external provider, full history), every conversion recorded on the payslip |
+| **Pay component library** | 65 standard components in 7 categories (salary, allowances, overtime, bonuses, deductions, employer contributions, leave) with Dutch/English names, plus company-specific custom components. Eight calculation methods (fixed, % of base, % of component, hours × rate, days × rate, quantity × price, safe formulas, manual), per-component tax, AOV and pension treatment, GL account, validity dates, legal reference and approval status |
+| **Tax & Declarations** | Versioned tax rules (S.B. 2024 no. 2 art. 12/13/14; separate art. 17a regime), separate AOV rules, legal sources register, legal-validation gating, transparent calculation breakdown per payslip, automatic declaration drafts after payroll approval, review/approval workflow, PDF/Excel/CSV files, manual submission recording with receipts, supplementary declarations, full history |
+| **Parental leave** | Maternity, paternity, adoption and parental leave with statutory vs. company entitlements, part-time leave, child-linked balances, documents, HR approval with payment status and automatic payroll integration as separate line items |
 | **Multi-company** | One login for several employers (groups, accounting firms), company switcher, per-company roles |
 | **Security** | Role-based access (Owner, Admin, Payroll manager, HR manager, Accountant read-only, Employee), hashed DB sessions, rate-limited login, audit log, tenant-scoped queries, security headers |
 
@@ -31,7 +34,11 @@ ARA Payroll lets Surinamese employers and accounting firms run complete monthly 
 - Each payslip stores every conversion: original amount and currency, rate, rate date, source and converted amount.
 - Historical payroll keeps its original currency and rates; changing the base currency requires confirmation, a reason, no open runs, and is audited.
 
-## ⚠️ Statutory rates must be verified
+## ⚠️ Statutory rules must be verified
+
+See **[docs/LEGAL_RESEARCH.md](docs/LEGAL_RESEARCH.md)** for the researched rules, their sources, open conflicts and the activation checklist.
+
+
 
 Suriname's tax legislation changes regularly. ARA Payroll ships a **platform default tax rule set marked "not verified"** (`src/lib/payroll/defaults.ts`). Before running production payroll, an administrator must review every value under **Settings → Tax rules**, create a company version with the correct rates and effective date, and mark it verified. Approved payroll keeps the rule-set version it was calculated with.
 

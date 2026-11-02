@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { randomBytes } from "node:crypto";
 import bcrypt from "bcryptjs";
 import { z } from "zod";
@@ -15,7 +16,9 @@ import { assertActiveCurrency } from "@/lib/server/rates";
 import { formObject, handleError, ok, UserError, type ActionState } from "@/lib/server/action";
 import { validateBrackets, type Bracket } from "@/lib/payroll/engine";
 import { parseMoney } from "@/lib/format";
-import { currencyField, dateField, moneyField, numberField, optionalText, percentField } from "@/lib/validation";
+import { currencyField, dateField, moneyField, numberField, optionalDate, optionalText, percentField } from "@/lib/validation";
+import { SYSTEM_CODES, COMPONENT_LIBRARY, LEAVE_CATEGORY_COMPONENT, libraryDefaults } from "@/lib/payroll/library";
+import { formulaVariables } from "@/lib/payroll/formula";
 import { isLocale } from "@/i18n/config";
 
 async function ensureCurrency(code: string) {
@@ -170,19 +173,32 @@ export async function saveLeaveTypeAction(_: ActionState, fd: FormData): Promise
   try {
     const ctx = await requirePermission("settings.manage");
     const raw = formObject(fd);
+    const num = (max: number) => z.string().optional().transform((v) => Number((v ?? "0").replace(",", "."))).pipe(z.number().min(0).max(max));
     const data = z.object({
       code: z.string({ error: "validation.required" }).min(1).max(10).transform((s) => s.toUpperCase()),
       name: z.string({ error: "validation.required" }).min(2).max(80),
-      annualEntitlementDays: z.string().optional().transform((v) => Number((v ?? "0").replace(",", "."))).pipe(z.number().min(0).max(365)),
-      isPaid: z.string().optional().transform((v) => v === "on"),
-    }).parse(raw);
+      category: z.enum(["ANNUAL", "SICK", "SPECIAL", "UNPAID", "PUBLIC_HOLIDAY", "PARENTAL", "MATERNITY", "PATERNITY", "ADOPTION", "UNAUTHORIZED"]).default("SPECIAL"),
+      annualEntitlementDays: num(365),
+      statutoryDays: z.string().optional().transform((v) => (v ? Number(v.replace(",", ".")) : null)).pipe(z.number().min(0).max(400).nullable()),
+      companyExtraDays: num(400),
+      payPercentBp: percentField,
+      unit: z.enum(["DAYS", "HOURS"]).default("DAYS"),
+      allowPartTime: z.string().optional().transform((v) => v === "on"),
+      carryForward: z.string().optional().transform((v) => v === "on"),
+      maxCarryForwardDays: num(365),
+      legalStatus: z.enum(["PENDING_VERIFICATION", "CONFLICT", "COMPANY_POLICY", "VERIFIED"]).default("COMPANY_POLICY"),
+      legalReference: optionalText(300),
+    }).parse({ ...raw, payPercentBp: raw.payPercentBp ?? "100" });
+    if (data.legalStatus === "VERIFIED" && ctx.role !== "OWNER" && ctx.role !== "ADMIN") throw new UserError("errors.forbidden");
+    const derived = { isPaid: data.payPercentBp > 0, componentCode: LEAVE_CATEGORY_COMPONENT[data.category] };
     if (raw.id) {
       const lt = await db.leaveType.findFirst({ where: { id: raw.id, companyId: ctx.company.id } });
       if (!lt) throw new UserError("errors.notFound");
-      await db.leaveType.update({ where: { id: lt.id }, data });
+      await db.leaveType.update({ where: { id: lt.id }, data: { ...data, ...derived } });
     } else {
-      await db.leaveType.create({ data: { ...data, companyId: ctx.company.id } });
+      await db.leaveType.create({ data: { ...data, ...derived, companyId: ctx.company.id } });
     }
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "leave_type.save", entity: "LeaveType", details: { code: data.code, category: data.category, payPercentBp: data.payPercentBp } });
     revalidatePath("/app/settings/leave");
     return ok((await getTranslations())("settings.leaveTypes.saved"));
   } catch (e) {
@@ -211,12 +227,20 @@ function readBrackets(fd: FormData, prefix: "lb" | "ot", rows: number): Bracket[
 
 export async function saveTaxRuleSetAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
-    const ctx = await requirePermission("settings.manage");
+    const ctx = await requirePermission("tax.manage");
     const raw = formObject(fd);
     const data = z.object({
       name: z.string({ error: "validation.required" }).min(2).max(100),
       currency: currencyField,
+      regime: z.enum(["STANDARD", "ART17A"]).default("STANDARD"),
       effectiveFrom: dateField,
+      effectiveTo: optionalDate,
+      calcMethod: z.enum(["ANNUALIZED", "MONTHLY_TABLE"]).default("ANNUALIZED"),
+      taxFreeAnnual: moneyField,
+      taxFreeMonthly: moneyField,
+      lumpSumMode: z.enum(["PERCENT_CAPPED", "FIXED"]).default("PERCENT_CAPPED"),
+      lumpSumMonthly: moneyField,
+      verificationStatus: z.enum(["PENDING_VERIFICATION", "CONFLICT"]).default("PENDING_VERIFICATION"),
       taxCreditMonthly: moneyField,
       lumpSumRateBp: percentField,
       lumpSumCapAnnual: moneyField,
@@ -230,7 +254,10 @@ export async function saveTaxRuleSetAction(_: ActionState, fd: FormData): Promis
     await ensureCurrency(data.currency);
     const brackets = readBrackets(fd, "lb", 8);
     const overtimeBrackets = readBrackets(fd, "ot", 5);
-    const payload = { ...data, brackets: brackets as unknown as Prisma.InputJsonValue, overtimeBrackets: overtimeBrackets as unknown as Prisma.InputJsonValue, isVerified: false };
+    if (data.effectiveTo && data.effectiveTo < data.effectiveFrom) throw new UserError("validation.endAfterStart");
+    const citations = parseCitations(raw.citations);
+    // Any change resets verification: a rule is only VERIFIED through the explicit verification step.
+    const payload = { ...data, brackets: brackets as unknown as Prisma.InputJsonValue, overtimeBrackets: overtimeBrackets as unknown as Prisma.InputJsonValue, citations: citations as unknown as Prisma.InputJsonValue, isVerified: false, verifiedUntil: null };
     if (raw.id) {
       const rs = await db.taxRuleSet.findFirst({ where: { id: raw.id, companyId: ctx.company.id } });
       if (!rs) throw new UserError("errors.ruleCompanyOnly");
@@ -241,21 +268,41 @@ export async function saveTaxRuleSetAction(_: ActionState, fd: FormData): Promis
       await db.taxRuleSet.create({ data: { ...payload, companyId: ctx.company.id } });
     }
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "tax_rules.save", entity: "TaxRuleSet", details: { name: data.name } });
-    revalidatePath("/app/settings/tax");
+    revalidatePath("/app/tax/rules");
     return ok((await getTranslations())("settings.tax.saved"));
   } catch (e) {
     return handleError(e);
   }
 }
 
+/** "source | article | subject" per line → citations. */
+function parseCitations(text: string | undefined) {
+  return (text ?? "").split(/\r?\n/).map((l) => l.trim()).filter(Boolean).slice(0, 30).map((l) => {
+    const [source, article, ...rest] = l.split("|").map((x) => x.trim());
+    return { source: (source ?? "").slice(0, 120), article: (article ?? "").slice(0, 40), subject: rest.join(" | ").slice(0, 300) };
+  });
+}
+
+/**
+ * Marks a company rule set as legally verified up to a date. Requires company.manage, a verification
+ * date, the professional source/reviewer and an explicit confirmation. Payroll periods after that date
+ * are again "pending legal validation".
+ */
+const verifySchema = z.object({
+  verifiedUntil: dateField,
+  reviewer: z.string({ error: "validation.required" }).min(3).max(200),
+  confirm: z.literal("on", { error: "validation.confirmRequired" }),
+});
+
 export async function verifyTaxRuleSetAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const ctx = await requirePermission("company.manage");
     const rs = await db.taxRuleSet.findFirst({ where: { id: String(fd.get("id")), companyId: ctx.company.id } });
     if (!rs) throw new UserError("errors.ruleVerifyCompanyOnly");
-    await db.taxRuleSet.update({ where: { id: rs.id }, data: { isVerified: true } });
-    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "tax_rules.verified", entity: "TaxRuleSet", entityId: rs.id, details: { name: rs.name } });
-    revalidatePath("/app/settings/tax");
+    const v = verifySchema.parse(formObject(fd));
+    await db.taxRuleSet.update({ where: { id: rs.id }, data: { isVerified: true, verificationStatus: "VERIFIED", verifiedUntil: v.verifiedUntil } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "tax_rules.verified", entity: "TaxRuleSet", entityId: rs.id, details: { name: rs.name, verifiedUntil: v.verifiedUntil.toISOString().slice(0, 10), reviewer: v.reviewer } });
+    revalidatePath("/app/tax/rules");
     return ok((await getTranslations())("settings.tax.verifiedMsg"));
   } catch (e) {
     return handleError(e);
@@ -318,6 +365,180 @@ export async function removeMemberAction(_: ActionState, fd: FormData): Promise<
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "user.removed", entity: "Membership", entityId: m.id });
     revalidatePath("/app/settings/users");
     return ok((await getTranslations())("settings.users.removed"));
+  } catch (e) {
+    return handleError(e);
+  }
+}
+
+const aovSchema = z.object({
+  name: z.string({ error: "validation.required" }).min(2).max(100),
+  currency: currencyField,
+  effectiveFrom: dateField,
+  effectiveTo: optionalDate,
+  rateBp: percentField,
+  base: z.enum(["TAXABLE_WAGE", "GROSS_WAGE"]),
+  franchiseMonthly: moneyField,
+  minMonthly: z.string().optional(),
+  maxMonthly: z.string().optional(),
+  employeeSharePct: percentField,
+  exemptFromAge: z.string().optional().transform((v) => (v ? Number(v) : null)).pipe(z.number().int().min(14).max(100).nullable()),
+  verificationStatus: z.enum(["PENDING_VERIFICATION", "CONFLICT"]).default("PENDING_VERIFICATION"),
+  notes: optionalText(1000),
+});
+
+const optionalMoney = (v: string | undefined) => (v ? parseMoney(v) : null);
+
+export async function saveAovRuleSetAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requirePermission("tax.manage");
+    const raw = formObject(fd);
+    const d = aovSchema.parse(raw);
+    await ensureCurrency(d.currency);
+    if (d.effectiveTo && d.effectiveTo < d.effectiveFrom) throw new UserError("validation.endAfterStart");
+    const payload = {
+      name: d.name, currency: d.currency, effectiveFrom: d.effectiveFrom, effectiveTo: d.effectiveTo, rateBp: d.rateBp, base: d.base,
+      franchiseMonthly: d.franchiseMonthly, minMonthly: optionalMoney(d.minMonthly), maxMonthly: optionalMoney(d.maxMonthly),
+      employeeShareBp: d.employeeSharePct, exemptFromAge: d.exemptFromAge, verificationStatus: d.verificationStatus, verifiedUntil: null,
+      citations: parseCitations(raw.citations) as unknown as Prisma.InputJsonValue, notes: d.notes,
+    };
+    if (raw.id) {
+      const rs = await db.aovRuleSet.findFirst({ where: { id: raw.id, companyId: ctx.company.id } });
+      if (!rs) throw new UserError("errors.ruleCompanyOnly");
+      if (await db.payrollRun.count({ where: { aovRuleSetId: rs.id, status: { in: ["APPROVED", "PAID"] } } })) throw new UserError("errors.ruleLocked");
+      await db.aovRuleSet.update({ where: { id: rs.id }, data: payload });
+    } else {
+      await db.aovRuleSet.create({ data: { ...payload, companyId: ctx.company.id } });
+    }
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "aov_rules.save", entity: "AovRuleSet", details: { name: d.name, rateBp: d.rateBp } });
+    revalidatePath("/app/tax/aov-rules");
+    return ok((await getTranslations())("aovRules.saved"));
+  } catch (e) {
+    return handleError(e);
+  }
+}
+
+export async function verifyAovRuleSetAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requirePermission("company.manage");
+    const rs = await db.aovRuleSet.findFirst({ where: { id: String(fd.get("id")), companyId: ctx.company.id } });
+    if (!rs) throw new UserError("errors.ruleVerifyCompanyOnly");
+    const v = verifySchema.parse(formObject(fd));
+    await db.aovRuleSet.update({ where: { id: rs.id }, data: { verificationStatus: "VERIFIED", verifiedUntil: v.verifiedUntil } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "aov_rules.verified", entity: "AovRuleSet", entityId: rs.id, details: { name: rs.name, verifiedUntil: v.verifiedUntil.toISOString().slice(0, 10), reviewer: v.reviewer } });
+    revalidatePath("/app/tax/aov-rules");
+    return ok((await getTranslations())("settings.tax.verifiedMsg"));
+  } catch (e) {
+    return handleError(e);
+  }
+}
+
+// ── Pay component configuration ──────────────────────────────────────────────
+
+const CATEGORY_KIND: Record<string, "ALLOWANCE" | "DEDUCTION" | "EMPLOYER"> = {
+  SALARY: "ALLOWANCE", ALLOWANCE: "ALLOWANCE", OVERTIME: "ALLOWANCE", BONUS: "ALLOWANCE", DEDUCTION: "DEDUCTION", EMPLOYER: "EMPLOYER",
+};
+
+const componentConfigSchema = z.object({
+  code: z.string({ error: "validation.required" }).min(1).max(12).regex(/^[A-Z0-9+\-_]+$/i, "validation.code").transform((s) => s.toUpperCase()),
+  nameNl: z.string({ error: "validation.required" }).min(2).max(100),
+  nameEn: z.string({ error: "validation.required" }).min(2).max(100),
+  category: z.enum(["SALARY", "ALLOWANCE", "OVERTIME", "BONUS", "DEDUCTION", "EMPLOYER"]),
+  calcType: z.enum(["FIXED", "PERCENT_OF_BASE", "PERCENT_OF_COMPONENT", "HOURS_X_RATE", "DAYS_X_RATE", "QTY_X_PRICE", "FORMULA", "MANUAL"]),
+  defaultAmount: moneyField,
+  defaultRatePct: percentField,
+  multiplierPct: z.string().optional().transform((v) => Math.round(Number((v ?? "100").replace(",", ".")) * 100)).pipe(z.number().min(0).max(100000)),
+  unitPrice: moneyField,
+  currency: z.string().regex(/^[A-Z]{3}$/, "validation.currency").optional(),
+  baseComponentCode: optionalText(12),
+  formula: optionalText(300),
+  frequency: z.enum(["RECURRING", "ONE_OFF", "ANNUAL"]),
+  taxTreatment: z.enum(["TAXABLE", "EXEMPT", "EXEMPT_UP_TO_LIMIT", "CHILD_ALLOWANCE", "SPECIAL_REWARD", "OVERTIME"]),
+  exemptLimit: moneyField,
+  aovIncluded: z.string().optional().transform((v) => v === "on"),
+  pensionIncluded: z.string().optional().transform((v) => v === "on"),
+  preTax: z.string().optional().transform((v) => v === "on"),
+  benefitInKind: z.string().optional().transform((v) => v === "on"),
+  glAccount: optionalText(40),
+  effectiveFrom: optionalDate,
+  effectiveTo: optionalDate,
+  legalReference: optionalText(300),
+  legalStatus: z.enum(["VERIFIED", "PENDING_VERIFICATION", "CONFLICT", "COMPANY_POLICY"]),
+  approvalStatus: z.enum(["DRAFT", "APPROVED"]),
+  isActive: z.string().optional().transform((v) => v === "on"),
+});
+
+/**
+ * Saves a pay component configuration. Gross/net/employer-cost treatment follows from the category and
+ * cannot be overridden, so custom components cannot bypass the payroll tax configuration.
+ */
+export async function saveComponentConfigAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  let id: string | undefined;
+  try {
+    const ctx = await requirePermission("settings.manage");
+    const raw = formObject(fd);
+    const d = componentConfigSchema.parse(raw);
+    const kind = CATEGORY_KIND[d.category];
+    if (!raw.id && (SYSTEM_CODES.has(d.code) || ["LB", "LB-BB", "LB-OT", "AOV", "AOV-ER", "PENS", "PENS-ER", "BONUS", "OT1", "OT2", "UNPAID"].includes(d.code))) throw new UserError("errors.reservedCode");
+    if (d.currency) await ensureCurrency(d.currency);
+    if (d.effectiveFrom && d.effectiveTo && d.effectiveTo < d.effectiveFrom) throw new UserError("validation.endAfterStart");
+    if (d.calcType === "PERCENT_OF_COMPONENT" && !d.baseComponentCode) throw new UserError("errors.baseComponentRequired");
+    if (d.calcType === "FORMULA") {
+      if (!d.formula) throw new UserError("errors.formulaRequired");
+      try { formulaVariables(d.formula); } catch { throw new UserError("errors.formulaInvalid"); }
+    }
+    // Tax configuration guard rails
+    const taxTreatment = kind === "ALLOWANCE" ? d.taxTreatment : "TAXABLE";
+    if (d.category === "OVERTIME" && !["OVERTIME", "TAXABLE"].includes(taxTreatment)) throw new UserError("errors.treatmentNotAllowed");
+    if (d.category === "BONUS" && !["SPECIAL_REWARD", "TAXABLE"].includes(taxTreatment)) throw new UserError("errors.treatmentNotAllowed");
+    if (d.legalStatus === "VERIFIED" && ctx.role !== "OWNER" && ctx.role !== "ADMIN") throw new UserError("errors.forbidden");
+    const data = {
+      code: d.code, name: d.nameNl, nameNl: d.nameNl, nameEn: d.nameEn, category: d.category, kind, calcType: d.calcType,
+      defaultAmount: d.defaultAmount, defaultRateBp: d.defaultRatePct, multiplierBp: d.multiplierPct, unitPrice: d.unitPrice, currency: d.currency ?? null,
+      baseComponentCode: d.calcType === "PERCENT_OF_COMPONENT" ? d.baseComponentCode?.toUpperCase() ?? null : null, formula: d.calcType === "FORMULA" ? d.formula : null,
+      frequency: d.frequency, taxTreatment, exemptLimit: d.exemptLimit,
+      aovIncluded: kind === "ALLOWANCE" ? d.aovIncluded : false, pensionIncluded: kind === "ALLOWANCE" ? d.pensionIncluded : false,
+      preTax: kind === "DEDUCTION" ? d.preTax : false,
+      netEffect: kind === "DEDUCTION" ? ("DEDUCT" as const) : kind === "EMPLOYER" ? ("NONE" as const) : d.benefitInKind ? ("NONE" as const) : ("ADD" as const),
+      employerCost: kind !== "DEDUCTION",
+      glAccount: d.glAccount, effectiveFrom: d.effectiveFrom, effectiveTo: d.effectiveTo, legalReference: d.legalReference, legalStatus: d.legalStatus,
+      approvalStatus: d.approvalStatus, isActive: d.isActive,
+    };
+    if (raw.id) {
+      const existing = await db.payComponent.findFirst({ where: { id: raw.id, companyId: ctx.company.id } });
+      if (!existing) throw new UserError("errors.notFound");
+      await db.payComponent.update({ where: { id: existing.id }, data: { ...data, code: existing.code } });
+      id = existing.id;
+    } else {
+      id = (await db.payComponent.create({ data: { ...data, companyId: ctx.company.id } })).id;
+    }
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: raw.id ? "component.update" : "component.create", entity: "PayComponent", entityId: id, details: { code: d.code, taxTreatment, calcType: d.calcType } });
+    revalidatePath("/app/settings/components");
+    if (raw.id) return ok((await getTranslations())("settings.components.saved"));
+  } catch (e) {
+    return handleError(e);
+  }
+  redirect(`/app/settings/components/${id}?created=1`);
+}
+
+/** Adopts entries of the central library into the company (all missing ones, or one code). */
+export async function adoptLibraryAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requirePermission("settings.manage");
+    const code = fd.get("code") ? String(fd.get("code")) : null;
+    const existing = new Set((await db.payComponent.findMany({ where: { companyId: ctx.company.id }, select: { code: true } })).map((c) => c.code));
+    const raw = await getLocale();
+    const entries = COMPONENT_LIBRARY.filter((e) => !e.isSystem && !existing.has(e.code) && (!code || e.code === code));
+    if (entries.length) {
+      await db.payComponent.createMany({
+        data: entries.map((e) => ({
+          companyId: ctx.company.id, code: e.code, libraryCode: e.code, name: raw === "en" ? e.nameEn : e.nameNl, nameNl: e.nameNl, nameEn: e.nameEn,
+          kind: e.kind, category: e.category, legalReference: e.legalReference ?? null, ...libraryDefaults(e),
+        })),
+      });
+    }
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "component.library_adopted", entity: "PayComponent", details: { codes: entries.map((e) => e.code) } });
+    revalidatePath("/app/settings/components");
+    return ok((await getTranslations())("components.adopted", { count: entries.length }));
   } catch (e) {
     return handleError(e);
   }

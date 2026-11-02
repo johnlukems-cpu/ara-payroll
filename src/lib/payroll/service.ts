@@ -1,7 +1,12 @@
 import "server-only";
-import type { Prisma, TaxRuleSet } from "@prisma/client";
+import type { AovRuleSet, LeaveType, Prisma, TaxRegime, TaxRuleSet } from "@prisma/client";
 import { db } from "@/lib/db";
-import { calculatePayslip, employedFraction, type Bracket, type ComponentInput, type TaxRules } from "./engine";
+import {
+  ageOn, calculatePayslip, ComponentError, employedFraction,
+  type AovRules, type Bracket, type ComponentInput, type LeaveInput, type TaxRules,
+} from "./engine";
+import { LEAVE_CATEGORY_COMPONENT } from "./library";
+import { workingDaysBetween } from "@/lib/leave";
 import { RateBook } from "@/lib/server/rates";
 import type { Conversion } from "@/lib/currency";
 
@@ -17,15 +22,53 @@ export function toRules(r: TaxRuleSet): TaxRules {
     childAllowanceExempt: r.childAllowanceExempt,
     childAllowanceMaxChildren: r.childAllowanceMaxChildren,
     bonusExemptAnnual: r.bonusExemptAnnual,
+    taxFreeAnnual: r.taxFreeAnnual,
+    taxFreeMonthly: r.taxFreeMonthly,
+    lumpSumMode: r.lumpSumMode,
+    lumpSumMonthly: r.lumpSumMonthly,
+    calcMethod: r.calcMethod,
   };
 }
 
-/** Most recent rule set effective on the given date; company-specific sets override platform defaults. */
-export async function findRuleSet(companyId: string, onDate: Date) {
+export function toAovRules(r: AovRuleSet): AovRules {
+  return {
+    rateBp: r.rateBp,
+    base: r.base,
+    franchiseMonthly: r.franchiseMonthly,
+    minMonthly: r.minMonthly,
+    maxMonthly: r.maxMonthly,
+    employeeShareBp: r.employeeShareBp,
+    exemptFromAge: r.exemptFromAge,
+  };
+}
+
+const effectiveOn = (companyId: string, onDate: Date) => ({
+  approvalStatus: "APPROVED" as const,
+  effectiveFrom: { lte: onDate },
+  AND: [{ OR: [{ effectiveTo: null }, { effectiveTo: { gte: onDate } }] }, { OR: [{ companyId }, { companyId: null }] }],
+});
+
+/**
+ * Most recent approved rule set of a tax regime effective on the given date.
+ * Company-specific sets override platform defaults; among equal dates the newest version wins.
+ */
+export async function findRuleSet(companyId: string, onDate: Date, regime: TaxRegime = "STANDARD") {
   return db.taxRuleSet.findFirst({
-    where: { effectiveFrom: { lte: onDate }, OR: [{ companyId }, { companyId: null }] },
-    orderBy: [{ effectiveFrom: "desc" }, { companyId: { sort: "desc", nulls: "last" } }],
+    where: { ...effectiveOn(companyId, onDate), regime },
+    orderBy: [{ effectiveFrom: "desc" }, { companyId: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
   });
+}
+
+export async function findAovRuleSet(companyId: string, onDate: Date) {
+  return db.aovRuleSet.findFirst({
+    where: effectiveOn(companyId, onDate),
+    orderBy: [{ effectiveFrom: "desc" }, { companyId: { sort: "desc", nulls: "last" } }, { createdAt: "desc" }],
+  });
+}
+
+/** A rule is legally validated for a period only when verified and the period falls within its verified validity. */
+export function isLegallyValid(rule: { verificationStatus: string; verifiedUntil: Date | null } | null | undefined, periodEnd: Date) {
+  return !!rule && rule.verificationStatus === "VERIFIED" && (!rule.verifiedUntil || rule.verifiedUntil >= periodEnd);
 }
 
 export const periodBounds = (year: number, month: number) => ({
@@ -50,6 +93,39 @@ export class PayrollError extends Error {
   }
 }
 
+const PARENTAL = new Set(["PARENTAL", "MATERNITY", "PATERNITY", "ADOPTION"]);
+
+/** Approved leave falling in the period, converted to engine inputs (only leave the policy does not fully pay, plus parental leave for traceability). */
+export function leaveInputsForPeriod(
+  requests: { startDate: Date; endDate: Date; days: number; approvedDays: number | null; schedulePercentBp: number; leaveType: Pick<LeaveType, "code" | "name" | "category" | "payPercentBp" | "componentCode"> }[],
+  start: Date,
+  end: Date,
+): LeaveInput[] {
+  const out: LeaveInput[] = [];
+  for (const r of requests) {
+    const informational = PARENTAL.has(r.leaveType.category);
+    if (r.leaveType.payPercentBp >= 10000 && !informational) continue;
+    const from = r.startDate > start ? r.startDate : start;
+    const to = r.endDate < end ? r.endDate : end;
+    if (to < from) continue;
+    const total = workingDaysBetween(r.startDate, r.endDate);
+    const inPeriod = workingDaysBetween(from, to);
+    if (inPeriod <= 0 || total <= 0) continue;
+    // Approved days may differ from the calendar span: scale proportionally; part-time leave scales by schedule.
+    const approvedShare = r.approvedDays != null && r.days > 0 ? Math.min(1, r.approvedDays / total) : 1;
+    const days = Math.round(inPeriod * approvedShare * (r.schedulePercentBp / 10000) * 100) / 100;
+    if (days <= 0) continue;
+    out.push({
+      code: r.leaveType.componentCode ?? LEAVE_CATEGORY_COMPONENT[r.leaveType.category] ?? `LEAVE-${r.leaveType.code}`,
+      label: r.leaveType.name,
+      days,
+      payPercentBp: r.leaveType.payPercentBp,
+      informational,
+    });
+  }
+  return out;
+}
+
 /**
  * (Re)calculates all payslips for a run. Only DRAFT and CALCULATED runs can be calculated.
  *
@@ -58,6 +134,10 @@ export class PayrollError extends Error {
  * currency first, using the approved exchange rate effective on the last day of the period.
  * Net pay is then converted into the employee's payment currency and all totals into the
  * company's base currency. Every conversion (amounts, rate, rate date, source) is stored on the payslip.
+ *
+ * Legal status: a payslip is VALIDATED only when the tax and AOV rule versions used are verified
+ * for the period and no component with pending legal status contributed; otherwise the run is
+ * PENDING_LEGAL_VALIDATION and cannot be approved without an explicit acknowledgement.
  */
 export async function calculateRun(runId: string) {
   const run = await db.payrollRun.findUniqueOrThrow({ where: { id: runId }, include: { company: true } });
@@ -66,7 +146,7 @@ export async function calculateRun(runId: string) {
   const { start, end } = periodBounds(run.year, run.month);
   const ruleSet = await findRuleSet(run.companyId, end);
   if (!ruleSet) throw new PayrollError("errors.noRuleSet");
-  const rules = toRules(ruleSet);
+  const aovRuleSet = await findAovRuleSet(run.companyId, end);
   const calcCur = ruleSet.currency;
   const baseCur = run.company.currency;
 
@@ -76,13 +156,26 @@ export async function calculateRun(runId: string) {
       department: true,
       contracts: { where: { startDate: { lte: end } }, orderBy: { startDate: "desc" }, take: 1 },
       components: {
-        where: { startDate: { lte: end }, OR: [{ endDate: null }, { endDate: { gte: start } }], component: { isActive: true } },
+        where: {
+          startDate: { lte: end }, OR: [{ endDate: null }, { endDate: { gte: start } }],
+          component: { isActive: true, approvalStatus: "APPROVED", AND: [{ OR: [{ effectiveFrom: null }, { effectiveFrom: { lte: end } }] }, { OR: [{ effectiveTo: null }, { effectiveTo: { gte: start } }] }] },
+        },
         include: { component: true },
       },
+      leaveRequests: { where: { status: "APPROVED", startDate: { lte: end }, endDate: { gte: start } }, include: { leaveType: true } },
     },
   });
   const inputs = await db.payrollInput.findMany({ where: { runId } });
   const adjustments = await db.payrollAdjustment.findMany({ where: { runId }, include: { component: true } });
+
+  // Rule sets per tax regime (the Art. 17a regime is only used for employees explicitly linked to it).
+  const regimeRules = new Map<TaxRegime, TaxRuleSet>([["STANDARD", ruleSet]]);
+  for (const regime of new Set(employees.map((e) => e.taxRegime))) {
+    if (regimeRules.has(regime)) continue;
+    const rs = await findRuleSet(run.companyId, end, regime);
+    if (!rs) throw new PayrollError("errors.noRegimeRuleSet", { regime });
+    regimeRules.set(regime, rs);
+  }
 
   // Exchange rates: collect every currency pair needed, then resolve them once.
   const currencies = await db.currency.findMany();
@@ -92,8 +185,8 @@ export async function calculateRun(runId: string) {
     const sc = e.contracts[0]?.salaryCurrency;
     if (!sc) continue;
     pairs.push([sc, calcCur], [calcCur, e.paymentCurrency ?? sc]);
-    for (const a of e.components) pairs.push([a.currency ?? sc, calcCur]);
-    for (const a of adjustments.filter((x) => x.employeeId === e.id)) pairs.push([a.currency ?? sc, calcCur]);
+    for (const a of e.components) pairs.push([a.currency ?? sc, calcCur], [a.component.currency ?? sc, calcCur]);
+    for (const a of adjustments.filter((x) => x.employeeId === e.id)) pairs.push([a.currency ?? sc, calcCur], [a.component.currency ?? sc, calcCur]);
   }
   await book.prepare(pairs);
   if (book.missing.size) throw new PayrollError("errors.missingRates", { pairs: [...book.missing].join(", ") });
@@ -111,6 +204,9 @@ export async function calculateRun(runId: string) {
 
   const skipped: { name: string; reason: string }[] = [];
   const results: Prisma.PayslipCreateInput[] = [];
+  const aovRules = aovRuleSet ? toAovRules(aovRuleSet) : undefined;
+  const aovValid = aovRuleSet ? isLegallyValid(aovRuleSet, end) : isLegallyValid(ruleSet, end);
+  let runValidated = true;
 
   for (const e of employees) {
     const contract = e.contracts[0];
@@ -121,67 +217,83 @@ export async function calculateRun(runId: string) {
     }
     const fraction = employedFraction(run.year, run.month, e.hireDate, e.terminationDate);
     if (fraction <= 0) continue;
+    const empRuleSet = regimeRules.get(e.taxRegime)!;
     const input = inputs.find((i) => i.employeeId === e.id);
     const salaryCur = contract.salaryCurrency;
     const payCur = e.paymentCurrency ?? salaryCur;
     const conv: Conversion[] = [];
-    const toCalc = (amount: number, cur: string, purpose: string) => book.convert(amount, cur, calcCur, purpose, conv);
+    const toCalc = (amount: number, cur: string, purpose: string) => (amount ? book.convert(amount, cur, calcCur, purpose, conv) : 0);
+    let componentsLegal = true;
 
+    type Comp = (typeof e.components)[number]["component"];
+    const toInput = (c: Comp, src: { amount: number; currency: string | null; rateBp: number; quantity: number | null }, label: string): ComponentInput => {
+      if (c.legalStatus === "PENDING_VERIFICATION" || c.legalStatus === "CONFLICT") componentsLegal = false;
+      const useDefault = src.amount === 0 && (c.calcType === "FIXED" || c.calcType === "MANUAL");
+      return {
+        code: c.code,
+        name: label,
+        labels: { nl: c.nameNl ?? label, en: c.nameEn ?? label },
+        kind: c.kind,
+        calcType: c.calcType,
+        taxTreatment: c.taxTreatment,
+        exemptLimit: c.exemptLimit,
+        preTax: c.preTax,
+        amount: useDefault ? toCalc(c.defaultAmount, c.currency ?? salaryCur, label) : toCalc(src.amount, src.currency ?? salaryCur, label),
+        rateBp: src.rateBp || c.defaultRateBp,
+        quantity: src.quantity,
+        multiplierBp: c.multiplierBp,
+        unitPrice: toCalc(c.unitPrice, c.currency ?? salaryCur, `${label} (unit price)`),
+        baseComponentCode: c.baseComponentCode,
+        formula: c.formula,
+        aovIncluded: c.aovIncluded,
+        pensionIncluded: c.pensionIncluded,
+        netEffect: c.netEffect,
+      };
+    };
     const components: ComponentInput[] = [
-      ...e.components.map((a) => ({
-        code: a.component.code,
-        name: a.component.name,
-        kind: a.component.kind,
-        calcType: a.component.calcType,
-        taxTreatment: a.component.taxTreatment,
-        exemptLimit: a.component.exemptLimit,
-        preTax: a.component.preTax,
-        amount: a.component.calcType === "FIXED" ? toCalc(a.amount, a.currency ?? salaryCur, a.component.name) : 0,
-        rateBp: a.rateBp,
-      })),
-      ...adjustments
-        .filter((a) => a.employeeId === e.id)
-        .map((a) => ({
-          code: a.component.code,
-          name: a.description || a.component.name,
-          kind: a.component.kind,
-          calcType: "FIXED" as const,
-          taxTreatment: a.component.taxTreatment,
-          exemptLimit: a.component.exemptLimit,
-          preTax: a.component.preTax,
-          amount: toCalc(a.amount, a.currency ?? salaryCur, a.description || a.component.name),
-          rateBp: 0,
-        })),
+      ...e.components.map((a) => toInput(a.component, a, a.component.name)),
+      ...adjustments.filter((a) => a.employeeId === e.id).map((a) => toInput(a.component, { ...a, rateBp: 0 }, a.description || a.component.name)),
     ];
 
-    const r = calculatePayslip(
-      {
-        payType: contract.payType,
-        baseSalary: toCalc(contract.baseSalary, salaryCur, "BASE"),
-        hourlyRate: toCalc(contract.hourlyRate, salaryCur, "HOURLY_RATE"),
-        hoursPerWeek: contract.hoursPerWeek,
-        pensionEmployeeBp: contract.pensionEmployeeBp,
-        pensionEmployerBp: contract.pensionEmployerBp,
-        numberOfChildren: e.numberOfChildren,
-        employedFraction: fraction,
-      },
-      {
-        hoursWorked: input?.hoursWorked ?? null,
-        overtime1Hours: input?.overtime1Hours ?? 0,
-        overtime2Hours: input?.overtime2Hours ?? 0,
-        overtime1RateBp: run.company.overtimeRate1Bp,
-        overtime2RateBp: run.company.overtimeRate2Bp,
-        bonus: toCalc(input?.bonus ?? 0, salaryCur, "BONUS"),
-        unpaidDays: input?.unpaidDays ?? 0,
-        ytdBonusExemptUsed: ytdBonusExempt.get(e.id) ?? 0,
-      },
-      components,
-      rules,
-    );
+    let r;
+    try {
+      r = calculatePayslip(
+        {
+          payType: contract.payType,
+          baseSalary: toCalc(contract.baseSalary, salaryCur, "BASE"),
+          hourlyRate: toCalc(contract.hourlyRate, salaryCur, "HOURLY_RATE"),
+          hoursPerWeek: contract.hoursPerWeek,
+          pensionEmployeeBp: contract.pensionEmployeeBp,
+          pensionEmployerBp: contract.pensionEmployerBp,
+          numberOfChildren: e.numberOfChildren,
+          employedFraction: fraction,
+          age: ageOn(e.dateOfBirth, end),
+        },
+        {
+          hoursWorked: input?.hoursWorked ?? null,
+          daysWorked: input?.daysWorked ?? null,
+          overtime1Hours: input?.overtime1Hours ?? 0,
+          overtime2Hours: input?.overtime2Hours ?? 0,
+          overtime1RateBp: run.company.overtimeRate1Bp,
+          overtime2RateBp: run.company.overtimeRate2Bp,
+          bonus: toCalc(input?.bonus ?? 0, salaryCur, "BONUS"),
+          unpaidDays: input?.unpaidDays ?? 0,
+          ytdBonusExemptUsed: ytdBonusExempt.get(e.id) ?? 0,
+          leave: leaveInputsForPeriod(e.leaveRequests, start, end),
+        },
+        components,
+        toRules(empRuleSet),
+        aovRules,
+      );
+    } catch (err) {
+      if (err instanceof ComponentError) throw new PayrollError("errors.componentCalc", { employee: name, code: err.code, error: err.message });
+      throw err;
+    }
 
+    const legal = isLegallyValid(empRuleSet, end) && aovValid && componentsLegal;
+    if (!legal) runValidated = false;
     const netPayPayment = book.convert(r.netPay, calcCur, payCur, "NET_PAY", conv);
     const toBase = (v: number, purpose?: string) => book.convert(v, calcCur, baseCur, purpose ?? "", purpose ? conv : undefined);
-    // Drop no-op conversions of zero amounts so the payslip only shows meaningful records.
     const conversions = conv.filter((c) => c.originalAmount !== 0 && c.from !== c.to);
 
     results.push({
@@ -197,6 +309,8 @@ export async function calculateRun(runId: string) {
       taxableWage: r.taxableWage,
       wageTax: r.totalTax,
       aov: r.aov,
+      aovBaseAmount: r.aovBase,
+      aovEmployer: r.aovEmployer,
       totalDeductions: r.totalDeductions,
       netPay: r.netPay,
       employerCost: r.employerCost,
@@ -211,12 +325,21 @@ export async function calculateRun(runId: string) {
       netBase: toBase(r.netPay),
       employerCostBase: toBase(r.employerCost),
       conversions: conversions as unknown as Prisma.InputJsonValue,
-      trace: { ...r.trace, bonusExemptUsed: r.bonusExemptUsed, pensionEmployer: r.pensionEmployer, ruleSet: ruleSet.name } as Prisma.InputJsonValue,
+      taxRuleSetId: empRuleSet.id,
+      aovRuleSetId: aovRuleSet?.id ?? null,
+      legalStatus: legal ? "VALIDATED" : "PENDING_LEGAL_VALIDATION",
+      trace: {
+        ...r.trace, bonusExemptUsed: r.bonusExemptUsed, pensionEmployer: r.pensionEmployer,
+        ruleSet: empRuleSet.name, ruleSetId: empRuleSet.id, regime: e.taxRegime,
+        aovRuleSet: aovRuleSet?.name ?? `${empRuleSet.name} (AOV)`, aovRuleSetId: aovRuleSet?.id ?? null,
+        calculatedAt: new Date().toISOString(),
+      } as Prisma.InputJsonValue,
       lines: {
         create: r.lines.map((l, i) => ({
           sortOrder: i, type: l.type, code: l.code, description: l.description, quantity: l.quantity ?? null, rate: l.rate ?? null, amount: l.amount,
-          ...(l.code === "BASE" && contract.payType === "MONTHLY" && salaryCur !== calcCur
-            ? { originalAmount: Math.round(contract.baseSalary * fraction), originalCurrency: salaryCur }
+          labels: l.labels ? (l.labels as Prisma.InputJsonValue) : undefined,
+          ...(["SAL001", "SAL002", "SAL008"].includes(l.code) && salaryCur !== calcCur
+            ? { originalAmount: Math.round(contract.baseSalary * (contract.payType === "MONTHLY" ? fraction : 1)), originalCurrency: salaryCur }
             : {}),
         })),
       },
@@ -234,6 +357,8 @@ export async function calculateRun(runId: string) {
         status: "CALCULATED",
         calculatedAt: new Date(),
         taxRuleSetId: ruleSet.id,
+        aovRuleSetId: aovRuleSet?.id ?? null,
+        legalStatus: runValidated && results.length > 0 ? "VALIDATED" : "PENDING_LEGAL_VALIDATION",
         currency: baseCur,
         employeeCount: results.length,
         totalGross: sum("grossBase"),
@@ -245,5 +370,5 @@ export async function calculateRun(runId: string) {
     });
   }, { timeout: 60_000 });
 
-  return { count: results.length, skipped, ruleSetVerified: ruleSet.isVerified };
+  return { count: results.length, skipped, ruleSetVerified: runValidated };
 }

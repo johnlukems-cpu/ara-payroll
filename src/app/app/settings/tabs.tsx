@@ -9,7 +9,7 @@ const TABS = [
   ["/app/settings", "company"],
   ["/app/settings/currency", "currency"],
   ["/app/settings/components", "components"],
-  ["/app/settings/tax", "tax"],
+  ["/app/tax/rules", "tax"],
   ["/app/settings/leave", "leave"],
   ["/app/settings/departments", "departments"],
   ["/app/settings/users", "users"],

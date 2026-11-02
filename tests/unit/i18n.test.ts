@@ -73,3 +73,39 @@ describe("translations", () => {
     expect(badPrefixes).toEqual([]);
   });
 });
+
+import { $Enums } from "@prisma/client";
+
+/** Every database enum value shown in the UI must have a translation in both languages. */
+describe("enum translations", () => {
+  const map: [Record<string, string>, string[]][] = [
+    [$Enums.TaxTreatment, ["enums.taxTreatment"]],
+    [$Enums.CalcType, ["enums.calcType", "components.calc"]],
+    [$Enums.ComponentKind, ["enums.componentKind"]],
+    [$Enums.PayType, ["enums.payType", "enums.frequency"]],
+    [$Enums.ContractType, ["enums.contractType"]],
+    [$Enums.Role, ["roles"]],
+    [$Enums.LeaveCategory, ["leaveTypes.categories"]],
+    [$Enums.LeavePaymentStatus, ["parental.payment"]],
+    [$Enums.DeclarationStatus, ["decl.status"]],
+    [$Enums.DeclarationType, ["decl.type"]],
+    [$Enums.LegalStatus, ["legal"]],
+    [$Enums.RunLegalStatus, ["legal"]],
+    [$Enums.TaxRegime, ["rules.regime"]],
+    [$Enums.TaxCalcMethod, ["rules.calcMethod"]],
+    [$Enums.LumpSumMode, ["rules.lumpSumModes"]],
+    [$Enums.AovBase, ["aovRules.base"]],
+    [$Enums.ComponentCategory, ["components.category", "components.categoryHint"]],
+    [$Enums.ComponentFrequency, ["components.freq"]],
+    [$Enums.EmployeeStatus, ["status"]],
+    [$Enums.PayrollStatus, ["status"]],
+    [$Enums.LeaveStatus, ["status"]],
+    [$Enums.RateSource, ["enums.rateSource"]],
+    [$Enums.LeaveUnit, ["leaveTypes.units"]],
+  ];
+  it("has a translation for every enum value", () => {
+    const missing: string[] = [];
+    for (const [e, namespaces] of map) for (const ns of namespaces) for (const v of Object.values(e)) if (!(`${ns}.${v}` in EN)) missing.push(`${ns}.${v}`);
+    expect(missing).toEqual([]);
+  });
+});

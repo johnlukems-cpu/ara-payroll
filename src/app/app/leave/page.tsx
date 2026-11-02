@@ -5,6 +5,7 @@ import { getI18n } from "@/lib/server/i18n";
 import { can } from "@/lib/permissions";
 import { toDateInput } from "@/lib/format";
 import { ActionForm, FieldError } from "@/components/action-form";
+import { buttonVariants } from "@/components/ui/button";
 import { ActionButton } from "@/components/confirm-button";
 import { SubmitButton } from "@/components/submit-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -33,13 +34,13 @@ export default async function LeavePage({ searchParams }: { searchParams: Promis
     db.leaveRequest.findMany({ where: { employee: { companyId }, ...(status ? { status: status as "PENDING" } : {}) }, include: { employee: true, leaveType: true }, orderBy: { startDate: "desc" }, take: 200 }),
     db.leaveRequest.count({ where: { employee: { companyId }, status: "PENDING" } }),
     db.leaveRequest.count({ where: { employee: { companyId }, status: "APPROVED", startDate: { lte: today }, endDate: { gte: today } } }),
-    db.leaveType.findMany({ where: { companyId }, orderBy: { name: "asc" } }),
+    db.leaveType.findMany({ where: { companyId, category: { notIn: ["PARENTAL", "MATERNITY", "PATERNITY", "ADOPTION"] } }, orderBy: { name: "asc" } }),
     db.employee.findMany({ where: { companyId, status: { not: "TERMINATED" } }, orderBy: [{ lastName: "asc" }] }),
   ]);
 
   return (
     <div>
-      <PageHeader title={t("leave.title")} description={t("leave.subtitle")} />
+      <PageHeader title={t("leave.title")} description={t("leave.subtitle")} actions={<Link href="/app/leave/parental" className={buttonVariants({ variant: "outline" })}>{t("parental.title")}</Link>} />
       <div className="grid gap-4 sm:grid-cols-3">
         <Stat label={t("leave.pending")} value={pending} />
         <Stat label={t("leave.onLeaveToday")} value={onLeaveToday} />

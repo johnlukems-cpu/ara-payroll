@@ -6,10 +6,14 @@ import { getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { getContext, requirePermission } from "@/lib/server/auth";
 import { audit } from "@/lib/server/audit";
+import { storage } from "@/lib/server/storage";
 import { can } from "@/lib/permissions";
 import { formObject, handleError, ok, UserError, type ActionState } from "@/lib/server/action";
-import { dateField } from "@/lib/validation";
+import { dateField, optionalDate, percentField } from "@/lib/validation";
 import { workingDaysBetween } from "@/lib/leave";
+
+const PARENTAL = ["PARENTAL", "MATERNITY", "PATERNITY", "ADOPTION"];
+const DOC_MIME = new Set(["application/pdf", "image/png", "image/jpeg"]);
 
 const schema = z.object({
   employeeId: z.string().optional(),
@@ -17,8 +21,22 @@ const schema = z.object({
   startDate: dateField,
   endDate: dateField,
   days: z.string().optional(),
+  hours: z.string().optional(),
+  schedulePercent: percentField,
+  scheduleNote: z.string().max(300).optional(),
+  childBirthDate: optionalDate,
   reason: z.string().max(500).optional(),
 }).refine((d) => d.endDate >= d.startDate, { message: "validation.endAfterStart", path: ["endDate"] });
+
+async function attachDocuments(fd: FormData, employeeId: string, companyId: string, leaveRequestId: string, userId: string) {
+  for (const f of fd.getAll("documents")) {
+    if (!(f instanceof File) || f.size === 0) continue;
+    if (f.size > 8 * 1024 * 1024) throw new UserError("errors.fileTooLarge");
+    if (!DOC_MIME.has(f.type)) throw new UserError("errors.receiptType");
+    const key = await storage.put(Buffer.from(await f.arrayBuffer()), companyId);
+    await db.employeeDocument.create({ data: { employeeId, leaveRequestId, fileName: f.name.replace(/[^\w.\- ()]/g, "_").slice(0, 150), mimeType: f.type, size: f.size, storageKey: key, uploadedBy: userId } });
+  }
+}
 
 /** Staff can request on behalf of any employee; employees can only request for themselves. */
 export async function requestLeaveAction(_: ActionState, fd: FormData): Promise<ActionState> {
@@ -34,22 +52,34 @@ export async function requestLeaveAction(_: ActionState, fd: FormData): Promise<
     if (!employee) throw new UserError("errors.notFound");
     const type = await db.leaveType.findFirst({ where: { id: data.leaveTypeId, companyId: ctx.company.id } });
     if (!type) throw new UserError("errors.invalidLeaveType");
+    const parental = PARENTAL.includes(type.category);
+    // Maternity, paternity and adoption leave relate to a specific child (expected or actual date of birth / arrival).
+    if (["MATERNITY", "PATERNITY", "ADOPTION"].includes(type.category) && !data.childBirthDate) throw new UserError("errors.childBirthDateRequired");
+    const schedulePercentBp = data.schedulePercent || 10000;
+    if (schedulePercentBp < 10000 && !type.allowPartTime) throw new UserError("errors.partTimeNotAllowed");
     const computed = workingDaysBetween(data.startDate, data.endDate);
     const days = data.days ? Number(data.days.replace(",", ".")) : computed;
     if (!Number.isFinite(days) || days <= 0 || days > 366) return { ok: false, message: t("leave.noWorkingDays"), errors: { days: [t("validation.invalid")] } };
+    const hours = data.hours ? Number(data.hours.replace(",", ".")) : null;
+    // Overlap with other absence is not allowed; part-time leave may combine with work but not with other leave.
     const overlap = await db.leaveRequest.findFirst({ where: { employeeId: employee.id, status: { in: ["PENDING", "APPROVED"] }, startDate: { lte: data.endDate }, endDate: { gte: data.startDate } } });
     if (overlap) return { ok: false, message: t("leave.overlap") };
+    const direct = isStaff && !!data.employeeId && !parental;
     const req = await db.leaveRequest.create({
       data: {
-        employeeId: employee.id, leaveTypeId: type.id, startDate: data.startDate, endDate: data.endDate, days, reason: data.reason,
-        // Leave entered by staff is approved directly.
-        ...(isStaff && data.employeeId ? { status: "APPROVED", decidedById: ctx.user.id, decidedAt: new Date() } : {}),
+        employeeId: employee.id, leaveTypeId: type.id, startDate: data.startDate, endDate: data.endDate, days, hours,
+        schedulePercentBp, scheduleNote: data.scheduleNote, childBirthDate: data.childBirthDate, reason: data.reason,
+        paymentStatus: parental ? "PENDING" : "NOT_APPLICABLE",
+        // Leave entered by staff is approved directly, except parental leave which always goes through review.
+        ...(direct ? { status: "APPROVED", approvedDays: days, decidedById: ctx.user.id, decidedAt: new Date() } : {}),
       },
     });
-    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "leave.request", entity: "LeaveRequest", entityId: req.id, details: { days, type: type.code } });
+    await attachDocuments(fd, employee.id, ctx.company.id, req.id, ctx.user.id);
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "leave.request", entity: "LeaveRequest", entityId: req.id, details: { days, type: type.code, category: type.category } });
     revalidatePath("/app/leave");
-    revalidatePath("/me");
-    return ok(isStaff && data.employeeId ? t("leave.recorded") : t("leave.submitted"));
+    revalidatePath("/app/leave/parental");
+    revalidatePath("/me/leave");
+    return ok(direct ? t("leave.recorded") : t("leave.submitted"));
   } catch (e) {
     return handleError(e);
   }
@@ -58,17 +88,39 @@ export async function requestLeaveAction(_: ActionState, fd: FormData): Promise<
 export async function decideLeaveAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const ctx = await requirePermission("leave.approve");
-    const id = String(fd.get("id"));
-    const decision = z.enum(["APPROVED", "REJECTED"]).parse(fd.get("decision"));
-    const req = await db.leaveRequest.findFirst({ where: { id, employee: { companyId: ctx.company.id } }, include: { employee: true } });
+    const raw = formObject(fd);
+    const decision = z.enum(["APPROVED", "REJECTED"]).parse(raw.decision);
+    const req = await db.leaveRequest.findFirst({ where: { id: String(raw.id), employee: { companyId: ctx.company.id } }, include: { employee: true, leaveType: true } });
     if (!req) throw new UserError("errors.notFound");
     if (req.status !== "PENDING") throw new UserError("errors.alreadyDecided");
     if (req.employee.userId === ctx.user.id) throw new UserError("errors.ownLeave");
-    await db.leaveRequest.update({ where: { id }, data: { status: decision, decidedById: ctx.user.id, decidedAt: new Date() } });
-    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: `leave.${decision.toLowerCase()}`, entity: "LeaveRequest", entityId: id });
+    const approvedDays = raw.approvedDays ? Number(raw.approvedDays.replace(",", ".")) : req.days;
+    if (decision === "APPROVED" && (!Number.isFinite(approvedDays) || approvedDays <= 0 || approvedDays > req.days * 2)) throw new UserError("errors.invalidValue", { value: raw.approvedDays ?? "" });
+    const paymentStatus = raw.paymentStatus ? z.enum(["NOT_APPLICABLE", "PENDING", "PAID_BY_EMPLOYER", "PARTIALLY_PAID", "UNPAID", "PAID_BY_FUND"]).parse(raw.paymentStatus) : undefined;
+    await db.leaveRequest.update({
+      where: { id: req.id },
+      data: { status: decision, decidedById: ctx.user.id, decidedAt: new Date(), ...(decision === "APPROVED" ? { approvedDays } : {}), ...(paymentStatus ? { paymentStatus } : {}) },
+    });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: `leave.${decision.toLowerCase()}`, entity: "LeaveRequest", entityId: req.id, details: { approvedDays, paymentStatus: paymentStatus ?? null } });
     revalidatePath("/app/leave");
+    revalidatePath("/app/leave/parental");
     const t = await getTranslations();
     return ok(decision === "APPROVED" ? t("leave.approved") : t("leave.rejected"));
+  } catch (e) {
+    return handleError(e);
+  }
+}
+
+export async function updateLeavePaymentAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requirePermission("leave.approve");
+    const req = await db.leaveRequest.findFirst({ where: { id: String(fd.get("id")), employee: { companyId: ctx.company.id } } });
+    if (!req) throw new UserError("errors.notFound");
+    const paymentStatus = z.enum(["NOT_APPLICABLE", "PENDING", "PAID_BY_EMPLOYER", "PARTIALLY_PAID", "UNPAID", "PAID_BY_FUND"]).parse(fd.get("paymentStatus"));
+    await db.leaveRequest.update({ where: { id: req.id }, data: { paymentStatus } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "leave.payment_status", entity: "LeaveRequest", entityId: req.id, details: { paymentStatus } });
+    revalidatePath("/app/leave/parental");
+    return ok((await getTranslations())("parental.paymentUpdated"));
   } catch (e) {
     return handleError(e);
   }
@@ -87,7 +139,8 @@ export async function cancelLeaveAction(_: ActionState, fd: FormData): Promise<A
     await db.leaveRequest.update({ where: { id }, data: { status: "CANCELLED" } });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "leave.cancel", entity: "LeaveRequest", entityId: id });
     revalidatePath("/app/leave");
-    revalidatePath("/me");
+    revalidatePath("/app/leave/parental");
+    revalidatePath("/me/leave");
     return ok((await getTranslations())("leave.cancelled"));
   } catch (e) {
     return handleError(e);

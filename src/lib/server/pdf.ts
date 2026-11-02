@@ -9,7 +9,7 @@ import { BRAND_ICON_PNG_BASE64 } from "./brand-icon";
 type Slip = Payslip & { lines: PayslipLine[] };
 type T = (key: string, values?: Record<string, string | number>) => string;
 
-const NAVY = rgb(1 / 255, 37 / 255, 88 / 255);
+const NAVY = rgb(11 / 255, 61 / 255, 145 / 255);
 const MUTED = rgb(0.36, 0.4, 0.48);
 const LINE = rgb(0.88, 0.9, 0.93);
 

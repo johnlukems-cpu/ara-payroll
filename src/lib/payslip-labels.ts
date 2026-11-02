@@ -2,13 +2,13 @@ import type { Fmt } from "@/lib/format";
 import type { Conversion } from "@/lib/currency";
 
 type T = (key: string, values?: Record<string, string | number>) => string;
-type Line = { code: string; description: string; quantity: number | null; rate: number | null };
+type Line = { code: string; description: string; quantity: number | null; rate: number | null; labels?: unknown };
 
-const STATUTORY = new Set(["UNPAID", "BONUS", "LB", "LB-BB", "LB-OT", "AOV", "PENS", "PENS-ER"]);
+const STATUTORY = new Set(["UNPAID", "BONUS", "LB", "LB-BB", "LB-OT", "AOV", "AOV-ER", "PENS", "PENS-ER", "SAL001", "SAL002", "SAL003", "SAL004", "SAL008"]);
 
 /**
- * Display label for a payslip line in the reader's language. Statutory lines are translated by code;
- * allowance/deduction lines carry the company-defined component name.
+ * Display label for a payslip line in the reader's language. Statutory and salary lines are translated by
+ * code; component and leave lines use the names stored at calculation time ({ nl, en }) or the description.
  */
 export function lineLabel(line: Line, t: T, f: Fmt, overtimeRates: { ot1: number; ot2: number }) {
   if (line.code === "BASE") {
@@ -18,7 +18,10 @@ export function lineLabel(line: Line, t: T, f: Fmt, overtimeRates: { ot1: number
   if (line.code === "OT1") return t("payslip.lines.OT", { pct: f.pct(overtimeRates.ot1) });
   if (line.code === "OT2") return t("payslip.lines.OT", { pct: f.pct(overtimeRates.ot2) });
   if (STATUTORY.has(line.code)) return t(`payslip.lines.${line.code}`);
-  return line.description;
+  const labels = line.labels as { nl?: string; en?: string } | null | undefined;
+  const label = labels?.[f.locale] ?? line.description;
+  if (line.code.startsWith("LEV") && line.rate != null) return `${label} (${t("payslip.paidShare", { pct: f.pct(line.rate) })})`;
+  return label;
 }
 
 const PURPOSES = new Set(["BASE", "HOURLY_RATE", "BONUS", "NET_PAY", "REPORTING"]);

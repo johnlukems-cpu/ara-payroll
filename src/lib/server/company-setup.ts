@@ -1,6 +1,7 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import type { Locale } from "@/i18n/config";
+import { COMPONENT_LIBRARY, libraryDefaults } from "@/lib/payroll/library";
 import en from "../../../messages/en.json";
 import nl from "../../../messages/nl.json";
 
@@ -11,29 +12,29 @@ import nl from "../../../messages/nl.json";
 export async function seedCompanyDefaults(tx: Prisma.TransactionClient, companyId: string, locale: Locale = "nl") {
   const d = (locale === "en" ? en : nl).defaults;
   const c = d.components as Record<string, string>;
+  // Adopt every assignable entry of the central component library, plus the Surinamese child allowance.
   await tx.payComponent.createMany({
     data: [
-      { companyId, code: "KB", name: c.KB, kind: "ALLOWANCE", taxTreatment: "CHILD_ALLOWANCE" },
-      { companyId, code: "TRANS", name: c.TRANS, kind: "ALLOWANCE", taxTreatment: "TAXABLE" },
-      { companyId, code: "HOUSE", name: c.HOUSE, kind: "ALLOWANCE", taxTreatment: "TAXABLE" },
-      { companyId, code: "REPR", name: c.REPR, kind: "ALLOWANCE", taxTreatment: "EXEMPT_UP_TO_LIMIT", exemptLimit: 0 },
-      { companyId, code: "ADJ+", name: c["ADJ+"], kind: "ALLOWANCE", taxTreatment: "TAXABLE" },
-      { companyId, code: "BZV", name: c.BZV, kind: "DEDUCTION" },
-      { companyId, code: "LOAN", name: c.LOAN, kind: "DEDUCTION" },
-      { companyId, code: "ADV", name: c.ADV, kind: "DEDUCTION" },
-      { companyId, code: "UNION", name: c.UNION, kind: "DEDUCTION" },
-      { companyId, code: "ADJ-", name: c["ADJ-"], kind: "DEDUCTION" },
+      { companyId, code: "KB", name: c.KB, nameNl: nl.defaults.components.KB, nameEn: en.defaults.components.KB, kind: "ALLOWANCE", category: "ALLOWANCE", taxTreatment: "CHILD_ALLOWANCE", aovIncluded: false, legalStatus: "PENDING_VERIFICATION" },
+      ...COMPONENT_LIBRARY.filter((e) => !e.isSystem).map((e) => ({
+        companyId, code: e.code, libraryCode: e.code, name: locale === "en" ? e.nameEn : e.nameNl, nameNl: e.nameNl, nameEn: e.nameEn,
+        kind: e.kind, category: e.category, legalReference: e.legalReference ?? null, ...libraryDefaults(e),
+      })),
     ],
   });
   const l = d.leave as Record<string, string>;
   await tx.leaveType.createMany({
     data: [
-      { companyId, code: "VAC", name: l.VAC, isPaid: true, annualEntitlementDays: 12 },
-      { companyId, code: "SICK", name: l.SICK, isPaid: true, annualEntitlementDays: 0 },
-      { companyId, code: "MAT", name: l.MAT, isPaid: true, annualEntitlementDays: 0 },
-      { companyId, code: "PAT", name: l.PAT, isPaid: true, annualEntitlementDays: 0 },
-      { companyId, code: "CAL", name: l.CAL, isPaid: true, annualEntitlementDays: 0 },
-      { companyId, code: "UNP", name: l.UNP, isPaid: false, annualEntitlementDays: 0 },
+      { companyId, code: "VAC", name: l.VAC, isPaid: true, annualEntitlementDays: 12, category: "ANNUAL", componentCode: "LEV001" },
+      { companyId, code: "SICK", name: l.SICK, isPaid: true, annualEntitlementDays: 0, category: "SICK", componentCode: "LEV002" },
+      { companyId, code: "MAT", name: l.MAT, isPaid: true, annualEntitlementDays: 0, category: "MATERNITY", componentCode: "LEV007", statutoryDays: 80, legalStatus: "PENDING_VERIFICATION", legalReference: "Wet Arbeidsbescherming Gezin, S.B. 2019 no. 64 — 16 weken (24 bij meerlingen van 3+)" },
+      { companyId, code: "PAT", name: l.PAT, isPaid: true, annualEntitlementDays: 0, category: "PATERNITY", componentCode: "LEV008", statutoryDays: 8, legalStatus: "CONFLICT", legalReference: "Wet Arbeidsbescherming Gezin, S.B. 2019 no. 64 — duur volgens bronnen 5, 7 of 8 dagen" },
+      { companyId, code: "ADO", name: l.ADO, isPaid: true, annualEntitlementDays: 0, category: "ADOPTION", componentCode: "LEV009", statutoryDays: 30, legalStatus: "PENDING_VERIFICATION", legalReference: "Wet Arbeidsbescherming Gezin, S.B. 2019 no. 64 — 6 weken (kind < 18 maanden)" },
+      { companyId, code: "OUD", name: l.OUD, isPaid: true, annualEntitlementDays: 0, category: "PARENTAL", componentCode: "LEV006", allowPartTime: true, legalStatus: "COMPANY_POLICY", legalReference: "Geen afzonderlijke wettelijke regeling gevonden — bedrijfsbeleid" },
+      { companyId, code: "CAL", name: l.CAL, isPaid: true, annualEntitlementDays: 0, category: "SPECIAL", componentCode: "LEV003" },
+      { companyId, code: "FEEST", name: l.FEEST, isPaid: true, annualEntitlementDays: 0, category: "PUBLIC_HOLIDAY", componentCode: "LEV005" },
+      { companyId, code: "UNP", name: l.UNP, isPaid: false, annualEntitlementDays: 0, category: "UNPAID", componentCode: "LEV004", payPercentBp: 0 },
+      { companyId, code: "AZT", name: l.AZT, isPaid: false, annualEntitlementDays: 0, category: "UNAUTHORIZED", componentCode: "LEV010", payPercentBp: 0 },
     ],
   });
   await tx.department.createMany({ data: Object.values(d.departments).map((name) => ({ companyId, name })) });

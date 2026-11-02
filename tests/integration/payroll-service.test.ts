@@ -107,7 +107,7 @@ describe("calculateRun — multicurrency", () => {
   let usdEmpId: string;
 
   beforeAll(async () => {
-    const trans = await db.payComponent.findFirstOrThrow({ where: { companyId, code: "TRANS" } });
+    const trans = await db.payComponent.findFirstOrThrow({ where: { companyId, code: "ALW001" } });
     const usd = await db.employee.create({
       data: {
         companyId, employeeNumber: "10", firstName: "Dollar", lastName: "Earner", hireDate: new Date("2020-01-01"), paymentCurrency: "USD",
@@ -138,7 +138,7 @@ describe("calculateRun — multicurrency", () => {
     const conv = slip.conversions as unknown as { purpose: string; rate: string; rateDate: string }[];
     expect(conv.find((c) => c.purpose === "BASE")).toMatchObject({ rate: "36.5", rateDate: "2026-08-01" });
     expect(conv.find((c) => c.purpose === "NET_PAY")?.rate).toBe("0.0273972603");
-    expect(slip.lines.find((l) => l.code === "BASE")).toMatchObject({ originalAmount: SRD(1_000), originalCurrency: "USD" });
+    expect(slip.lines.find((l) => l.code === "SAL001")).toMatchObject({ originalAmount: SRD(1_000), originalCurrency: "USD" });
   });
 
   it("keeps run totals in the base currency and never adds currencies together", async () => {

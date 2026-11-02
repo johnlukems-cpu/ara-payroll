@@ -5,6 +5,8 @@ import { requirePage } from "@/lib/server/auth";
 import { getI18n } from "@/lib/server/i18n";
 import { findRate, getCurrencies } from "@/lib/server/rates";
 import { findRuleSet } from "@/lib/payroll/service";
+import { parentalEntitlements } from "@/lib/server/leave-balance";
+import { LegalBadge } from "@/components/legal-badge";
 import { can } from "@/lib/permissions";
 import { toDateInput } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -23,7 +25,7 @@ import {
 } from "@/app/actions/employees";
 import { ContractFields, EmployeeFields } from "../fields";
 
-const TABS = ["details", "contracts", "pay", "payslips", "leave", "documents"] as const;
+const TABS = ["details", "contracts", "pay", "payslips", "leave", "parental", "documents"] as const;
 
 export default async function EmployeePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string; created?: string }> }) {
   const ctx = await requirePage("employees.view");
@@ -49,6 +51,8 @@ export default async function EmployeePage({ params, searchParams }: { params: P
   const visibleTabs = TABS.filter((x) => canSalary || !["contracts", "pay", "payslips"].includes(x));
   const current = e.contracts[0];
   const currencies = await getCurrencies();
+  const art17aAvailable = !!(await db.taxRuleSet.findFirst({ where: { regime: "ART17A", verificationStatus: "VERIFIED", approvalStatus: "APPROVED", OR: [{ companyId: ctx.company.id }, { companyId: null }] } }));
+  const parental = tab === "parental" ? await parentalEntitlements(ctx.company.id, e.id) : [];
 
   // Salary overview: salary currency vs statutory calculation currency and payment currency.
   const ruleSet = canSalary ? await findRuleSet(ctx.company.id, new Date()) : null;
@@ -79,7 +83,7 @@ export default async function EmployeePage({ params, searchParams }: { params: P
       {canSalary && current && (
         <Card className="mb-6">
           <CardContent className="grid gap-4 pt-5 text-sm sm:grid-cols-2 lg:grid-cols-5">
-            <div><p className="text-muted-foreground">{t("employee.salary")}</p><p className="tabular font-semibold">{current.payType === "MONTHLY" ? f.money(current.baseSalary, salaryCur) : f.money(current.hourlyRate, salaryCur)}</p></div>
+            <div><p className="text-muted-foreground">{t("employee.salary")}</p><p className="tabular font-semibold">{current.payType === "HOURLY" ? f.money(current.hourlyRate, salaryCur) : f.money(current.baseSalary, salaryCur)}</p></div>
             <div><p className="text-muted-foreground">{t("employee.contract.salaryCurrency")}</p><p className="font-semibold">{salaryCur}</p></div>
             <div><p className="text-muted-foreground">{t("employee.frequency")}</p><p className="font-semibold">{t(`enums.frequency.${current.payType}` as never)}</p></div>
             <div><p className="text-muted-foreground">{t("employee.paymentCurrency")}</p><p className="font-semibold">{payCur}</p></div>
@@ -108,7 +112,7 @@ export default async function EmployeePage({ params, searchParams }: { params: P
         canEdit ? (
           <ActionForm action={updateEmployeeAction} className="space-y-5">
             <input type="hidden" name="id" value={e.id} />
-            <EmployeeFields e={e} currencies={currencies} departments={await db.department.findMany({ where: { companyId: ctx.company.id }, orderBy: { name: "asc" } })} showStatus />
+            <EmployeeFields e={e} currencies={currencies} art17aAvailable={art17aAvailable} departments={await db.department.findMany({ where: { companyId: ctx.company.id }, orderBy: { name: "asc" } })} showStatus />
             <div className="flex justify-end"><SubmitButton>{t("common.saveChanges")}</SubmitButton></div>
           </ActionForm>
         ) : (
@@ -133,7 +137,7 @@ export default async function EmployeePage({ params, searchParams }: { params: P
                     <TD className="tabular">{f.date(c.endDate)}</TD>
                     <TD>{t(`enums.contractType.${c.contractType}`)}</TD>
                     <TD>{t(`enums.payType.${c.payType}`)}</TD>
-                    <TD className="tabular text-right">{c.payType === "MONTHLY" ? f.money(c.baseSalary, c.salaryCurrency) : `${f.money(c.hourlyRate, c.salaryCurrency)}${t("common.perHour")}`}</TD>
+                    <TD className="tabular text-right">{c.payType === "HOURLY" ? `${f.money(c.hourlyRate, c.salaryCurrency)}${t("common.perHour")}` : `${f.money(c.baseSalary, c.salaryCurrency)} ${t(`enums.frequency.${c.payType}`)}`}</TD>
                     <TD>{c.hoursPerWeek}</TD>
                     <TD>{f.pct(c.pensionEmployeeBp)} / {f.pct(c.pensionEmployerBp)}</TD>
                   </TR>
@@ -243,6 +247,48 @@ export default async function EmployeePage({ params, searchParams }: { params: P
             </Table>
           )}
         </Card>
+      )}
+
+      {tab === "parental" && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader><CardTitle>{t("parental.entitlements")}</CardTitle><CardDescription>{t("parental.entitlementsSub")}</CardDescription></CardHeader>
+            <Table>
+              <THead><TR><TH>{t("parental.cols.type")}</TH><TH className="text-right">{t("parental.cols.statutory")}</TH><TH className="text-right">{t("parental.cols.companyExtra")}</TH><TH>{t("parental.cols.usage")}</TH><TH>{t("parental.cols.legal")}</TH></TR></THead>
+              <TBody>
+                {parental.map((p) => (
+                  <TR key={p.type.id}>
+                    <TD className="font-medium">{p.type.name}</TD>
+                    <TD className="tabular text-right">{p.statutory ? t("parental.days", { days: f.number(p.statutory) }) : "—"}</TD>
+                    <TD className="tabular text-right">{p.companyExtra ? t("parental.days", { days: f.number(p.companyExtra) }) : "—"}</TD>
+                    <TD className="text-xs">{p.perChild.length ? p.perChild.map((c) => <div key={c.child}>{c.child !== "—" ? t("parental.child", { date: f.date(c.child) }) : "—"}: {t("parental.usedRemaining", { used: f.number(c.used), remaining: c.remaining != null ? f.number(c.remaining) : "—" })}</div>) : "—"}</TD>
+                    <TD><LegalBadge status={p.type.legalStatus} /></TD>
+                  </TR>
+                ))}
+              </TBody>
+            </Table>
+          </Card>
+          <Card>
+            <CardHeader className="flex-row items-center justify-between"><CardTitle>{t("parental.requests")}</CardTitle><Link href="/app/leave/parental" className="text-sm text-primary hover:underline">{t("parental.manage")}</Link></CardHeader>
+            {e.leaveRequests.filter((l) => ["PARENTAL", "MATERNITY", "PATERNITY", "ADOPTION"].includes(l.leaveType.category)).length === 0 ? <EmptyState title={t("parental.none")} /> : (
+              <Table>
+                <THead><TR><TH>{t("parental.cols.type")}</TH><TH>{t("parental.f.childBirthDate")}</TH><TH>{t("leave.cols.period")}</TH><TH className="text-right">{t("parental.f.days")}</TH><TH className="text-right">{t("parental.f.approvedDays")}</TH><TH>{t("parental.f.paymentStatus")}</TH><TH>{t("leave.cols.status")}</TH></TR></THead>
+                <TBody>
+                  {e.leaveRequests.filter((l) => ["PARENTAL", "MATERNITY", "PATERNITY", "ADOPTION"].includes(l.leaveType.category)).map((l) => (
+                    <TR key={l.id}>
+                      <TD>{l.leaveType.name}</TD><TD className="tabular">{f.date(l.childBirthDate)}</TD>
+                      <TD className="tabular whitespace-nowrap">{f.date(l.startDate)} – {f.date(l.endDate)}</TD>
+                      <TD className="tabular text-right">{f.number(l.days)}{l.schedulePercentBp < 10000 && ` (${f.pct(l.schedulePercentBp)})`}</TD>
+                      <TD className="tabular text-right">{l.approvedDays != null ? f.number(l.approvedDays) : "—"}</TD>
+                      <TD className="text-xs">{t(`parental.payment.${l.paymentStatus}`)}</TD>
+                      <TD><StatusBadge status={l.status} /></TD>
+                    </TR>
+                  ))}
+                </TBody>
+              </Table>
+            )}
+          </Card>
+        </div>
       )}
 
       {tab === "documents" && (

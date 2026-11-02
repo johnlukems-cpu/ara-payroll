@@ -35,12 +35,128 @@ enum ContractType {
 
 enum PayType {
   MONTHLY
+  WEEKLY
+  DAILY
   HOURLY
 }
 
 enum ComponentKind {
   ALLOWANCE
   DEDUCTION
+  EMPLOYER
+}
+
+enum ComponentCategory {
+  SALARY
+  ALLOWANCE
+  OVERTIME
+  BONUS
+  DEDUCTION
+  EMPLOYER
+  LEAVE
+}
+
+enum ComponentFrequency {
+  RECURRING
+  ONE_OFF
+  ANNUAL
+}
+
+enum NetEffect {
+  ADD
+  DEDUCT
+  NONE
+}
+
+/// Legal verification state of a statutory rule or policy setting.
+enum LegalStatus {
+  VERIFIED
+  PENDING_VERIFICATION
+  CONFLICT
+  COMPANY_POLICY
+}
+
+enum ApprovalStatus {
+  DRAFT
+  APPROVED
+}
+
+enum TaxRegime {
+  STANDARD
+  ART17A
+}
+
+enum LumpSumMode {
+  PERCENT_CAPPED
+  FIXED
+}
+
+enum TaxCalcMethod {
+  ANNUALIZED
+  MONTHLY_TABLE
+}
+
+enum AovBase {
+  TAXABLE_WAGE
+  GROSS_WAGE
+}
+
+enum LeaveCategory {
+  ANNUAL
+  SICK
+  SPECIAL
+  UNPAID
+  PUBLIC_HOLIDAY
+  PARENTAL
+  MATERNITY
+  PATERNITY
+  ADOPTION
+  UNAUTHORIZED
+}
+
+enum LeaveUnit {
+  DAYS
+  HOURS
+}
+
+enum LeavePaymentStatus {
+  NOT_APPLICABLE
+  PENDING
+  PAID_BY_EMPLOYER
+  PARTIALLY_PAID
+  UNPAID
+  PAID_BY_FUND
+}
+
+enum DeclarationType {
+  LB_AOV_MONTHLY
+  VERZAMELLOONSTAAT
+}
+
+enum DeclarationStatus {
+  IN_PREPARATION
+  CALCULATED
+  UNDER_REVIEW
+  APPROVED
+  READY_FOR_DOWNLOAD
+  DOWNLOADED
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  PAID
+}
+
+enum DeclarationFileKind {
+  PAYROLL_TAX
+  AOV
+  EMPLOYEE_SCHEDULE
+  PAYROLL_SUMMARY
+}
+
+enum FileFormat {
+  PDF
+  XLSX
+  CSV
 }
 
 enum TaxTreatment {
@@ -48,11 +164,24 @@ enum TaxTreatment {
   EXEMPT
   EXEMPT_UP_TO_LIMIT
   CHILD_ALLOWANCE
+  SPECIAL_REWARD
+  OVERTIME
 }
 
 enum CalcType {
   FIXED
   PERCENT_OF_BASE
+  PERCENT_OF_COMPONENT
+  HOURS_X_RATE
+  DAYS_X_RATE
+  QTY_X_PRICE
+  FORMULA
+  MANUAL
+}
+
+enum RunLegalStatus {
+  VALIDATED
+  PENDING_LEGAL_VALIDATION
 }
 
 enum PayrollStatus {
@@ -150,6 +279,7 @@ model Company {
   currency              String             @default("SRD") // base (reporting) currency, ISO 4217
   rateRequireApproval   Boolean            @default(true) // exchange rates must be approved before payroll may use them
   rateAllowApi          Boolean            @default(false) // allow rates fetched from the platform exchange-rate provider
+  declarationDueDay     Int                @default(10) // day of the following month the monthly LB/AOV return is due (pending verification)
   defaultHoursPerWeek   Int                @default(40)
   overtimeRate1Bp       Int                @default(15000) // 150%
   overtimeRate2Bp       Int                @default(20000) // 200%
@@ -165,6 +295,9 @@ model Company {
   auditLogs             AuditLog[]
   taxRuleSets           TaxRuleSet[]
   exchangeRates         ExchangeRate[]
+  aovRuleSets           AovRuleSet[]
+  declarations          Declaration[]
+  notifications         Notification[]
 }
 
 model Department {
@@ -196,6 +329,7 @@ model Employee {
   bankName          String?
   bankAccount       String?
   paymentCurrency   String? // currency net pay is paid in; null = salary currency
+  taxRegime         TaxRegime              @default(STANDARD)
   departmentId      String?
   jobTitle          String?
   hireDate          DateTime
@@ -225,7 +359,7 @@ model Contract {
   salaryCurrency      String       @default("SRD")
   startDate           DateTime
   endDate             DateTime?
-  baseSalary          Int          @default(0) // monthly salary in minor units of salaryCurrency (MONTHLY)
+  baseSalary          Int          @default(0) // salary per pay unit in minor units: per month (MONTHLY), per week (WEEKLY) or per day (DAILY)
   hourlyRate          Int          @default(0) // minor units of salaryCurrency per hour (HOURLY)
   hoursPerWeek        Int          @default(40)
   pensionEmployeeBp   Int          @default(0)
@@ -248,6 +382,28 @@ model PayComponent {
   exemptLimit      Int                    @default(0) // monthly exempt cap in cents for EXEMPT_UP_TO_LIMIT
   preTax           Boolean                @default(false) // deductions only: reduces taxable wage
   isActive         Boolean                @default(true)
+  libraryCode      String? // set when adopted from the central component library
+  category         ComponentCategory?
+  nameNl           String?
+  nameEn           String?
+  baseComponentCode String? // PERCENT_OF_COMPONENT: the component the percentage applies to
+  formula          String? // FORMULA: safe arithmetic expression (see lib/payroll/formula.ts)
+  defaultAmount    Int                    @default(0) // minor units of `currency`
+  defaultRateBp    Int                    @default(0)
+  multiplierBp     Int                    @default(10000) // HOURS_X_RATE / DAYS_X_RATE factor, e.g. 25000 = 250%
+  unitPrice        Int                    @default(0) // QTY_X_PRICE
+  currency         String? // currency of defaultAmount/unitPrice; null = employee salary currency
+  frequency        ComponentFrequency     @default(RECURRING)
+  aovIncluded      Boolean                @default(true) // part of the AOV base (GROSS_WAGE base only)
+  pensionIncluded  Boolean                @default(false) // part of the pension base
+  netEffect        NetEffect              @default(ADD)
+  employerCost     Boolean                @default(true)
+  glAccount        String?
+  effectiveFrom    DateTime?
+  effectiveTo      DateTime?
+  legalReference   String?
+  legalStatus      LegalStatus            @default(COMPANY_POLICY)
+  approvalStatus   ApprovalStatus         @default(APPROVED)
   company          Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   assignments      EmployeePayComponent[]
   adjustments      PayrollAdjustment[]
@@ -261,7 +417,8 @@ model EmployeePayComponent {
   componentId String
   amount      Int          @default(0) // minor units (FIXED)
   currency    String? // currency of `amount`; null = the employee's salary currency
-  rateBp      Int          @default(0) // basis points (PERCENT_OF_BASE)
+  rateBp      Int          @default(0) // basis points (PERCENT_OF_BASE / PERCENT_OF_COMPONENT)
+  quantity    Float? // hours, days or units for quantity-based methods
   startDate   DateTime
   endDate     DateTime?
   employee    Employee     @relation(fields: [employeeId], references: [id], onDelete: Cascade)
@@ -275,8 +432,19 @@ model TaxRuleSet {
   companyId                String?
   name                     String
   currency                 String   @default("SRD") // currency in which statutory amounts are defined and calculated
+  regime                   TaxRegime @default(STANDARD)
   effectiveFrom            DateTime
-  brackets                 Json // [{ upTo: cents|null, rateBp }] annual taxable wage
+  effectiveTo              DateTime?
+  verifiedUntil            DateTime? // legal validity confirmed up to this date; later periods are pending legal validation
+  calcMethod               TaxCalcMethod @default(ANNUALIZED)
+  taxFreeAnnual            Int      @default(0) // belastingvrije som per year (statutory amount)
+  taxFreeMonthly           Int      @default(0) // belastingvrije som per month (statutory equivalent, used by MONTHLY_TABLE)
+  lumpSumMode              LumpSumMode @default(PERCENT_CAPPED)
+  lumpSumMonthly           Int      @default(0) // statutory monthly equivalent of the beroepskostenaftrek
+  verificationStatus       LegalStatus @default(PENDING_VERIFICATION)
+  approvalStatus           ApprovalStatus @default(APPROVED)
+  citations                Json     @default("[]") // [{ source, article, subject }]
+  brackets                 Json // [{ upTo: cents|null, rateBp, fixed? }] annual taxable wage (after the tax-free amount when taxFreeAnnual > 0)
   taxCreditMonthly         Int // heffingskorting (cents/month)
   lumpSumRateBp            Int // forfaitaire aftrek rate
   lumpSumCapAnnual         Int // forfaitaire aftrek cap (cents/year)
@@ -302,6 +470,9 @@ model PayrollRun {
   status        PayrollStatus  @default(DRAFT)
   currency      String         @default("SRD") // reporting currency of the totals (company base currency at calculation)
   taxRuleSetId  String?
+  aovRuleSetId  String?
+  legalStatus   RunLegalStatus @default(PENDING_LEGAL_VALIDATION)
+  legalAcknowledgedById String? // user who approved while statutory rules were pending legal validation
   totalGross    Int            @default(0)
   totalNet      Int            @default(0)
   totalWageTax  Int            @default(0)
@@ -318,6 +489,7 @@ model PayrollRun {
   updatedAt     DateTime       @updatedAt
   company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   taxRuleSet    TaxRuleSet?    @relation(fields: [taxRuleSetId], references: [id])
+  aovRuleSet    AovRuleSet?    @relation(fields: [aovRuleSetId], references: [id])
   inputs        PayrollInput[]
   adjustments   PayrollAdjustment[]
   payslips      Payslip[]
@@ -331,6 +503,7 @@ model PayrollInput {
   runId           String
   employeeId      String
   hoursWorked     Float? // hourly employees; null = contract hours
+  daysWorked      Float? // daily-paid employees; null = average working days in a month
   overtime1Hours  Float      @default(0)
   overtime2Hours  Float      @default(0)
   bonus           Int        @default(0) // bijzondere beloning (cents)
@@ -348,6 +521,7 @@ model PayrollAdjustment {
   employeeId  String
   componentId String
   amount      Int
+  quantity    Float? // hours, days or units for quantity-based methods
   currency    String? // null = the employee's salary currency
   description String?
   run         PayrollRun   @relation(fields: [runId], references: [id], onDelete: Cascade)
@@ -382,6 +556,11 @@ model Payslip {
   netBase         Int           @default(0)
   employerCostBase Int          @default(0)
   conversions     Json          @default("[]") // every currency conversion applied: amounts, rate, rate date, source
+  aovBaseAmount   Int           @default(0) // AOV calculation base (calcCurrency)
+  aovEmployer     Int           @default(0) // employer share of AOV, if any (not deducted from net)
+  taxRuleSetId    String?
+  aovRuleSetId    String?
+  legalStatus     RunLegalStatus @default(PENDING_LEGAL_VALIDATION)
   trace           Json
   createdAt       DateTime      @default(now())
   run             PayrollRun    @relation(fields: [runId], references: [id], onDelete: Cascade)
@@ -403,6 +582,7 @@ model PayslipLine {
   amount      Int
   originalAmount   Int? // amount before conversion, when the source currency differs
   originalCurrency String?
+  labels      Json? // { nl, en } display names at calculation time
   payslip     Payslip         @relation(fields: [payslipId], references: [id], onDelete: Cascade)
 }
 
@@ -413,6 +593,17 @@ model LeaveType {
   name                   String
   isPaid                 Boolean        @default(true)
   annualEntitlementDays  Float          @default(0)
+  category               LeaveCategory  @default(SPECIAL)
+  payPercentBp           Int            @default(10000) // share of salary the employer continues to pay during this leave
+  statutoryDays          Float? // statutory entitlement in working days (per event for parental categories)
+  companyExtraDays       Float          @default(0) // additional company benefit on top of the statutory entitlement
+  unit                   LeaveUnit      @default(DAYS)
+  allowPartTime          Boolean        @default(false)
+  carryForward           Boolean        @default(false)
+  maxCarryForwardDays    Float          @default(0)
+  componentCode          String? // payroll component code for leave lines (LEV001…)
+  legalStatus            LegalStatus    @default(COMPANY_POLICY)
+  legalReference         String?
   company                Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
   requests               LeaveRequest[]
 
@@ -425,7 +616,13 @@ model LeaveRequest {
   leaveTypeId  String
   startDate    DateTime
   endDate      DateTime
-  days         Float
+  days         Float // requested days
+  approvedDays Float?
+  hours        Float? // requested hours (hour-based leave)
+  schedulePercentBp Int   @default(10000) // part-time leave: share of normal working time taken as leave
+  scheduleNote String?
+  childBirthDate DateTime?
+  paymentStatus LeavePaymentStatus @default(NOT_APPLICABLE)
   reason       String?
   status       LeaveStatus @default(PENDING)
   decidedById  String?
@@ -433,6 +630,7 @@ model LeaveRequest {
   createdAt    DateTime    @default(now())
   employee     Employee    @relation(fields: [employeeId], references: [id], onDelete: Cascade)
   leaveType    LeaveType   @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+  documents    EmployeeDocument[]
 }
 
 model EmployeeDocument {
@@ -443,8 +641,10 @@ model EmployeeDocument {
   size        Int
   storageKey  String
   uploadedBy  String?
+  leaveRequestId String?
   createdAt   DateTime @default(now())
   employee    Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveRequest LeaveRequest? @relation(fields: [leaveRequestId], references: [id], onDelete: SetNull)
 }
 
 model AuditLog {
@@ -501,4 +701,151 @@ model PlatformSetting {
   key       String   @id
   value     Json
   updatedAt DateTime @updatedAt
+}
+
+/// Central payroll component library shared by all companies. Companies adopt entries as PayComponents.
+model ComponentLibrary {
+  code            String            @id
+  category        ComponentCategory
+  kind            ComponentKind
+  nameNl          String
+  nameEn          String
+  calcType        CalcType          @default(FIXED)
+  taxTreatment    TaxTreatment      @default(TAXABLE)
+  multiplierBp    Int               @default(10000)
+  aovIncluded     Boolean           @default(true)
+  pensionIncluded Boolean           @default(false)
+  netEffect       NetEffect         @default(ADD)
+  employerCost    Boolean           @default(true)
+  preTax          Boolean           @default(false)
+  frequency       ComponentFrequency @default(RECURRING)
+  isSystem        Boolean           @default(false) // calculated by the payroll engine itself (not assignable)
+  systemCode      String? // engine line code this entry represents (e.g. LB, AOV, PENS)
+  legalStatus     LegalStatus       @default(COMPANY_POLICY)
+  legalReference  String?
+  sortOrder       Int               @default(0)
+}
+
+/// Legal rules register: official sources the statutory rules are based on.
+model LegalSource {
+  code               String      @id // e.g. SB-2024-2
+  title              String
+  publication        String // e.g. "S.B. 2024 no. 2"
+  publishedAt        DateTime?
+  effectiveFrom      DateTime?
+  subject            String
+  articles           Json        @default("[]") // [{ article, summary }]
+  url                String?
+  verificationStatus LegalStatus @default(PENDING_VERIFICATION)
+  notes              String?
+  updatedAt          DateTime    @updatedAt
+}
+
+/// AOV (Algemene Oudedagsvoorziening) premium rules, versioned by effective date. companyId null = platform default.
+model AovRuleSet {
+  id                 String      @id @default(cuid())
+  companyId          String?
+  name               String
+  currency           String      @default("SRD")
+  effectiveFrom      DateTime
+  effectiveTo        DateTime?
+  verifiedUntil      DateTime?
+  rateBp             Int
+  base               AovBase     @default(TAXABLE_WAGE)
+  franchiseMonthly   Int         @default(0)
+  minMonthly         Int? // minimum premium per month
+  maxMonthly         Int? // maximum premium per month
+  employeeShareBp    Int         @default(10000) // share withheld from the employee; the rest is an employer obligation
+  exemptFromAge      Int? // no premium from this age
+  verificationStatus LegalStatus @default(PENDING_VERIFICATION)
+  approvalStatus     ApprovalStatus @default(APPROVED)
+  citations          Json        @default("[]")
+  notes              String?
+  createdAt          DateTime    @default(now())
+  company            Company?    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  payrollRuns        PayrollRun[]
+}
+
+model Declaration {
+  id                  String            @id @default(cuid())
+  companyId           String
+  type                DeclarationType
+  year                Int
+  month               Int // 0 for annual declarations
+  version             Int               @default(1) // >1 = supplementary declaration
+  supplementaryOfId   String?
+  status              DeclarationStatus @default(IN_PREPARATION)
+  currency            String            @default("SRD")
+  deadline            DateTime
+  employeeCount       Int               @default(0)
+  totalTaxable        Int               @default(0)
+  totalWageTax        Int               @default(0)
+  totalAov            Int               @default(0)
+  previousAdjustments Int               @default(0)
+  totalPayable        Int               @default(0)
+  legalPending        Boolean           @default(true)
+  legalAcknowledgedById String?
+  snapshot            Json              @default("{}")
+  runIds              String[]
+  approvedById        String?
+  approvedAt          DateTime?
+  downloadedAt        DateTime?
+  submittedAt         DateTime?
+  submissionReference String?
+  acceptedAt          DateTime?
+  rejectedAt          DateTime?
+  rejectionReason     String?
+  paidAt              DateTime?
+  paymentReference    String?
+  receiptStorageKey   String?
+  receiptFileName     String?
+  notes               String?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+  company             Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  files               DeclarationFile[]
+  events              DeclarationEvent[]
+
+  @@unique([companyId, type, year, month, version])
+  @@index([companyId, status])
+}
+
+/// Generated declaration file, stored in the database so it can be re-downloaded on any host.
+model DeclarationFile {
+  id            String              @id @default(cuid())
+  declarationId String
+  kind          DeclarationFileKind
+  format        FileFormat
+  fileName      String
+  mimeType      String
+  content       Bytes
+  size          Int
+  generatedById String?
+  downloadCount Int                 @default(0)
+  createdAt     DateTime            @default(now())
+  declaration   Declaration         @relation(fields: [declarationId], references: [id], onDelete: Cascade)
+}
+
+model DeclarationEvent {
+  id            String             @id @default(cuid())
+  declarationId String
+  fromStatus    DeclarationStatus?
+  toStatus      DeclarationStatus
+  userId        String?
+  note          String?
+  createdAt     DateTime           @default(now())
+  declaration   Declaration        @relation(fields: [declarationId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  companyId String
+  type      String
+  params    Json      @default("{}")
+  link      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, readAt])
 }

@@ -21,7 +21,7 @@ export function PayrollTrend({ data, currency }: { data: TrendPoint[]; currency:
           <YAxis tickFormatter={compact} tickLine={false} axisLine={false} fontSize={12} width={48} tick={{ fill: "#5b667a" }} />
           <Tooltip cursor={{ fill: "rgba(1,37,88,0.04)" }} formatter={(v) => full(Number(v))} contentStyle={{ borderRadius: 10, border: "1px solid #e2e6ee", fontSize: 12 }} />
           <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
-          <Bar isAnimationActive={false} dataKey="net" name={t("charts.net")} stackId="a" fill="#012558" />
+          <Bar isAnimationActive={false} dataKey="net" name={t("charts.net")} stackId="a" fill="#0b3d91" />
           <Bar isAnimationActive={false} dataKey="tax" name={t("charts.tax")} stackId="a" fill="#007eef" />
           <Bar isAnimationActive={false} dataKey="aov" name={t("charts.aov")} stackId="a" fill="#c9a24a" radius={[4, 4, 0, 0]} />
         </BarChart>

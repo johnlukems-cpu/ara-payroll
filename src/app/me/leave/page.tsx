@@ -13,11 +13,14 @@ import { StatusBadge } from "@/components/ui/badge";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { cancelLeaveAction, requestLeaveAction } from "@/app/actions/leave";
 import { NoProfile } from "../no-profile";
+import { ParentalRequestFields } from "@/components/parental-request-fields";
 
 export async function generateMetadata() {
   const { t } = await getI18n();
   return { title: t("me.leaveTitle") };
 }
+
+const PARENTAL = ["PARENTAL", "MATERNITY", "PATERNITY", "ADOPTION"];
 
 export default async function MyLeave() {
   const { ctx, employee } = await requireSelf();
@@ -65,13 +68,22 @@ export default async function MyLeave() {
           <CardHeader><CardTitle>{t("me.requestTitle")}</CardTitle></CardHeader>
           <CardContent>
             <ActionForm action={requestLeaveAction} className="space-y-3" resetOnSuccess>
-              <Field label={t("me.type")} htmlFor="leaveTypeId"><Select id="leaveTypeId" name="leaveTypeId">{types.map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</Select></Field>
+              <Field label={t("me.type")} htmlFor="leaveTypeId"><Select id="leaveTypeId" name="leaveTypeId">{types.filter((x) => !PARENTAL.includes(x.category)).map((x) => <option key={x.id} value={x.id}>{x.name}</option>)}</Select></Field>
               <div className="grid grid-cols-2 gap-3">
                 <Field label={t("leave.from")} htmlFor="startDate"><Input id="startDate" name="startDate" type="date" defaultValue={today} /><FieldError name="startDate" /></Field>
                 <Field label={t("leave.to")} htmlFor="endDate"><Input id="endDate" name="endDate" type="date" defaultValue={today} /><FieldError name="endDate" /></Field>
               </div>
               <Field label={t("me.reason")} htmlFor="reason"><Input id="reason" name="reason" /></Field>
               <SubmitButton className="w-full">{t("me.submit")}</SubmitButton>
+            </ActionForm>
+          </CardContent>
+        </Card>
+        <Card className="lg:col-start-3">
+          <CardHeader><CardTitle>{t("parental.selfTitle")}</CardTitle></CardHeader>
+          <CardContent>
+            <ActionForm action={requestLeaveAction} className="space-y-3" resetOnSuccess>
+              <ParentalRequestFields types={types.filter((x) => PARENTAL.includes(x.category))} />
+              <SubmitButton className="w-full">{t("parental.submit")}</SubmitButton>
             </ActionForm>
           </CardContent>
         </Card>

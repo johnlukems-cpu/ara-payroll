@@ -7,12 +7,9 @@ import { MissingRateError } from "@/lib/currency";
 
 export type ActionState = { ok: boolean; message?: string; errors?: Record<string, string[] | undefined>; ts?: number } | null;
 
-/** A user-facing error identified by a translation key (see messages/*.json → errors.*). */
-export class UserError extends Error {
-  constructor(public key: string, public values?: Record<string, string | number>) {
-    super(key);
-  }
-}
+import { UserError } from "./errors";
+
+export { UserError };
 
 /** Zod issue → translated message. Schemas use translation keys (validation namespace) as custom messages. */
 function issueMessage(t: Awaited<ReturnType<typeof getTranslations>>, issue: z.core.$ZodIssue) {

@@ -30,6 +30,7 @@ const employeeSchema = z.object({
   bankName: optionalText(80),
   bankAccount: optionalText(40),
   paymentCurrency: z.string().regex(/^[A-Z]{3}$/, "validation.currency").optional().transform((v) => v ?? null),
+  taxRegime: z.enum(["STANDARD", "ART17A"]).default("STANDARD"),
   departmentId: optionalText(40),
   jobTitle: optionalText(100),
   hireDate: dateField,
@@ -37,7 +38,7 @@ const employeeSchema = z.object({
 
 const contractSchema = z.object({
   contractType: z.enum(["PERMANENT", "FIXED_TERM", "TEMPORARY", "PROBATION"]),
-  payType: z.enum(["MONTHLY", "HOURLY"]),
+  payType: z.enum(["MONTHLY", "WEEKLY", "DAILY", "HOURLY"]),
   salaryCurrency: currencyField,
   startDate: dateField,
   endDate: optionalDate,
@@ -47,8 +48,15 @@ const contractSchema = z.object({
   pensionEmployeeBp: percentField,
   pensionEmployerBp: percentField,
   notes: optionalText(500),
-}).refine((c) => (c.payType === "MONTHLY" ? c.baseSalary > 0 : c.hourlyRate > 0), { message: "validation.salaryRequired", path: ["baseSalary"] })
+}).refine((c) => (c.payType === "HOURLY" ? c.hourlyRate > 0 : c.baseSalary > 0), { message: "validation.salaryRequired", path: ["baseSalary"] })
   .refine((c) => !c.endDate || c.endDate >= c.startDate, { message: "validation.endAfterStart", path: ["endDate"] });
+
+/** The Art. 17a regime may only be linked once a verified rule set for it exists (its legal scope must be confirmed). */
+async function ensureRegimeAllowed(companyId: string, regime: string) {
+  if (regime === "STANDARD") return;
+  const verified = await db.taxRuleSet.findFirst({ where: { regime: "ART17A", verificationStatus: "VERIFIED", approvalStatus: "APPROVED", OR: [{ companyId }, { companyId: null }] } });
+  if (!verified) throw new UserError("errors.regimeNotVerified");
+}
 
 async function ensureCurrencies(...codes: (string | null | undefined)[]) {
   for (const code of codes) if (code && !(await assertActiveCurrency(code))) throw new UserError("errors.currencyInactive", { code });
@@ -69,6 +77,7 @@ export async function createEmployeeAction(_: ActionState, fd: FormData): Promis
     const e = employeeSchema.parse(raw);
     const c = contractSchema.parse({ ...raw, startDate: raw.contractStart ?? raw.hireDate });
     await ensureCurrencies(c.salaryCurrency, e.paymentCurrency);
+    await ensureRegimeAllowed(ctx.company.id, e.taxRegime);
     const departmentId = await ensureDepartment(ctx.company.id, e.departmentId);
     const created = await db.employee.create({
       data: { ...e, departmentId, companyId: ctx.company.id, contracts: { create: c } },
@@ -95,6 +104,7 @@ export async function updateEmployeeAction(_: ActionState, fd: FormData): Promis
     const t = await getTranslations();
     if (e.status === "TERMINATED" && !e.terminationDate) return { ok: false, message: t("errors.terminationDateRequired"), errors: { terminationDate: [t("validation.required")] } };
     await ensureCurrencies(e.paymentCurrency);
+    if (e.taxRegime !== existing.taxRegime) await ensureRegimeAllowed(ctx.company.id, e.taxRegime);
     const departmentId = await ensureDepartment(ctx.company.id, e.departmentId);
     await db.employee.update({ where: { id }, data: { ...e, departmentId } });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.update", entity: "Employee", entityId: id });
@@ -133,6 +143,7 @@ export async function assignComponentAction(_: ActionState, fd: FormData): Promi
       amount: moneyField,
       currency: z.string().regex(/^[A-Z]{3}$/, "validation.currency").optional(),
       rate: percentField,
+      quantity: z.string().optional().transform((v) => (v ? Number(v.replace(",", ".")) : null)).pipe(z.number().min(0).max(10000).nullable()),
       startDate: dateField,
       endDate: optionalDate,
     }).parse(raw);
@@ -142,14 +153,16 @@ export async function assignComponentAction(_: ActionState, fd: FormData): Promi
     ]);
     if (!emp || !comp) throw new UserError("errors.invalidEmployeeOrComponent");
     const t = await getTranslations();
-    if (comp.calcType === "FIXED" && data.amount <= 0) return { ok: false, message: t("errors.enterAmount"), errors: { amount: [t("validation.required")] } };
-    if (comp.calcType === "PERCENT_OF_BASE" && data.rate <= 0) return { ok: false, message: t("errors.enterPercent"), errors: { rate: [t("validation.required")] } };
+    if (comp.calcType === "MANUAL") throw new UserError("errors.manualPerRun");
+    if (comp.calcType === "FIXED" && data.amount <= 0 && comp.defaultAmount <= 0) return { ok: false, message: t("errors.enterAmount"), errors: { amount: [t("validation.required")] } };
+    if ((comp.calcType === "PERCENT_OF_BASE" || comp.calcType === "PERCENT_OF_COMPONENT") && data.rate <= 0 && comp.defaultRateBp <= 0) return { ok: false, message: t("errors.enterPercent"), errors: { rate: [t("validation.required")] } };
+    if (["HOURS_X_RATE", "DAYS_X_RATE", "QTY_X_PRICE"].includes(comp.calcType) && !data.quantity) throw new UserError("errors.enterQuantity");
     await ensureCurrencies(data.currency);
     // Always store an explicit currency for fixed amounts so a later salary-currency change cannot reinterpret them.
     const contract = await db.contract.findFirst({ where: { employeeId: emp.id }, orderBy: { startDate: "desc" } });
     const currency = comp.calcType === "FIXED" ? data.currency ?? contract?.salaryCurrency ?? ctx.company.currency : null;
     await db.employeePayComponent.create({
-      data: { employeeId: emp.id, componentId: comp.id, amount: data.amount, rateBp: data.rate, startDate: data.startDate, endDate: data.endDate, currency },
+      data: { employeeId: emp.id, componentId: comp.id, amount: data.amount, rateBp: data.rate, quantity: data.quantity, startDate: data.startDate, endDate: data.endDate, currency },
     });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.component_assigned", entity: "Employee", entityId: emp.id, details: { component: comp.code, currency: data.currency } });
     revalidatePath(`/app/employees/${emp.id}`);

@@ -76,8 +76,12 @@ test("owner registers, pays a USD-salaried employee and approves payroll (Englis
   await expect(page.getByRole("cell", { name: /Anita Ramsaran/ })).toBeVisible();
   await expect(page.getByRole("cell", { name: /^USD / }).last()).toBeVisible();
 
-  page.once("dialog", (d) => d.accept());
-  await page.click("button:has-text('Approve')");
+  // Statutory rules are pending legal validation: approval requires an explicit acknowledgement.
+  await expect(page.getByText(/pending legal validation/).first()).toBeVisible();
+  await page.getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(page.getByText(/Tick the acknowledgement to approve/)).toBeVisible();
+  await page.getByLabel(/I acknowledge that the statutory rules/).check();
+  await page.getByRole("button", { name: "Approve", exact: true }).click();
   await expect(page.getByText("Payroll approved and locked")).toBeVisible();
   await expect(page.getByRole("link", { name: /Bank payment file/ })).toBeVisible();
 
@@ -94,9 +98,77 @@ test("owner registers, pays a USD-salaried employee and approves payroll (Englis
   await expect(page.getByText("1 USD = 36.5 SRD").first()).toBeVisible();
   await expect(page.getByText("Wage tax (loonbelasting)")).toBeVisible();
 
+  await expect(page.getByRole("heading", { name: "Calculation breakdown" })).toBeVisible();
+  await expect(page.getByText("Taxable wage", { exact: true }).first()).toBeVisible();
+
+  // Declaration draft was prepared automatically after approval.
+  await page.goto("/app/tax");
+  await expect(page.getByText("Draft declaration prepared for March 2026")).toBeVisible();
+  await page.getByRole("row", { name: /March 2026/ }).getByRole("link", { name: "View" }).click();
+  await expect(page.getByRole("heading", { name: /Payroll tax & AOV return — March 2026/ })).toBeVisible();
+  await page.getByRole("button", { name: "Submit for review" }).click();
+  await expect(page.getByText("Declaration submitted for review.")).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "Approve and generate files" }).click();
+  await expect(page.getByText(/Tick the acknowledgement/)).toBeVisible();
+  await page.getByLabel(/this approval is not a legal confirmation/).check();
+  await page.getByRole("button", { name: "Approve and generate files" }).click();
+  await expect(page.getByText("Declaration approved and files generated.")).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("Ready for download").first()).toBeVisible();
+  // Recording a submission is not possible before downloading, and downloading never marks it submitted.
+  await expect(page.getByRole("button", { name: "Save submission" })).toHaveCount(0);
+  const fileLink = page.getByRole("link", { name: /ARA_PayrollTax_E2ECompanyNV_2026-03\.pdf/ });
+  const download = await page.request.get((await fileLink.getAttribute("href"))!);
+  expect(download.status()).toBe(200);
+  expect(download.headers()["content-type"]).toBe("application/pdf");
+  const xlsx = await page.request.get((await page.getByRole("link", { name: /ARA_AOV_E2ECompanyNV_2026-03\.xlsx/ }).getAttribute("href"))!);
+  expect(xlsx.headers()["content-type"]).toContain("spreadsheetml");
+  await page.reload();
+  await expect(page.getByText("Downloaded").first()).toBeVisible();
+  await expect(page.getByText("Submitted", { exact: true })).toHaveCount(1); // only the step label, not the status
+  await page.fill("#reference", "LB-2026-03-TEST");
+  await page.getByRole("button", { name: "Save submission" }).click();
+  await expect(page.getByText("Submission recorded.")).toBeVisible();
+  await page.reload();
+  await expect(page.getByText(/reference LB-2026-03-TEST/)).toBeVisible();
+  await page.getByRole("button", { name: "Save payment" }).click();
+  await expect(page.getByText("Payment recorded.")).toBeVisible();
+
+  // Reopening the payroll is blocked once its declaration has been approved.
+  await page.goto(runUrl);
+  await page.getByRole("button", { name: "Reopen" }).click();
+  await expect(page.getByText(/require a supplementary declaration/)).toBeVisible();
+
   await page.goto("/app/audit");
   await expect(page.getByText("payroll.approve")).toBeVisible();
   await expect(page.getByText("rate.approve")).toBeVisible();
+  await expect(page.getByText("declaration.recordSubmission")).toBeVisible();
+
+  // Parental leave: registered by HR, approved with a partially paid policy.
+  await page.goto("/app/leave/parental");
+  await page.selectOption("#leaveTypeId", { label: "Maternity leave" });
+  await page.fill("#childBirthDate", "2026-05-01");
+  await page.fill("#startDate", "2026-04-06");
+  await page.fill("#endDate", "2026-04-10");
+  await page.getByRole("button", { name: "Submit request" }).click();
+  await expect(page.getByText("Leave request submitted for approval.")).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "Approve" }).first().click();
+  await expect(page.getByText("Leave approved.")).toBeVisible();
+
+  // Pay components: the central library is available and custom components can be created.
+  await page.goto("/app/settings/components");
+  await expect(page.getByText("ALW001")).toBeVisible();
+  await expect(page.getByText("Employer contributions")).toBeVisible();
+  await page.getByRole("link", { name: "New component" }).click();
+  await page.fill("#code", "CUS001");
+  await page.fill("#nameNl", "Gereedschapsvergoeding");
+  await page.fill("#nameEn", "Tool allowance");
+  await page.fill("#defaultAmount", "250");
+  await page.selectOption("#approvalStatus", "APPROVED");
+  await page.getByRole("button", { name: "Create" }).click();
+  await expect(page).toHaveURL(/\/app\/settings\/components\/.+\?created=1/);
 });
 
 test("employees cannot access admin areas or other data", async ({ page, request }) => {
@@ -116,6 +188,36 @@ test("employees cannot access admin areas or other data", async ({ page, request
   await expect(page.getByRole("heading", { name: "Mijn loonstroken" })).toBeVisible();
   await page.goto("/app/admin");
   await expect(page).toHaveURL(/\/me$/);
+});
+
+test("accountants can view but not approve declarations; employees cannot open the tax module", async ({ page, context }) => {
+  await context.addCookies([{ name: "ARA_LOCALE", value: "en", domain: "localhost", path: "/" }]);
+  await page.goto("/login");
+  await page.fill("#email", "accountant@demo.ara.sr");
+  await page.fill("#password", "Demo12345!");
+  await page.click("button[type=submit]");
+  await page.waitForURL(/\/app$/);
+  await page.goto("/app/tax");
+  // The account language preference wins over the browser cookie, so accept either language.
+  await expect(page.getByRole("heading", { name: /Tax & Declarations|Belasting & Aangiften/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^(Prepare|Opstellen)$/ })).toHaveCount(0);
+  await page.goto("/app/tax/legal");
+  await expect(page.getByText(/S.B. 2024 no. 2 — Staatsbesluit/)).toBeVisible();
+  await page.goto("/app/tax/rules");
+  await expect(page.getByText("Loonbelasting S.B. 2024 no. 2 (art. 12, 13, 14)")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Create version|Versie aanmaken/ })).toHaveCount(0);
+
+  const emp = await page.context().browser()!.newContext();
+  const p2 = await emp.newPage();
+  await p2.goto("http://localhost:" + (process.env.E2E_PORT ?? 3100) + "/login");
+  await p2.fill("#email", "employee@demo.ara.sr");
+  await p2.fill("#password", "Demo12345!");
+  await p2.click("button[type=submit]");
+  await p2.waitForURL(/\/me$/);
+  await p2.goto("http://localhost:" + (process.env.E2E_PORT ?? 3100) + "/app/tax");
+  await expect(p2).toHaveURL(/\/me$/);
+  expect((await p2.request.get("http://localhost:" + (process.env.E2E_PORT ?? 3100) + "/api/tax/aov?year=2026&month=10")).status()).toBe(403);
+  await emp.close();
 });
 
 test("login rejects wrong passwords (Dutch message)", async ({ page }) => {

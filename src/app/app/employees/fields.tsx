@@ -26,7 +26,7 @@ function F({ name, label, children, hint }: { name: string; label: string; child
 const GENDERS = ["Female", "Male", "Other"];
 const MARITAL = ["Single", "Married", "Living together", "Divorced", "Widowed"];
 
-export async function EmployeeFields({ e, departments, currencies, showStatus }: { e?: Partial<Employee> | null; departments: Department[]; currencies: CurrencyOption[]; showStatus?: boolean }) {
+export async function EmployeeFields({ e, departments, currencies, showStatus, art17aAvailable = false }: { e?: Partial<Employee> | null; departments: Department[]; currencies: CurrencyOption[]; showStatus?: boolean; art17aAvailable?: boolean }) {
   const { t } = await getI18n();
   return (
     <div className="space-y-5">
@@ -65,6 +65,12 @@ export async function EmployeeFields({ e, departments, currencies, showStatus }:
         <F name="paymentCurrency" label={t("employee.paymentCurrency")} hint={t("employee.paymentCurrencyHint")}>
           <CurrencySelect id="paymentCurrency" name="paymentCurrency" currencies={currencies} defaultValue={e?.paymentCurrency ?? ""} emptyLabel={t("employee.sameAsSalary")} />
         </F>
+        <F name="taxRegime" label={t("employee.taxRegime")} hint={art17aAvailable ? t("employee.taxRegimeHint") : t("employee.taxRegimeLocked")}>
+          <Select id="taxRegime" name="taxRegime" defaultValue={e?.taxRegime ?? "STANDARD"}>
+            <option value="STANDARD">{t("rules.regime.STANDARD")}</option>
+            <option value="ART17A" disabled={!art17aAvailable && e?.taxRegime !== "ART17A"}>{t("rules.regime.ART17A")}</option>
+          </Select>
+        </F>
         {showStatus && (
           <>
             <F name="status" label={t("employee.status")}>
@@ -88,7 +94,7 @@ export async function ContractFields({ c, currencies, defaultCurrency, prefixSta
         </Select>
       </F>
       <F name="payType" label={t("employee.contract.payType")}>
-        <Select id="payType" name="payType" defaultValue={c?.payType ?? "MONTHLY"}>{["MONTHLY", "HOURLY"].map((v) => <option key={v} value={v}>{t(`enums.payType.${v}` as never)}</option>)}</Select>
+        <Select id="payType" name="payType" defaultValue={c?.payType ?? "MONTHLY"}>{["MONTHLY", "WEEKLY", "DAILY", "HOURLY"].map((v) => <option key={v} value={v}>{t(`enums.payType.${v}` as never)}</option>)}</Select>
       </F>
       <F name="salaryCurrency" label={t("employee.contract.salaryCurrency")}>
         <CurrencySelect id="salaryCurrency" name="salaryCurrency" currencies={currencies} defaultValue={c?.salaryCurrency ?? defaultCurrency} />

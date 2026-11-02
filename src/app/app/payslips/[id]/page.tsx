@@ -6,6 +6,7 @@ import { requirePage } from "@/lib/server/auth";
 import { getI18n } from "@/lib/server/i18n";
 import { buttonVariants } from "@/components/ui/button";
 import { PayslipView } from "@/components/payslip-view";
+import { PayslipBreakdown } from "@/components/payslip-breakdown";
 import { PrintButton } from "@/components/print-button";
 
 export async function generateMetadata() {
@@ -29,6 +30,7 @@ export default async function PayslipPage({ params }: { params: Promise<{ id: st
         </div>
       </div>
       <PayslipView slip={slip} />
+      <PayslipBreakdown slip={slip} />
     </div>
   );
 }

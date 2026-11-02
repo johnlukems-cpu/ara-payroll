@@ -11,7 +11,7 @@
   --muted-foreground: #5b667a;
   --border: #e2e6ee;
   --input: #d6dbe5;
-  --primary: #012558;
+  --primary: #0b3d91;
   --primary-foreground: #ffffff;
   --accent: #007eef;
   --accent-foreground: #ffffff;
@@ -21,7 +21,7 @@
   --brand-red: #d7262d;
   --warning: #b7791f;
   --ring: #007eef;
-  --sidebar: #011a3f;
+  --sidebar: #072a66;
   --sidebar-foreground: #c9d3e6;
 }
 
@@ -45,7 +45,7 @@
   --color-ring: var(--ring);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter Variable", Inter, ui-sans-serif, system-ui, sans-serif;
 }
 
 * {
