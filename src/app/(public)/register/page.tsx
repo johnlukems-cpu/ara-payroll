@@ -7,17 +7,24 @@ import { CurrencySelect } from "@/components/currency-select";
 import { registerAction } from "@/app/actions/auth";
 import { getCurrencies } from "@/lib/server/rates";
 import { AuthShell } from "../auth-shell";
+import { isPlanId, TRIAL_DAYS } from "@/lib/pricing";
 
 export async function generateMetadata() {
   const t = await getTranslations();
   return { title: t("auth.registerTitle") };
 }
 
-export default async function RegisterPage() {
+export default async function RegisterPage({ searchParams }: { searchParams: Promise<{ plan?: string }> }) {
   const t = await getTranslations();
+  const plan = (await searchParams).plan;
   const currencies = await getCurrencies();
   return (
     <AuthShell title={t("auth.registerTitle")} subtitle={t("auth.registerSubtitle")} footer={<>{t("auth.haveAccount")} <Link className="font-medium text-primary hover:underline" href="/login">{t("auth.signInLink")}</Link></>}>
+      {isPlanId(plan) && (
+        <p className="mb-5 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm" data-testid="chosen-plan">
+          {t("pricing.chosenPlan", { plan: t(`pricing.plans.${plan}.name`), days: TRIAL_DAYS })}
+        </p>
+      )}
       <ActionForm action={registerAction} className="flex flex-col gap-4">
         <Field label={t("auth.fullName")} htmlFor="name"><Input id="name" name="name" autoComplete="name" /><FieldError name="name" /></Field>
         <Field label={t("auth.workEmail")} htmlFor="email"><Input id="email" name="email" type="email" autoComplete="email" /><FieldError name="email" /></Field>

@@ -224,7 +224,7 @@
   },
   "landing": {
     "badge": "Ontwikkeld voor de Surinaamse wetgeving en salarispraktijk",
-    "title": "Salarisadministratie voor Suriname, elke maand correct.",
+    "title": "Professionele salarisadministratie. Nauwkeurig geregeld, elke maand opnieuw.",
     "subtitle": "ARA Payroll helpt kleine ondernemingen, grote bedrijven en administratiekantoren om de salarisadministratie nauwkeurig in elke valuta te verwerken, loonstroken te maken en aan de regels te voldoen — volledig in de cloud.",
     "cta": "Account aanmaken",
     "signIn": "Aanmelden",
@@ -254,7 +254,8 @@
         "title": "Veilig ontworpen",
         "text": "Toegang op basis van rollen, volledig auditlogboek, goedkeuringsproces en vergrendelde salarisperiodes."
       }
-    }
+    },
+    "pricing": "Prijzen"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -2156,5 +2157,114 @@
     "sharesLine": "Werknemer {employee} · werkgever {employer}",
     "viaScheme": "Via regeling",
     "lookalikes": "Controleer deze eigen componenten: ze lijken op ziektekosten, pensioen of FVO en worden niet automatisch als dezelfde bijdrage herkend: {list}. Beëindig ze wanneer de regeling dezelfde bijdrage inhoudt, om dubbele inhouding te voorkomen."
+  },
+  "pricing": {
+    "eyebrow": "Prijzen",
+    "title": "Eenvoudige abonnementen voor elk bedrijf",
+    "subtitle": "Kies het pakket dat past bij het aantal medewerkers. Alle pakketten draaien volledig in de cloud, met Surinaamse loonbelasting en AOV.",
+    "popular": "Populair",
+    "perMonth": "/ maand",
+    "onRequest": "Prijs op aanvraag",
+    "note": "Prijzen per maand in SRD.",
+    "demoText": "Wilt u eerst zien hoe ARA Payroll werkt voor uw organisatie?",
+    "demoCta": "Plan een gratis demo",
+    "trial": "Ontdek ARA Payroll – Start met {days} dagen gratis testen.",
+    "trialCta": "Start gratis proefperiode",
+    "chosenPlan": "Gekozen pakket: {plan}. U begint met {days} dagen gratis testen.",
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "employees": "1–10 medewerkers",
+        "cta": "Start met Starter",
+        "features": {
+          "0": "1–10 medewerkers",
+          "1": "Personeelsbeheer",
+          "2": "Salarisverwerking",
+          "3": "Digitale loonstroken",
+          "4": "Basisrapportages"
+        }
+      },
+      "business": {
+        "name": "Business",
+        "employees": "11–30 medewerkers",
+        "cta": "Kies Business",
+        "features": {
+          "0": "11–30 medewerkers",
+          "1": "Alles uit Starter",
+          "2": "Vaste en variabele looncomponenten",
+          "3": "Verlofbeheer",
+          "4": "Vakantietoelage en bonussen",
+          "5": "Uitgebreide rapportages"
+        }
+      },
+      "professional": {
+        "name": "Professional",
+        "employees": "31–75 medewerkers",
+        "cta": "Kies Professional",
+        "features": {
+          "0": "31–75 medewerkers",
+          "1": "Alles uit Business",
+          "2": "Geavanceerde HR-functionaliteiten",
+          "3": "Multicurrency",
+          "4": "Uitgebreide exports",
+          "5": "Prioriteit bij ondersteuning"
+        }
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "employees": "75+ medewerkers",
+        "cta": "Vraag een offerte aan",
+        "features": {
+          "0": "75+ medewerkers",
+          "1": "Meerdere administraties",
+          "2": "Aangepaste inrichting",
+          "3": "Implementatie en training",
+          "4": "Maatwerk en integraties"
+        }
+      }
+    }
+  },
+  "contact": {
+    "title": "Contact",
+    "demoTitle": "Plan een gratis demo",
+    "demoSub": "Laat uw gegevens achter; wij nemen contact op om een demonstratie in te plannen.",
+    "quoteTitle": "Vraag een offerte aan",
+    "quoteSub": "Vertel ons over uw organisatie; u ontvangt een offerte op maat.",
+    "plan": "Pakket",
+    "noPlan": "Nog geen voorkeur",
+    "name": "Naam",
+    "company": "Bedrijfsnaam",
+    "email": "Zakelijk e-mailadres",
+    "phone": "Telefoonnummer (optioneel)",
+    "employees": "Aantal medewerkers (optioneel)",
+    "message": "Bericht (optioneel)",
+    "demoPlaceholder": "Bijvoorbeeld uw voorkeursdagen of vragen vooraf.",
+    "quotePlaceholder": "Bijvoorbeeld het aantal administraties, gewenste integraties of implementatiewensen.",
+    "privacy": "Uw gegevens worden alleen gebruikt om contact met u op te nemen over deze aanvraag.",
+    "submitDemo": "Demo aanvragen",
+    "submitQuote": "Offerte aanvragen",
+    "thanks": "Bedankt, uw aanvraag is ontvangen.",
+    "thanksDemo": "Bedankt! Uw demo-aanvraag is ontvangen. Wij nemen zo snel mogelijk contact met u op.",
+    "thanksQuote": "Bedankt! Uw offerte-aanvraag is ontvangen. Wij nemen zo snel mogelijk contact met u op.",
+    "tooMany": "Te veel aanvragen vanaf dit adres. Probeer het later opnieuw.",
+    "backToPricing": "Terug naar de prijzen",
+    "adminTitle": "Demo- en offerteaanvragen",
+    "adminSub": "Aanvragen via de website (prijspagina).",
+    "adminEmpty": "Nog geen aanvragen.",
+    "cols": {
+      "date": "Datum",
+      "type": "Soort",
+      "contact": "Contactpersoon",
+      "company": "Bedrijf",
+      "message": "Bericht"
+    },
+    "types": {
+      "DEMO": "Demo",
+      "QUOTE": "Offerte"
+    },
+    "employeesCount": "{count} medewerkers",
+    "handled": "Afgehandeld",
+    "markHandled": "Afgehandeld",
+    "markedHandled": "Aanvraag gemarkeerd als afgehandeld."
   }
 }

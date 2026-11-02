@@ -224,7 +224,7 @@
   },
   "landing": {
     "badge": "Built for Surinamese legislation and payroll practice",
-    "title": "Payroll for Suriname, done right — every month.",
+    "title": "Professional payroll administration. Accurately handled, every month.",
     "subtitle": "ARA Payroll helps small businesses, large companies and accounting firms run accurate payroll in any currency, generate payslips and stay compliant — all in the cloud.",
     "cta": "Create your account",
     "signIn": "Sign in",
@@ -254,7 +254,8 @@
         "title": "Secure by design",
         "text": "Role-based access, full audit trail, approval workflow and locked payroll periods."
       }
-    }
+    },
+    "pricing": "Pricing"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -2156,5 +2157,114 @@
     "sharesLine": "Employee {employee} · employer {employer}",
     "viaScheme": "Via scheme",
     "lookalikes": "Check these custom components: they look like health insurance, pension or FVO and are not recognised automatically as the same contribution: {list}. End them when the scheme deducts the same contribution, to avoid double deductions."
+  },
+  "pricing": {
+    "eyebrow": "Pricing",
+    "title": "Simple subscriptions for every business",
+    "subtitle": "Choose the plan that fits your number of employees. All plans run fully in the cloud, with Surinamese wage tax and AOV.",
+    "popular": "Popular",
+    "perMonth": "/ month",
+    "onRequest": "Price on request",
+    "note": "Prices per month in SRD.",
+    "demoText": "Would you like to see how ARA Payroll works for your organisation first?",
+    "demoCta": "Book a free demo",
+    "trial": "Discover ARA Payroll – Start with a {days}-day free trial.",
+    "trialCta": "Start free trial",
+    "chosenPlan": "Selected plan: {plan}. You start with a {days}-day free trial.",
+    "plans": {
+      "starter": {
+        "name": "Starter",
+        "employees": "1–10 employees",
+        "cta": "Start with Starter",
+        "features": {
+          "0": "1–10 employees",
+          "1": "Employee management",
+          "2": "Payroll processing",
+          "3": "Digital payslips",
+          "4": "Basic reports"
+        }
+      },
+      "business": {
+        "name": "Business",
+        "employees": "11–30 employees",
+        "cta": "Choose Business",
+        "features": {
+          "0": "11–30 employees",
+          "1": "Everything in Starter",
+          "2": "Fixed and variable pay components",
+          "3": "Leave management",
+          "4": "Holiday allowance and bonuses",
+          "5": "Extended reports"
+        }
+      },
+      "professional": {
+        "name": "Professional",
+        "employees": "31–75 employees",
+        "cta": "Choose Professional",
+        "features": {
+          "0": "31–75 employees",
+          "1": "Everything in Business",
+          "2": "Advanced HR features",
+          "3": "Multicurrency",
+          "4": "Extended exports",
+          "5": "Priority support"
+        }
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "employees": "75+ employees",
+        "cta": "Request a quote",
+        "features": {
+          "0": "75+ employees",
+          "1": "Multiple payroll administrations",
+          "2": "Custom configuration",
+          "3": "Implementation and training",
+          "4": "Custom development and integrations"
+        }
+      }
+    }
+  },
+  "contact": {
+    "title": "Contact",
+    "demoTitle": "Book a free demo",
+    "demoSub": "Leave your details and we will contact you to schedule a demonstration.",
+    "quoteTitle": "Request a quote",
+    "quoteSub": "Tell us about your organisation and receive a tailored quote.",
+    "plan": "Plan",
+    "noPlan": "No preference yet",
+    "name": "Name",
+    "company": "Company name",
+    "email": "Work email",
+    "phone": "Phone number (optional)",
+    "employees": "Number of employees (optional)",
+    "message": "Message (optional)",
+    "demoPlaceholder": "For example your preferred days or any questions.",
+    "quotePlaceholder": "For example the number of payroll administrations, integrations or implementation needs.",
+    "privacy": "Your details are only used to contact you about this request.",
+    "submitDemo": "Request demo",
+    "submitQuote": "Request quote",
+    "thanks": "Thank you, your request has been received.",
+    "thanksDemo": "Thank you! Your demo request has been received. We will contact you as soon as possible.",
+    "thanksQuote": "Thank you! Your quote request has been received. We will contact you as soon as possible.",
+    "tooMany": "Too many requests from this address. Please try again later.",
+    "backToPricing": "Back to pricing",
+    "adminTitle": "Demo and quote requests",
+    "adminSub": "Requests from the website (pricing page).",
+    "adminEmpty": "No requests yet.",
+    "cols": {
+      "date": "Date",
+      "type": "Type",
+      "contact": "Contact",
+      "company": "Company",
+      "message": "Message"
+    },
+    "types": {
+      "DEMO": "Demo",
+      "QUOTE": "Quote"
+    },
+    "employeesCount": "{count} employees",
+    "handled": "Handled",
+    "markHandled": "Mark handled",
+    "markedHandled": "Request marked as handled."
   }
 }

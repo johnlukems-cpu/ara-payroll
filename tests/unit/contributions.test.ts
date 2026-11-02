@@ -123,3 +123,25 @@ describe("scheme applicability", () => {
       .toEqual({ employeeRateBp: 300, employerRateBp: 400, employeeAmount: 0, employerAmount: 0 });
   });
 });
+
+import nlMessages from "../../messages/nl.json";
+import enMessages from "../../messages/en.json";
+import { formatPlanPrice, planHref, PLANS } from "@/lib/pricing";
+
+describe("pricing configuration", () => {
+  it("has the four plans with the agreed prices, Business as popular, and texts for every feature in both languages", () => {
+    expect(PLANS.map((p) => [p.id, p.priceSrd])).toEqual([["starter", 750], ["business", 1500], ["professional", 2750], ["enterprise", null]]);
+    expect(PLANS.filter((p) => p.popular).map((p) => p.id)).toEqual(["business"]);
+    for (const m of [nlMessages, enMessages]) {
+      for (const p of PLANS) {
+        const plan = (m.pricing.plans as Record<string, { features: Record<string, string> }>)[p.id];
+        expect(Object.keys(plan.features)).toHaveLength(p.features);
+      }
+    }
+  });
+  it("formats prices per language and links to working pages", () => {
+    expect(formatPlanPrice(1500, "nl")).toBe("SRD 1.500");
+    expect(formatPlanPrice(2750, "en")).toBe("SRD 2,750");
+    expect(PLANS.map(planHref)).toEqual(["/register?plan=starter", "/register?plan=business", "/register?plan=professional", "/contact?type=quote&plan=enterprise"]);
+  });
+});

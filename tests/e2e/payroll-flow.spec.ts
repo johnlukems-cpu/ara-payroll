@@ -462,6 +462,7 @@ test("employee and employer contributions: scheme setup, payroll, payslip, repor
 
   // English UI.
   await page.getByLabel("Taal").first().selectOption("en");
+  await expect(page.getByRole("heading", { level: 1, name: "Reports" })).toBeVisible(); // locale saved before navigating
   await page.goto(`${employeeUrl}?tab=pay`);
   await expect(page.getByTestId("section-ALLOWANCE").getByText("Allowances", { exact: true })).toBeVisible();
   await expect(page.getByTestId("section-DEDUCTION").getByText("Deductions", { exact: true })).toBeVisible();
@@ -472,4 +473,95 @@ test("employee and employer contributions: scheme setup, payroll, payslip, repor
   await page.goto((await page.locator("a[href^='/app/payslips/']").first().getAttribute("href"))!);
   await expect(page.getByTestId("payslip-employer").getByText("Employer contributions", { exact: true })).toBeVisible();
   await expect(page.getByTestId("payslip-employment-cost")).toContainText("Total Employment Costs");
+});
+
+test("website pricing section: navigation, plans, working buttons, demo/quote requests (NL + EN, mobile)", async ({ page, context }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Professionele salarisadministratie. Nauwkeurig geregeld, elke maand opnieuw.");
+  await page.getByRole("link", { name: "Prijzen", exact: true }).click();
+  await expect(page).toHaveURL(/#prijzen$/);
+  await expect(page.locator("#prijzen")).toBeInViewport();
+
+  const plans = [
+    ["starter", "Starter", "SRD 750", "Start met Starter", /\/register\?plan=starter$/],
+    ["business", "Business", "SRD 1.500", "Kies Business", /\/register\?plan=business$/],
+    ["professional", "Professional", "SRD 2.750", "Kies Professional", /\/register\?plan=professional$/],
+    ["enterprise", "Enterprise", "Prijs op aanvraag", "Vraag een offerte aan", /\/contact\?type=quote&plan=enterprise$/],
+  ] as const;
+  for (const [id, name, price, cta, href] of plans) {
+    const card = page.getByTestId(`plan-${id}`);
+    await expect(card.getByRole("heading", { name })).toBeVisible();
+    await expect(card).toContainText(price);
+    await expect(card.getByRole("link", { name: cta })).toHaveAttribute("href", href);
+  }
+  await expect(page.getByTestId("plan-business").getByText("Populair")).toBeVisible();
+  await expect(page.getByTestId("plan-starter").getByText("Populair")).toHaveCount(0);
+  await expect(page.getByTestId("plan-business")).toContainText("Vakantietoelage en bonussen");
+  await expect(page.getByTestId("trial-banner")).toContainText("Ontdek ARA Payroll – Start met 30 dagen gratis testen.");
+
+  // Every link on the page leads to a working page.
+  const hrefs = await page.locator("a[href^='/']").evaluateAll((as) => [...new Set(as.map((a) => a.getAttribute("href")!))]);
+  for (const h of hrefs) expect((await page.request.get(h)).status(), h).toBe(200);
+
+  // Plan button → registration with the chosen plan.
+  await page.getByTestId("plan-business").getByRole("link", { name: "Kies Business" }).click();
+  await expect(page.getByTestId("chosen-plan")).toContainText("Gekozen pakket: Business");
+  await page.goto("/");
+  await page.getByTestId("trial-banner").getByRole("link", { name: "Start gratis proefperiode" }).click();
+  await expect(page).toHaveURL(/\/register/);
+
+  // Demo request: validation, then stored.
+  await page.goto("/");
+  await page.getByRole("link", { name: "Plan een gratis demo" }).click();
+  await expect(page.getByRole("heading", { name: "Plan een gratis demo" })).toBeVisible();
+  await page.getByRole("button", { name: "Demo aanvragen" }).click();
+  await expect(page.getByText("Corrigeer de gemarkeerde velden").first()).toBeVisible();
+  const company = `Demo Klant ${Date.now()} N.V.`;
+  await page.fill("#name", "Ravi Test");
+  await page.fill("#company", company);
+  await page.fill("#email", "ravi@example.sr");
+  await page.fill("#employees", "25");
+  await page.getByRole("button", { name: "Demo aanvragen" }).click();
+  await expect(page.getByText(/Uw demo-aanvraag is ontvangen/)).toBeVisible();
+
+  // Quote request from the Enterprise card.
+  await page.goto("/contact?type=quote&plan=enterprise");
+  await expect(page.locator("#plan")).toHaveValue("enterprise");
+  await page.fill("#name", "Anita Test");
+  await page.fill("#company", `${company} Groep`);
+  await page.fill("#email", "anita@example.sr");
+  await page.getByRole("button", { name: "Offerte aanvragen" }).click();
+  await expect(page.getByText(/Uw offerte-aanvraag is ontvangen/)).toBeVisible();
+
+  // Requests are visible to the platform administrator.
+  await page.goto("/login");
+  await page.fill("#email", "owner@demo.ara.sr");
+  await page.fill("#password", "Demo12345!");
+  await page.click("button[type=submit]");
+  await page.waitForURL(/\/app/);
+  await page.goto("/app/admin");
+  const demoRow = page.getByTestId("contact-requests").getByRole("row").filter({ hasText: "ravi@example.sr" }).filter({ hasText: company }).first();
+  await expect(demoRow).toContainText("Demo");
+  await expect(demoRow).toContainText("25 medewerkers");
+  const quoteRow = page.getByTestId("contact-requests").getByRole("row").filter({ hasText: `${company} Groep` });
+  await expect(quoteRow).toContainText("Enterprise");
+  await quoteRow.getByRole("button", { name: "Afgehandeld" }).click();
+  await expect(page.getByText("Aanvraag gemarkeerd als afgehandeld.")).toBeVisible();
+
+  // English website.
+  await context.clearCookies();
+  await context.addCookies([{ name: "ARA_LOCALE", value: "en", domain: "localhost", path: "/" }]);
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Professional payroll administration. Accurately handled, every month.");
+  await expect(page.getByRole("link", { name: "Pricing", exact: true })).toHaveAttribute("href", "/#prijzen");
+  await expect(page.getByTestId("plan-business")).toContainText("SRD 1,500");
+  await expect(page.getByTestId("plan-business").getByText("Popular")).toBeVisible();
+  await expect(page.getByTestId("plan-enterprise").getByRole("link", { name: "Request a quote" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Book a free demo" })).toBeVisible();
+  await expect(page.getByTestId("trial-banner").getByRole("link", { name: "Start free trial" })).toBeVisible();
+
+  // Mobile: no horizontal scrolling.
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/#prijzen");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
 });

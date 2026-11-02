@@ -115,6 +115,7 @@ describe("enum translations", () => {
     [$Enums.ContributionMethod, ["enums.contributionMethod"]],
     [$Enums.ContributionBase, ["enums.contributionBase"]],
     [$Enums.ContributionTax, ["enums.contributionTax"]],
+    [$Enums.ContactRequestType, ["contact.types"]],
     [$Enums.LeaveUnit, ["leaveTypes.units"]],
   ];
   it("has a translation for every enum value", () => {

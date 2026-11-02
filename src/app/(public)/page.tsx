@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Logo } from "@/components/ui/misc";
 import { buttonVariants } from "@/components/ui/button";
 import { LanguageSwitcher } from "@/components/language-switcher";
+import { PricingSection } from "@/components/pricing-section";
 
 const features = [
   { icon: Users, key: "employees" },
@@ -20,8 +21,9 @@ export default async function Landing() {
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#0a3a8a_0%,_#011a3f_60%)] text-white">
       <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-6 py-6">
         <Logo light />
-        <nav className="flex items-center gap-4">
+        <nav className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <LanguageSwitcher variant="dark" />
+          <Link href="/#prijzen" className="text-sm text-white/80 hover:text-white">{t("landing.pricing")}</Link>
           <Link href="/login" className="text-sm text-white/80 hover:text-white">{t("landing.signIn")}</Link>
           <Link href="/register" className={buttonVariants({ variant: "accent" })}>{t("landing.startFree")}</Link>
         </nav>
@@ -45,6 +47,7 @@ export default async function Landing() {
             </div>
           ))}
         </div>
+        <PricingSection />
       </main>
       <footer className="border-t border-white/10 py-8 text-center text-xs text-white/50">
         {t("brand.product")} · {t("brand.developedBy")} · {t("brand.ecosystem")}

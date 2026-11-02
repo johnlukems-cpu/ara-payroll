@@ -988,3 +988,26 @@ model Notification {
 
   @@index([companyId, readAt])
 }
+
+enum ContactRequestType {
+  DEMO
+  QUOTE
+}
+
+/// Demo and quote requests from the public website (no payment or subscription logic).
+model ContactRequest {
+  id        String             @id @default(cuid())
+  type      ContactRequestType
+  plan      String? // pricing plan id the visitor came from (starter, business, professional, enterprise)
+  name      String
+  company   String
+  email     String
+  phone     String?
+  employees Int?
+  message   String?
+  locale    String             @default("nl")
+  handled   Boolean            @default(false)
+  createdAt DateTime           @default(now())
+
+  @@index([handled, createdAt])
+}

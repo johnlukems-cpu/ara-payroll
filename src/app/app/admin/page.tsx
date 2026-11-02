@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { RateTable } from "@/components/rate-table";
 import { RateForm } from "@/components/rate-form";
+import { markContactHandledAction } from "@/app/actions/contact";
 import { addPlatformRateAction, fetchPlatformRatesAction, saveProviderAction, toggleCurrencyAction } from "@/app/actions/rates";
 
 export async function generateMetadata() {
@@ -24,7 +25,8 @@ export async function generateMetadata() {
 export default async function AdminPage() {
   const ctx = await requirePage();
   if (!ctx.user.isPlatformAdmin) redirect("/app?denied=1");
-  const { t, locale } = await getI18n();
+  const { t, f, locale } = await getI18n();
+  const requests = await db.contactRequest.findMany({ orderBy: [{ handled: "asc" }, { createdAt: "desc" }], take: 100 });
   const [all, active, provider, rates] = await Promise.all([
     getCurrencies(false),
     getCurrencies(),
@@ -82,6 +84,26 @@ export default async function AdminPage() {
           <CardContent><RateForm action={addPlatformRateAction} currencies={active} defaultBase="USD" defaultQuote="SRD" /></CardContent>
         </Card>
       </div>
+      <Card data-testid="contact-requests">
+        <CardHeader><CardTitle>{t("contact.adminTitle")}</CardTitle><CardDescription>{t("contact.adminSub")}</CardDescription></CardHeader>
+        {requests.length === 0 ? <CardContent className="text-sm text-muted-foreground">{t("contact.adminEmpty")}</CardContent> : (
+          <Table>
+            <THead><TR><TH>{t("contact.cols.date")}</TH><TH>{t("contact.cols.type")}</TH><TH>{t("contact.cols.contact")}</TH><TH>{t("contact.cols.company")}</TH><TH>{t("contact.cols.message")}</TH><TH /></TR></THead>
+            <TBody>
+              {requests.map((r) => (
+                <TR key={r.id} className={r.handled ? "opacity-60" : ""}>
+                  <TD className="tabular whitespace-nowrap text-xs">{f.date(r.createdAt)}</TD>
+                  <TD><Badge variant={r.type === "DEMO" ? "accent" : "default"}>{t(`contact.types.${r.type}`)}</Badge>{r.plan && <span className="block text-xs text-muted-foreground">{t(`pricing.plans.${r.plan}.name` as never)}</span>}</TD>
+                  <TD className="text-sm">{r.name}<a href={`mailto:${r.email}`} className="block text-xs text-primary hover:underline">{r.email}</a>{r.phone && <span className="block text-xs text-muted-foreground">{r.phone}</span>}</TD>
+                  <TD className="text-sm">{r.company}{r.employees != null && <span className="block text-xs text-muted-foreground">{t("contact.employeesCount", { count: r.employees })}</span>}</TD>
+                  <TD className="max-w-sm whitespace-pre-line text-xs">{r.message ?? "—"}</TD>
+                  <TD className="text-right">{r.handled ? <Badge variant="muted">{t("contact.handled")}</Badge> : <ActionButton action={markContactHandledAction} fields={{ id: r.id }} variant="outline" size="sm">{t("contact.markHandled")}</ActionButton>}</TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
+        )}
+      </Card>
     </div>
   );
 }
