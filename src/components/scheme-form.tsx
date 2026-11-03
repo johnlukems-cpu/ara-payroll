@@ -24,6 +24,7 @@ export type SchemeValues = {
   effectiveFrom: string;
   effectiveTo: string;
   isActive: boolean;
+  approved: boolean;
   appliesToAll: boolean;
   employeeTax: string;
   showOnPayslip: boolean;
@@ -103,13 +104,13 @@ export function SchemeForm({ v, currencies, canVerify }: { v: SchemeValues; curr
         </F>
         <F name="legalReference" label={t("components.f.legalReference")} className="sm:col-span-2 lg:col-span-4"><Input id="legalReference" name="legalReference" defaultValue={v.legalReference} maxLength={300} /></F>
         <div className="space-y-2 text-sm sm:col-span-2">
-          <label className="flex items-start gap-2"><input type="checkbox" name="isActive" defaultChecked={v.isActive} className="mt-0.5" /> <span>{t("contrib.f.active")}<span className="block text-xs text-muted-foreground">{t("contrib.f.activeHint")}</span></span></label>
           <label className="flex items-start gap-2"><input type="checkbox" name="appliesToAll" defaultChecked={v.appliesToAll} className="mt-0.5" /> <span>{t("contrib.f.appliesToAll")}<span className="block text-xs text-muted-foreground">{t("contrib.f.appliesToAllHint")}</span></span></label>
           <label className="flex items-start gap-2"><input type="checkbox" name="showOnPayslip" defaultChecked={v.showOnPayslip} className="mt-0.5" /> <span>{t("contrib.f.showOnPayslip")}<span className="block text-xs text-muted-foreground">{t("contrib.f.showOnPayslipHint")}</span></span></label>
         </div>
         <F name="notes" label={t("contrib.f.notes")} className="sm:col-span-2"><Textarea id="notes" name="notes" rows={3} defaultValue={v.notes} maxLength={500} /></F>
       </div>
       {basis === "STATUTORY" && <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs">{t("contrib.statutoryWarning")}</p>}
+      {v.id && v.approved && <p className="rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs">{t("contrib.changeResetsApproval")}</p>}
       <div className="flex justify-end"><SubmitButton>{v.id ? t("common.saveChanges") : t("common.create")}</SubmitButton></div>
     </ActionForm>
   );

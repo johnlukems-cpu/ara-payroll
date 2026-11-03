@@ -5,6 +5,7 @@ import { requirePage } from "@/lib/server/auth";
 import { getI18n } from "@/lib/server/i18n";
 import { can } from "@/lib/permissions";
 import { findRuleSet } from "@/lib/payroll/service";
+import { missingStatutoryContributions } from "@/lib/server/pay-components";
 import { daysAgo } from "@/lib/format";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, EmptyState, PageHeader, Stat } from "@/components/ui/misc";
@@ -32,6 +33,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
     showPay ? db.payrollRun.findMany({ where: { companyId }, orderBy: [{ year: "desc" }, { month: "desc" }], take: 12 }) : Promise.resolve([]),
     findRuleSet(companyId, new Date()),
   ]);
+  const now = new Date();
+  const missing = showPay ? await missingStatutoryContributions(companyId, now.getUTCFullYear(), now.getUTCMonth() + 1) : [];
   const last = runs.find((r) => r.status !== "DRAFT");
   const baseCur = ctx.company.currency;
   const trend = [...runs].reverse().filter((r) => r.status !== "DRAFT" && r.currency === baseCur).map((r) => ({
@@ -52,6 +55,12 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
         {sp.welcome && <Alert variant="success">{t("dashboard.welcome")}</Alert>}
         {sp.denied && <Alert variant="error">{t("dashboard.denied")}</Alert>}
         {!ruleSet && <Alert variant="warning">{t("dashboard.noRules")}</Alert>}
+        {missing.length > 0 && (
+          <Alert variant="warning">
+            <span data-testid="dashboard-contrib-missing">{t("dashboard.contribMissing", { list: missing.map((m) => t(`enums.contributionType.${m.type}`)).join(", ") })}</span>{" "}
+            {can(ctx.role, "settings.manage") && <Link href="/app/settings/contributions" className="font-medium underline">{t("dashboard.contribConfigure")}</Link>}
+          </Alert>
+        )}
         {ruleSet && !ruleSet.isVerified && can(ctx.role, "settings.manage") && (
           <Alert variant="warning">
             {t("dashboard.unverified", { name: ruleSet.name })}{" "}

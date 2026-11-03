@@ -284,7 +284,9 @@
     "attentionSub": "Punten die actie vereisen",
     "payrollPeriod": "Salarisadministratie {period}",
     "payBy": "{period} uitbetalen vóór {date}",
-    "employerCostsSub": "waarvan werkgeverslasten {amount}"
+    "employerCostsSub": "waarvan werkgeverslasten {amount}",
+    "contribMissing": "Wettelijke bijdrageregeling(en) nog niet ingesteld en goedgekeurd: {list}. Salarisruns kunnen pas definitief worden gemaakt als dit is opgelost.",
+    "contribConfigure": "Bijdragen instellen"
   },
   "charts": {
     "net": "Nettoloon",
@@ -594,7 +596,9 @@
     "addExtra": {
       "ALLOWANCE": "Extra toelage toevoegen",
       "DEDUCTION": "Extra inhouding toevoegen"
-    }
+    },
+    "statutoryMissing": "Definitief maken is geblokkeerd: de wettelijke regeling(en) {list} zijn voor deze periode niet ingesteld en goedgekeurd.",
+    "statutoryMissingLink": "Naar Bijdragen"
   },
   "payslip": {
     "title": "Loonstrook",
@@ -1281,7 +1285,11 @@
     "schemeUsedNewVersion": "Deze regeling is al gebruikt in een goedgekeurde loonrun. Wijzig tarieven via 'Nieuwe versie maken', zodat historische loonstroken ongewijzigd blijven.",
     "schemeNoRates": "Vul een werknemers- of werkgeverstarief in voordat u de regeling activeert.",
     "useContributionScheme": "Ziektekosten-, pensioen- en FVO-bijdragen worden via de bijdrageregeling verwerkt (werknemers- en werkgeversaandeel).",
-    "versionAfterStart": "De nieuwe versie moet na de ingangsdatum van de huidige versie beginnen."
+    "versionAfterStart": "De nieuwe versie moet na de ingangsdatum van de huidige versie beginnen.",
+    "schemeEndInFinalPeriod": "Deze regeling is gebruikt in goedgekeurde loonruns: de einddatum kan niet in een afgesloten loonperiode vallen.",
+    "versionInFinalPeriod": "Een nieuwe versie kan niet ingaan in een loonperiode die al definitief is gemaakt.",
+    "schemeNotApplicable": "Deze regeling is gemarkeerd als niet van toepassing.",
+    "statutoryConfigMissing": "De salarisrun kan niet definitief worden gemaakt: de wettelijke regeling(en) {list} zijn niet ingesteld en goedgekeurd (Instellingen → Bijdragen)."
   },
   "bracket": {
     "required": "er is ten minste één schijf vereist",
@@ -2099,7 +2107,9 @@
       "validity": "Geldigheid",
       "legal": "Juridisch",
       "status": "Status",
-      "participation": "Deelname"
+      "participation": "Deelname",
+      "type": "Regeling",
+      "issues": "Controle"
     },
     "status": {
       "ended": "Beëindigd",
@@ -2121,8 +2131,6 @@
       "effectiveFrom": "Ingangsdatum",
       "effectiveTo": "Einddatum (optioneel)",
       "employeeTax": "Fiscale behandeling werknemersaandeel",
-      "active": "Actief",
-      "activeHint": "Alleen actieve regelingen worden in de salarisberekening verwerkt.",
       "appliesToAll": "Van toepassing op alle medewerkers",
       "appliesToAllHint": "Uit = alleen medewerkers die individueel zijn aangemeld.",
       "showOnPayslip": "Werkgeversaandeel op de loonstrook tonen",
@@ -2137,9 +2145,9 @@
     },
     "statutoryWarning": "Wettelijke regeling: tarieven, grondslag en verdeling zijn in ARA Payroll niet geverifieerd. Een loonrun met een niet-geverifieerde regeling krijgt de status 'wettelijke validatie in behandeling'.",
     "versionTitle": "Tarief wijzigen met ingang van een datum",
-    "versionSub": "Maakt een nieuwe versie; de huidige versie eindigt de dag ervoor. Goedgekeurde loonstroken blijven ongewijzigd.",
+    "versionSub": "Maakt een conceptversie met een nieuwe ingangsdatum. De huidige versie blijft gelden tot de nieuwe versie is goedgekeurd; afgesloten loonperiodes blijven ongewijzigd.",
     "newVersion": "Nieuwe versie maken",
-    "versionCreated": "Nieuwe versie aangemaakt. Pas de tarieven aan en sla op.",
+    "versionCreated": "Conceptversie aangemaakt. Pas de tarieven aan, sla op en keur goed; de vorige versie blijft gelden tot de goedkeuring.",
     "employeeTabTitle": "Werknemers- en werkgeversbijdragen",
     "employeeTabSub": "Ziektekostenverzekering, pensioen en FVO: het werknemersaandeel wordt ingehouden, het werkgeversaandeel komt bij de werkgeverslasten.",
     "contractPensionIgnored": "Het pensioenpercentage uit de arbeidsovereenkomst wordt niet toegepast zolang de regeling “{name}” van toepassing is (geen dubbele inhouding).",
@@ -2156,7 +2164,58 @@
     "enrollmentRemoved": "Individuele afspraak verwijderd; de standaard van de regeling geldt weer.",
     "sharesLine": "Werknemer {employee} · werkgever {employer}",
     "viaScheme": "Via regeling",
-    "lookalikes": "Controleer deze eigen componenten: ze lijken op ziektekosten, pensioen of FVO en worden niet automatisch als dezelfde bijdrage herkend: {list}. Beëindig ze wanneer de regeling dezelfde bijdrage inhoudt, om dubbele inhouding te voorkomen."
+    "lookalikes": "Controleer deze eigen componenten: ze lijken op ziektekosten, pensioen of FVO en worden niet automatisch als dezelfde bijdrage herkend: {list}. Beëindig ze wanneer de regeling dezelfde bijdrage inhoudt, om dubbele inhouding te voorkomen.",
+    "state": {
+      "ACTIVE": "Actief",
+      "FUTURE": "Actief vanaf ingangsdatum",
+      "ENDED": "Beëindigd",
+      "INACTIVE": "Inactief",
+      "AWAITING_APPROVAL": "Wacht op goedkeuring",
+      "NOT_CONFIGURED": "Niet geconfigureerd",
+      "NOT_APPLICABLE": "Niet van toepassing"
+    },
+    "issue": {
+      "NOT_CONFIGURED": "Geen werknemers- of werkgeverstarief ingesteld",
+      "AWAITING_APPROVAL": "Tarieven ingesteld maar nog niet goedgekeurd",
+      "NOT_ACTIVE": "Goedgekeurd maar niet actief",
+      "LEGAL_UNVERIFIED": "Wettelijke grondslag niet geverifieerd",
+      "NO_LEGAL_REFERENCE": "Geen wettelijke bron vermeld"
+    },
+    "blocksPayroll": "blokkeert het definitief maken van salarisruns",
+    "validationTitle": "Validatieoverzicht",
+    "validationSub": "Welke regelingen actief, inactief of onvolledig geconfigureerd zijn, en of salarisruns definitief gemaakt kunnen worden.",
+    "count": {
+      "active": "Actief",
+      "inactive": "Inactief / niet van toepassing",
+      "incomplete": "Onvolledig geconfigureerd"
+    },
+    "payrollBlocked": "Salarisruns voor {period} kunnen niet definitief worden gemaakt: de wettelijke regeling(en) {list} zijn niet ingesteld en goedgekeurd. Stel de tarieven in op basis van geverifieerde regelgeving en keur ze goed, of markeer de regeling als niet van toepassing.",
+    "payrollReady": "Alle wettelijke regelingen voor {period} zijn ingesteld en goedgekeurd of als niet van toepassing gemarkeerd.",
+    "configure": "Instellen",
+    "savedDraft": "Regeling opgeslagen als concept. Een eigenaar of beheerder moet de tarieven goedkeuren voordat de regeling wordt gebruikt.",
+    "savedNeedsApproval": "Regeling opgeslagen. De tarieven zijn gewijzigd: de regeling is gedeactiveerd tot ze opnieuw is goedgekeurd.",
+    "changeResetsApproval": "Let op: wijzigt u tarieven of berekeningsinstellingen, dan wordt de regeling gedeactiveerd tot een eigenaar of beheerder de nieuwe tarieven goedkeurt.",
+    "statusTitle": "Status en goedkeuring",
+    "statusSub": "Een regeling wordt pas in de salarisberekening gebruikt als de tarieven zijn ingesteld, goedgekeurd en de regeling actief is.",
+    "approvedBy": "Goedgekeurd op {date} door {name}.",
+    "notApplicableReason": "Niet van toepassing: {reason}",
+    "approve": "Tarieven goedkeuren en activeren",
+    "approveConfirm": "Bevestigt u dat de tarieven en grondslag zijn gebaseerd op geverifieerde regelgeving of de geldende regeling?",
+    "approveOnlyAdmin": "Alleen een eigenaar of beheerder kan de tarieven goedkeuren en de regeling activeren.",
+    "deactivate": "Deactiveren",
+    "deactivateConfirm": "De regeling wordt niet meer in nieuwe berekeningen gebruikt. Doorgaan?",
+    "markNotApplicable": "Markeren als niet van toepassing",
+    "markNotApplicableSubmit": "Niet van toepassing",
+    "markApplicable": "Weer van toepassing maken",
+    "reason": "Reden",
+    "reasonPlaceholder": "Bijvoorbeeld: werkgever valt niet onder deze regeling volgens …",
+    "reasonRequired": "Geef een reden op (minimaal 5 tekens).",
+    "notApplicableHint": "Alleen gebruiken als vaststaat dat de regeling niet op dit bedrijf van toepassing is. De beslissing en de reden worden in het auditlogboek vastgelegd.",
+    "approved": "{name} is goedgekeurd en actief.",
+    "deactivated": "{name} is gedeactiveerd.",
+    "markedNotApplicable": "{name} is gemarkeerd als niet van toepassing.",
+    "markedApplicable": "{name} is weer van toepassing en moet worden ingesteld en goedgekeurd.",
+    "notApplicableList": "Niet van toepassing: {list}."
   },
   "pricing": {
     "eyebrow": "Prijzen",

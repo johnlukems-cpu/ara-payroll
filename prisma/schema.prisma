@@ -674,32 +674,39 @@ model PayslipLine {
 /// Contribution scheme (health insurance, pension, FVO) with separate employee and employer shares.
 /// Rates are never prefilled: they must be configured and, for statutory schemes, verified.
 model ContributionScheme {
-  id             String                 @id @default(cuid())
-  companyId      String
-  type           ContributionType
-  name           String
-  basis          ContributionBasis
-  method         ContributionMethod     @default(PERCENTAGE)
-  base           ContributionBase       @default(BASE_SALARY)
-  employeeRateBp Int                    @default(0) // werknemerspercentage
-  employerRateBp Int                    @default(0) // werkgeverspercentage
-  employeeAmount Int                    @default(0) // fixed monthly employee share (minor units of currency)
-  employerAmount Int                    @default(0) // fixed monthly employer share
-  maxBaseMonthly Int? // optional maximum monthly base (minor units of currency)
-  currency       String
-  effectiveFrom  DateTime
-  effectiveTo    DateTime?
-  isActive       Boolean                @default(false)
-  appliesToAll   Boolean                @default(true) // false = only employees enrolled individually
-  employeeTax    ContributionTax        @default(AFTER_TAX)
-  showOnPayslip  Boolean                @default(true) // print the employer share on the payslip
-  legalStatus    LegalStatus            @default(COMPANY_POLICY)
-  legalReference String?
-  notes          String?
-  createdAt      DateTime               @default(now())
-  updatedAt      DateTime               @default(now()) @updatedAt
-  company        Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  enrollments    EmployeeContribution[]
+  id                  String                 @id @default(cuid())
+  companyId           String
+  type                ContributionType
+  name                String
+  basis               ContributionBasis
+  method              ContributionMethod     @default(PERCENTAGE)
+  base                ContributionBase       @default(BASE_SALARY)
+  employeeRateBp      Int                    @default(0) // werknemerspercentage
+  employerRateBp      Int                    @default(0) // werkgeverspercentage
+  employeeAmount      Int                    @default(0) // fixed monthly employee share (minor units of currency)
+  employerAmount      Int                    @default(0) // fixed monthly employer share
+  maxBaseMonthly      Int? // optional maximum monthly base (minor units of currency)
+  currency            String
+  effectiveFrom       DateTime
+  effectiveTo         DateTime?
+  isActive            Boolean                @default(false)
+  appliesToAll        Boolean                @default(true) // false = only employees enrolled individually
+  employeeTax         ContributionTax        @default(AFTER_TAX)
+  showOnPayslip       Boolean                @default(true) // print the employer share on the payslip
+  legalStatus         LegalStatus            @default(COMPANY_POLICY)
+  legalReference      String?
+  notes               String?
+  /// Rates approved by an owner/administrator. Cleared whenever a calculation setting changes;
+  /// payroll only uses schemes that are active AND approved.
+  approvedAt          DateTime?
+  approvedById        String?
+  /// Explicit decision that this (statutory) scheme does not apply to the company, with the reason.
+  notApplicable       Boolean                @default(false)
+  notApplicableReason String?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @default(now()) @updatedAt
+  company             Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  enrollments         EmployeeContribution[]
 
   @@index([companyId, type])
 }

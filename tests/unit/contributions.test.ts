@@ -145,3 +145,54 @@ describe("pricing configuration", () => {
     expect(PLANS.map(planHref)).toEqual(["/register?plan=starter", "/register?plan=business", "/register?plan=professional", "/contact?type=quote&plan=enterprise"]);
   });
 });
+
+import { isEffective, schemeIssues, schemeState, statutoryGaps, type SchemeLike } from "@/lib/payroll/contributions";
+
+describe("scheme validation", () => {
+  const now = d("2026-03-15");
+  const base: SchemeLike = {
+    type: "HEALTH", basis: "STATUTORY", method: "PERCENTAGE", employeeRateBp: 0, employerRateBp: 0, employeeAmount: 0, employerAmount: 0,
+    isActive: false, approvedAt: null, notApplicable: false, effectiveFrom: d("2026-01-01"), effectiveTo: null, legalStatus: "PENDING_VERIFICATION", legalReference: "ref",
+  };
+  const configured = { ...base, employeeRateBp: 200 };
+  const approved = { ...configured, approvedAt: d("2026-01-02") };
+  const active = { ...approved, isActive: true };
+
+  it("derives the lifecycle state", () => {
+    expect(schemeState(base, now)).toBe("NOT_CONFIGURED");
+    expect(schemeState(configured, now)).toBe("AWAITING_APPROVAL");
+    expect(schemeState(approved, now)).toBe("INACTIVE");
+    expect(schemeState(active, now)).toBe("ACTIVE");
+    expect(schemeState({ ...active, effectiveFrom: d("2026-06-01") }, now)).toBe("FUTURE");
+    expect(schemeState({ ...active, effectiveTo: d("2026-02-28") }, now)).toBe("ENDED");
+    expect(schemeState({ ...base, notApplicable: true }, now)).toBe("NOT_APPLICABLE");
+    expect(schemeState({ ...base, method: "FIXED", employerAmount: 100 }, now)).toBe("AWAITING_APPROVAL");
+  });
+
+  it("only uses active, approved and configured schemes in payroll", () => {
+    expect([base, configured, approved, active, { ...active, notApplicable: true }].map(isEffective)).toEqual([false, false, false, true, false]);
+  });
+
+  it("reports blocking issues for statutory schemes and warnings otherwise", () => {
+    expect(schemeIssues(base)).toEqual([{ code: "NOT_CONFIGURED", blocking: true }, { code: "LEGAL_UNVERIFIED", blocking: false }]);
+    expect(schemeIssues(configured)[0]).toEqual({ code: "AWAITING_APPROVAL", blocking: true });
+    expect(schemeIssues(approved)[0]).toEqual({ code: "NOT_ACTIVE", blocking: true });
+    expect(schemeIssues({ ...active, legalStatus: "VERIFIED" })).toEqual([]);
+    expect(schemeIssues({ ...base, basis: "VOLUNTARY" })).toEqual([{ code: "NOT_CONFIGURED", blocking: false }]);
+    expect(schemeIssues({ ...active, legalReference: null }).map((i) => i.code)).toContain("NO_LEGAL_REFERENCE");
+    expect(schemeIssues({ ...base, notApplicable: true })).toEqual([]);
+  });
+
+  it("finds statutory types without a usable scheme in a period", () => {
+    const p = [d("2026-03-01"), d("2026-03-31")] as const;
+    const fvo = { ...base, type: "FVO" as const };
+    const pension = { ...base, type: "PENSION" as const, basis: "VOLUNTARY" as const };
+    expect(statutoryGaps([base, fvo, pension], ...p)).toEqual(["HEALTH", "FVO"]); // voluntary pension never blocks
+    expect(statutoryGaps([active, fvo], ...p)).toEqual(["FVO"]);
+    expect(statutoryGaps([active, { ...fvo, notApplicable: true }], ...p)).toEqual([]);
+    // A new draft version does not create a gap while the approved version still covers the period.
+    expect(statutoryGaps([active, { ...configured, effectiveFrom: d("2026-03-01") }, { ...fvo, notApplicable: true }], ...p)).toEqual([]);
+    // Statutory schemes starting after the period do not block it.
+    expect(statutoryGaps([{ ...base, effectiveFrom: d("2026-04-01") }], ...p)).toEqual([]);
+  });
+});

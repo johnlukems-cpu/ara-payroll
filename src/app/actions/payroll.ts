@@ -14,7 +14,7 @@ import { assertActiveCurrency } from "@/lib/server/rates";
 import { getI18n } from "@/lib/server/i18n";
 import { assertPeriodReopenable, prepareMonthlyDeclaration } from "@/lib/server/declarations";
 import { dateField } from "@/lib/validation";
-import { assertNoIncidentalDuplicate, assertPensionNotDouble, parseOverrides, resolveComponent } from "@/lib/server/pay-components";
+import { assertNoIncidentalDuplicate, assertPensionNotDouble, missingStatutoryContributions, parseOverrides, resolveComponent } from "@/lib/server/pay-components";
 
 async function loadRun(companyId: string, runId: string) {
   const run = await db.payrollRun.findFirst({ where: { id: runId, companyId } });
@@ -229,6 +229,12 @@ export async function approveRunAction(_: ActionState, fd: FormData): Promise<Ac
     if (run.status !== "CALCULATED") throw new UserError("errors.onlyCalculatedApprove");
     if (run.employeeCount === 0) throw new UserError("errors.noPayslips");
     // Statutory rules not (yet) legally validated: approval requires an explicit acknowledgement and is recorded as such.
+    // A required statutory configuration (e.g. a statutory contribution scheme without approved rates) blocks finalising.
+    const missing = await missingStatutoryContributions(ctx.company.id, run.year, run.month);
+    if (missing.length) {
+      const t = await getTranslations();
+      throw new UserError("errors.statutoryConfigMissing", { list: missing.map((m) => t(`enums.contributionType.${m.type}`)).join(", ") });
+    }
     const pending = run.legalStatus !== "VALIDATED";
     if (pending && fd.get("acknowledgePending") !== "on") throw new UserError("errors.acknowledgeLegalPending");
     // Contracts, leave, exchange rates, tax rules or components may have changed since the calculation.

@@ -284,7 +284,9 @@
     "attentionSub": "Items awaiting action",
     "payrollPeriod": "Payroll {period}",
     "payBy": "Pay {period} by {date}",
-    "employerCostsSub": "of which employer costs {amount}"
+    "employerCostsSub": "of which employer costs {amount}",
+    "contribMissing": "Statutory contribution scheme(s) not yet configured and approved: {list}. Payroll runs can only be finalised once this is resolved.",
+    "contribConfigure": "Configure contributions"
   },
   "charts": {
     "net": "Net pay",
@@ -594,7 +596,9 @@
     "addExtra": {
       "ALLOWANCE": "Add extra allowance",
       "DEDUCTION": "Add extra deduction"
-    }
+    },
+    "statutoryMissing": "Finalising is blocked: the statutory scheme(s) {list} have not been configured and approved for this period.",
+    "statutoryMissingLink": "Go to Contributions"
   },
   "payslip": {
     "title": "Payslip",
@@ -1281,7 +1285,11 @@
     "schemeUsedNewVersion": "This scheme was used in an approved payroll run. Change rates via 'Create new version' so historical payslips stay unchanged.",
     "schemeNoRates": "Enter an employee or employer rate before activating the scheme.",
     "useContributionScheme": "Health insurance, pension and FVO contributions are processed through the contribution scheme (employee and employer contribution).",
-    "versionAfterStart": "The new version must start after the start date of the current version."
+    "versionAfterStart": "The new version must start after the start date of the current version.",
+    "schemeEndInFinalPeriod": "This scheme was used in approved payroll runs: its end date cannot fall in a finalised pay period.",
+    "versionInFinalPeriod": "A new version cannot start in a pay period that has already been finalised.",
+    "schemeNotApplicable": "This scheme is marked as not applicable.",
+    "statutoryConfigMissing": "The payroll run cannot be finalised: the statutory scheme(s) {list} have not been configured and approved (Settings → Contributions)."
   },
   "bracket": {
     "required": "at least one bracket is required",
@@ -2099,7 +2107,9 @@
       "validity": "Validity",
       "legal": "Legal",
       "status": "Status",
-      "participation": "Participation"
+      "participation": "Participation",
+      "type": "Scheme",
+      "issues": "Checks"
     },
     "status": {
       "ended": "Ended",
@@ -2121,8 +2131,6 @@
       "effectiveFrom": "Start date",
       "effectiveTo": "End date (optional)",
       "employeeTax": "Tax treatment of the employee contribution",
-      "active": "Active",
-      "activeHint": "Only active schemes are processed in payroll.",
       "appliesToAll": "Applies to all employees",
       "appliesToAllHint": "Off = only individually enrolled employees.",
       "showOnPayslip": "Show the employer contribution on the payslip",
@@ -2137,9 +2145,9 @@
     },
     "statutoryWarning": "Statutory scheme: rates, base and split are not verified in ARA Payroll. A payroll run with an unverified scheme is marked 'pending legal validation'.",
     "versionTitle": "Change rates from a date",
-    "versionSub": "Creates a new version; the current version ends the day before. Approved payslips remain unchanged.",
+    "versionSub": "Creates a draft version with a new start date. The current version keeps applying until the new version is approved; finalised pay periods remain unchanged.",
     "newVersion": "Create new version",
-    "versionCreated": "New version created. Adjust the rates and save.",
+    "versionCreated": "Draft version created. Adjust the rates, save and approve; the previous version keeps applying until approval.",
     "employeeTabTitle": "Employee and employer contributions",
     "employeeTabSub": "Health insurance, pension and FVO: the employee contribution is deducted, the employer contribution is added to employer costs.",
     "contractPensionIgnored": "The pension percentage of the employment contract is not applied while the scheme “{name}” applies (no double deduction).",
@@ -2156,7 +2164,58 @@
     "enrollmentRemoved": "Individual arrangement removed; the scheme default applies again.",
     "sharesLine": "Employee {employee} · employer {employer}",
     "viaScheme": "Via scheme",
-    "lookalikes": "Check these custom components: they look like health insurance, pension or FVO and are not recognised automatically as the same contribution: {list}. End them when the scheme deducts the same contribution, to avoid double deductions."
+    "lookalikes": "Check these custom components: they look like health insurance, pension or FVO and are not recognised automatically as the same contribution: {list}. End them when the scheme deducts the same contribution, to avoid double deductions.",
+    "state": {
+      "ACTIVE": "Active",
+      "FUTURE": "Active from start date",
+      "ENDED": "Ended",
+      "INACTIVE": "Inactive",
+      "AWAITING_APPROVAL": "Awaiting approval",
+      "NOT_CONFIGURED": "Not configured",
+      "NOT_APPLICABLE": "Not applicable"
+    },
+    "issue": {
+      "NOT_CONFIGURED": "No employee or employer rate set",
+      "AWAITING_APPROVAL": "Rates set but not yet approved",
+      "NOT_ACTIVE": "Approved but not active",
+      "LEGAL_UNVERIFIED": "Legal basis not verified",
+      "NO_LEGAL_REFERENCE": "No legal source recorded"
+    },
+    "blocksPayroll": "blocks finalising payroll runs",
+    "validationTitle": "Validation overview",
+    "validationSub": "Which schemes are active, inactive or incompletely configured, and whether payroll runs can be finalised.",
+    "count": {
+      "active": "Active",
+      "inactive": "Inactive / not applicable",
+      "incomplete": "Incompletely configured"
+    },
+    "payrollBlocked": "Payroll runs for {period} cannot be finalised: the statutory scheme(s) {list} have not been configured and approved. Set the rates based on verified regulations and approve them, or mark the scheme as not applicable.",
+    "payrollReady": "All statutory schemes for {period} are configured and approved or marked as not applicable.",
+    "configure": "Configure",
+    "savedDraft": "Scheme saved as a draft. An owner or administrator must approve the rates before the scheme is used.",
+    "savedNeedsApproval": "Scheme saved. The rates changed: the scheme has been deactivated until it is approved again.",
+    "changeResetsApproval": "Note: changing rates or calculation settings deactivates the scheme until an owner or administrator approves the new rates.",
+    "statusTitle": "Status and approval",
+    "statusSub": "A scheme is only used in payroll once its rates are set and approved and the scheme is active.",
+    "approvedBy": "Approved on {date} by {name}.",
+    "notApplicableReason": "Not applicable: {reason}",
+    "approve": "Approve rates and activate",
+    "approveConfirm": "Do you confirm that the rates and base are based on verified regulations or the applicable scheme rules?",
+    "approveOnlyAdmin": "Only an owner or administrator can approve the rates and activate the scheme.",
+    "deactivate": "Deactivate",
+    "deactivateConfirm": "The scheme will no longer be used in new calculations. Continue?",
+    "markNotApplicable": "Mark as not applicable",
+    "markNotApplicableSubmit": "Not applicable",
+    "markApplicable": "Make applicable again",
+    "reason": "Reason",
+    "reasonPlaceholder": "For example: the employer is not covered by this scheme under …",
+    "reasonRequired": "Enter a reason (at least 5 characters).",
+    "notApplicableHint": "Only use this when it is established that the scheme does not apply to this company. The decision and reason are recorded in the audit log.",
+    "approved": "{name} is approved and active.",
+    "deactivated": "{name} has been deactivated.",
+    "markedNotApplicable": "{name} is marked as not applicable.",
+    "markedApplicable": "{name} applies again and must be configured and approved.",
+    "notApplicableList": "Not applicable: {list}."
   },
   "pricing": {
     "eyebrow": "Pricing",

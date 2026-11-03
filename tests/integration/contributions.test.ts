@@ -10,6 +10,7 @@ import { calculateRun } from "@/lib/payroll/service";
 import { DEFAULT_SR_RULES } from "@/lib/payroll/defaults";
 import { seedCompanyDefaults } from "@/lib/server/company-setup";
 import { contributionReport } from "@/lib/server/reports";
+import { missingStatutoryContributions } from "@/lib/server/pay-components";
 
 const db = new PrismaClient();
 const SRD = (v: number) => Math.round(v * 100);
@@ -61,11 +62,26 @@ describe("contribution schemes in payroll", () => {
     expect((await slip(run.id, anna)).lines.some((l) => /^(HEALTH|PENSION|FVO)-/.test(l.code))).toBe(false);
   });
 
+  it("blocks finalising while statutory schemes are not configured and approved, and ignores unapproved schemes", async () => {
+    const missing = await missingStatutoryContributions(companyId, 2026, 1);
+    expect(missing.map((m) => m.type)).toEqual(["HEALTH", "FVO"]); // statutory by default; voluntary pension does not block
+    // Rates set and even marked active, but not approved: not used in payroll, still blocking.
+    await db.contributionScheme.updateMany({ where: { companyId, type: "HEALTH" }, data: { isActive: true, employeeRateBp: 200, employerRateBp: 300, effectiveFrom: d("2026-01-01") } });
+    const run = await db.payrollRun.findFirstOrThrow({ where: { companyId, month: 1 } });
+    await calculateRun(run.id);
+    expect((await slip(run.id, anna)).lines.some((l) => l.code.startsWith("HEALTH-"))).toBe(false);
+    expect((await missingStatutoryContributions(companyId, 2026, 1)).map((m) => m.type)).toEqual(["HEALTH", "FVO"]);
+    // Marking FVO as not applicable (explicit decision) removes it from the blocking list.
+    await db.contributionScheme.updateMany({ where: { companyId, type: "FVO" }, data: { notApplicable: true, notApplicableReason: "test" } });
+    expect((await missingStatutoryContributions(companyId, 2026, 1)).map((m) => m.type)).toEqual(["HEALTH"]);
+    await db.contributionScheme.updateMany({ where: { companyId, type: "FVO" }, data: { notApplicable: false, notApplicableReason: null } });
+  });
+
   it("processes employee and employer shares separately, with individual rates, opt-out and currency conversion", async () => {
-    await db.contributionScheme.updateMany({ where: { companyId, type: "HEALTH" }, data: { isActive: true, method: "PERCENTAGE", employeeRateBp: 200, employerRateBp: 300, effectiveFrom: d("2026-01-01") } });
-    await db.contributionScheme.updateMany({ where: { companyId, type: "PENSION" }, data: { isActive: true, employeeRateBp: 400, employerRateBp: 600, employeeTax: "PRE_TAX", effectiveFrom: d("2026-01-01") } });
+    await db.contributionScheme.updateMany({ where: { companyId, type: "HEALTH" }, data: { isActive: true, approvedAt: new Date(), method: "PERCENTAGE", employeeRateBp: 200, employerRateBp: 300, effectiveFrom: d("2026-01-01") } });
+    await db.contributionScheme.updateMany({ where: { companyId, type: "PENSION" }, data: { isActive: true, approvedAt: new Date(), employeeRateBp: 400, employerRateBp: 600, employeeTax: "PRE_TAX", effectiveFrom: d("2026-01-01") } });
     // FVO: fixed USD amounts, converted at the approved period-end rate.
-    await db.contributionScheme.updateMany({ where: { companyId, type: "FVO" }, data: { isActive: true, method: "FIXED", employeeAmount: 200, employerAmount: 500, currency: "USD", effectiveFrom: d("2026-01-01") } });
+    await db.contributionScheme.updateMany({ where: { companyId, type: "FVO" }, data: { isActive: true, approvedAt: new Date(), method: "FIXED", employeeAmount: 200, employerAmount: 500, currency: "USD", effectiveFrom: d("2026-01-01") } });
     await db.exchangeRate.create({ data: { companyId, baseCurrency: "USD", quoteCurrency: "SRD", rate: "40", effectiveDate: d("2026-01-01"), status: "APPROVED" } });
     const health = await db.contributionScheme.findFirstOrThrow({ where: { companyId, type: "HEALTH" } });
     const pension = await db.contributionScheme.findFirstOrThrow({ where: { companyId, type: "PENSION" } });
@@ -73,6 +89,7 @@ describe("contribution schemes in payroll", () => {
     await db.employeeContribution.create({ data: { employeeId: bob, schemeId: pension.id, participates: false } }); // opted out
 
     const run = await db.payrollRun.create({ data: { companyId, year: 2026, month: 2, payDate: d("2026-02-25") } });
+    expect(await missingStatutoryContributions(companyId, 2026, 2)).toEqual([]); // all statutory schemes approved and active
     await calculateRun(run.id);
     const a = await slip(run.id, anna);
     expect(line(a, "HEALTH-EE")).toBe(SRD(400)); // 2% of 20,000

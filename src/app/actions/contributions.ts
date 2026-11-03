@@ -13,6 +13,7 @@ import { formObject, handleError, ok, UserError, type ActionState } from "@/lib/
 import { recalcOpenRuns } from "@/lib/server/pay-components";
 import { calculateRun } from "@/lib/payroll/service";
 import { CONTRIBUTION_LIBRARY } from "@/lib/payroll/library";
+import { isConfigured } from "@/lib/payroll/contributions";
 import { can } from "@/lib/permissions";
 import { currencyField, dateField, moneyField, optionalDate, optionalText, percentField } from "@/lib/validation";
 
@@ -32,7 +33,6 @@ const schemeSchema = z.object({
   currency: currencyField,
   effectiveFrom: dateField,
   effectiveTo: optionalDate,
-  isActive: checkbox,
   appliesToAll: checkbox,
   employeeTax: z.enum(["PRE_TAX", "AFTER_TAX"]),
   showOnPayslip: checkbox,
@@ -74,55 +74,54 @@ export async function saveSchemeAction(_: ActionState, fd: FormData): Promise<Ac
       employeeRateBp: d.method === "PERCENTAGE" ? d.employeeRate : 0, employerRateBp: d.method === "PERCENTAGE" ? d.employerRate : 0,
       employeeAmount: d.method === "FIXED" ? d.employeeAmount : 0, employerAmount: d.method === "FIXED" ? d.employerAmount : 0,
       maxBaseMonthly: d.method === "PERCENTAGE" && raw.maxBase ? d.maxBase : null,
-      currency: d.currency, effectiveFrom: d.effectiveFrom, effectiveTo: d.effectiveTo, isActive: d.isActive, appliesToAll: d.appliesToAll,
+      currency: d.currency, effectiveFrom: d.effectiveFrom, effectiveTo: d.effectiveTo, appliesToAll: d.appliesToAll,
       employeeTax: d.employeeTax, showOnPayslip: d.showOnPayslip, legalStatus: d.legalStatus, legalReference: d.legalReference, notes: d.notes,
     };
-    // No invented rates: an active scheme for all employees needs a configured employee or employer share.
-    const noShares = data.employeeRateBp === 0 && data.employerRateBp === 0 && data.employeeAmount === 0 && data.employerAmount === 0;
-    if (d.isActive && d.appliesToAll && noShares) return fail(d.method === "FIXED" ? "employeeAmount" : "employeeRate", "errors.schemeNoRates");
-
     const existing = raw.id ? await db.contributionScheme.findFirst({ where: { id: raw.id, companyId: ctx.company.id } }) : null;
     if (raw.id && !existing) throw new UserError("errors.notFound");
     if (existing && existing.type !== d.type) throw new UserError("errors.schemeTypeLocked");
-    if (existing && CALC_FIELDS.some((k) => String(existing[k] ?? "") !== String(data[k] ?? "")) && (await usedInFinalPayroll(existing))) {
-      throw new UserError("errors.schemeUsedNewVersion");
+    const calcChanged = !!existing && CALC_FIELDS.some((k) => String(existing[k] ?? "") !== String(data[k] ?? ""));
+    // Approved payslips are never changed retroactively: rates of a scheme used in final payroll change via a new version,
+    // and its end date cannot fall inside a period that has already been finalised.
+    if (existing && (calcChanged || String(existing.effectiveTo ?? "") !== String(data.effectiveTo ?? "")) && (await usedInFinalPayroll(existing))) {
+      if (calcChanged) throw new UserError("errors.schemeUsedNewVersion");
+      const lastFinal = await lastFinalPeriodEnd(ctx.company.id);
+      if (data.effectiveTo && lastFinal && data.effectiveTo < lastFinal) throw new UserError("errors.schemeEndInFinalPeriod");
     }
+    // Any change to rates or calculation settings requires a new approval before the scheme is used again.
+    const needsApproval = !existing || (calcChanged && !!existing.approvedAt);
+    const approval = !existing ? { isActive: false, approvedAt: null, approvedById: null } : calcChanged ? { isActive: false, approvedAt: null, approvedById: null } : {};
 
-    if (d.isActive) {
-      // Only one scheme of a type may apply to everyone in the same period.
-      const others = await db.contributionScheme.findMany({ where: { companyId: ctx.company.id, type: d.type, isActive: true, NOT: existing ? { id: existing.id } : undefined } });
-      const clash = others.find((o) => (o.appliesToAll || d.appliesToAll) && overlaps(o, data));
-      if (clash) throw new UserError("errors.schemeOverlap", { name: clash.name });
-      // Employees that already have a component deducting the same contribution would be charged twice.
-      if (d.appliesToAll) {
-        const conflicting = await db.employeePayComponent.findMany({
-          where: {
-            isActive: true, employee: { companyId: ctx.company.id, status: { not: "TERMINATED" } },
-            component: { OR: [{ libraryCode: { in: CONTRIBUTION_LIBRARY[d.type] } }, { code: { in: CONTRIBUTION_LIBRARY[d.type] } }] },
-            OR: [{ endDate: null }, { endDate: { gte: d.effectiveFrom } }],
-          },
-          include: { employee: true },
-          take: 4,
-        });
-        if (conflicting.length) throw new UserError("errors.schemeConflictsAssignments", { names: conflicting.slice(0, 3).map((c) => `${c.employee.firstName} ${c.employee.lastName}`).join(", ") });
-      }
-    }
-
-    if (existing) await db.contributionScheme.update({ where: { id: existing.id }, data });
-    else createdId = (await db.contributionScheme.create({ data: { ...data, companyId: ctx.company.id } })).id;
+    if (existing) await db.contributionScheme.update({ where: { id: existing.id }, data: { ...data, ...approval } });
+    else createdId = (await db.contributionScheme.create({ data: { ...data, ...approval, companyId: ctx.company.id } })).id;
     await audit({
       companyId: ctx.company.id, userId: ctx.user.id, action: existing ? "contribution.scheme_updated" : "contribution.scheme_created", entity: "ContributionScheme", entityId: existing?.id ?? createdId,
       details: { before: existing ? { ...Object.fromEntries(CALC_FIELDS.map((k) => [k, existing[k]])), isActive: existing.isActive } : null, after: { ...data, effectiveFrom: data.effectiveFrom.toISOString() } },
     });
     revalidatePath("/app/settings/contributions");
-    if (existing) return ok(t("contrib.saved"));
+    if (existing) return ok(needsApproval && existing.approvedAt ? t("contrib.savedNeedsApproval") : t("contrib.saved"));
   } catch (e) {
     return handleError(e);
   }
   redirect(`/app/settings/contributions?saved=${createdId}`);
 }
 
-/** New version of a scheme from a date: the current version ends the day before; history stays unchanged. */
+/** End of the most recent approved or paid payroll period of the company (null when none). */
+async function lastFinalPeriodEnd(companyId: string) {
+  const r = await db.payrollRun.findFirst({ where: { companyId, status: { in: ["APPROVED", "PAID"] } }, orderBy: [{ year: "desc" }, { month: "desc" }], select: { year: true, month: true } });
+  return r ? new Date(Date.UTC(r.year, r.month, 0, 23, 59, 59)) : null;
+}
+
+const requireApprover = async () => {
+  const ctx = await requirePermission("settings.manage");
+  if (ctx.role !== "OWNER" && ctx.role !== "ADMIN") throw new AuthError("errors.forbidden");
+  return ctx;
+};
+
+/**
+ * New version of a scheme from a date (e.g. a new rate). It starts as a draft (inactive, not approved); the current
+ * version keeps applying until the new version is approved. It cannot start in an already finalised period.
+ */
 export async function newSchemeVersionAction(_: ActionState, fd: FormData): Promise<ActionState> {
   let id: string;
   try {
@@ -132,12 +131,12 @@ export async function newSchemeVersionAction(_: ActionState, fd: FormData): Prom
     const s = await db.contributionScheme.findFirst({ where: { id: String(raw.id), companyId: ctx.company.id } });
     if (!s) throw new UserError("errors.notFound");
     if (from <= s.effectiveFrom) throw new UserError("errors.versionAfterStart");
-    const dayBefore = new Date(from.getTime() - 86_400_000);
+    const lastFinal = await lastFinalPeriodEnd(ctx.company.id);
+    if (lastFinal && from <= lastFinal) throw new UserError("errors.versionInFinalPeriod");
     const { id: _id, createdAt: _c, updatedAt: _u, ...copy } = s;
     void _id; void _c; void _u;
-    const created = await db.$transaction(async (tx) => {
-      await tx.contributionScheme.update({ where: { id: s.id }, data: { effectiveTo: dayBefore } });
-      return tx.contributionScheme.create({ data: { ...copy, effectiveFrom: from, effectiveTo: s.effectiveTo && s.effectiveTo > from ? s.effectiveTo : null } });
+    const created = await db.contributionScheme.create({
+      data: { ...copy, effectiveFrom: from, effectiveTo: s.effectiveTo && s.effectiveTo > from ? s.effectiveTo : null, isActive: false, approvedAt: null, approvedById: null, notApplicable: false, notApplicableReason: null },
     });
     // Individual participation carries over to the new version.
     const enrollments = await db.employeeContribution.findMany({ where: { schemeId: s.id } });
@@ -152,6 +151,88 @@ export async function newSchemeVersionAction(_: ActionState, fd: FormData): Prom
     return handleError(e);
   }
   redirect(`/app/settings/contributions/${id}?version=1`);
+}
+
+/**
+ * Approves the configured rates and activates the scheme (owners and administrators only). A previous version of
+ * the same scheme ends the day before this one starts; other overlapping schemes and conflicting components are refused.
+ */
+export async function approveSchemeAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireApprover();
+    const t = await getTranslations();
+    const s = await db.contributionScheme.findFirst({ where: { id: String(fd.get("id")), companyId: ctx.company.id } });
+    if (!s) throw new UserError("errors.notFound");
+    if (s.notApplicable) throw new UserError("errors.schemeNotApplicable");
+    if (!isConfigured(s)) throw new UserError("errors.schemeNoRates");
+    const others = await db.contributionScheme.findMany({ where: { companyId: ctx.company.id, type: s.type, isActive: true, approvedAt: { not: null }, NOT: { id: s.id } } });
+    const predecessors = others.filter((o) => o.appliesToAll === s.appliesToAll && o.name === s.name && o.effectiveFrom < s.effectiveFrom && overlaps(o, s));
+    const clash = others.find((o) => !predecessors.includes(o) && (o.appliesToAll || s.appliesToAll) && overlaps(o, s));
+    if (clash) throw new UserError("errors.schemeOverlap", { name: clash.name });
+    if (s.appliesToAll) {
+      // Employees that already have a component deducting the same contribution would be charged twice.
+      const conflicting = await db.employeePayComponent.findMany({
+        where: {
+          isActive: true, employee: { companyId: ctx.company.id, status: { not: "TERMINATED" } },
+          component: { OR: [{ libraryCode: { in: CONTRIBUTION_LIBRARY[s.type] } }, { code: { in: CONTRIBUTION_LIBRARY[s.type] } }] },
+          OR: [{ endDate: null }, { endDate: { gte: s.effectiveFrom } }],
+        },
+        include: { employee: true },
+        take: 4,
+      });
+      if (conflicting.length) throw new UserError("errors.schemeConflictsAssignments", { names: conflicting.slice(0, 3).map((c) => `${c.employee.firstName} ${c.employee.lastName}`).join(", ") });
+    }
+    const dayBefore = new Date(s.effectiveFrom.getTime() - 86_400_000);
+    await db.$transaction([
+      ...predecessors.map((o) => db.contributionScheme.update({ where: { id: o.id }, data: { effectiveTo: dayBefore } })),
+      db.contributionScheme.update({ where: { id: s.id }, data: { isActive: true, approvedAt: new Date(), approvedById: ctx.user.id } }),
+    ]);
+    await audit({
+      companyId: ctx.company.id, userId: ctx.user.id, action: "contribution.scheme_approved", entity: "ContributionScheme", entityId: s.id,
+      details: { type: s.type, method: s.method, employeeRateBp: s.employeeRateBp, employerRateBp: s.employerRateBp, employeeAmount: s.employeeAmount, employerAmount: s.employerAmount, effectiveFrom: s.effectiveFrom.toISOString(), endedPrevious: predecessors.map((o) => o.id) },
+    });
+    revalidatePath("/app/settings/contributions", "layout");
+    return ok(t("contrib.approved", { name: s.name }));
+  } catch (e) {
+    return handleError(e);
+  }
+}
+
+/** Deactivates a scheme (kept with its approval; it can be activated again by approving it). */
+export async function deactivateSchemeAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requirePermission("settings.manage");
+    const s = await db.contributionScheme.findFirst({ where: { id: String(fd.get("id")), companyId: ctx.company.id } });
+    if (!s) throw new UserError("errors.notFound");
+    await db.contributionScheme.update({ where: { id: s.id }, data: { isActive: false } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "contribution.scheme_deactivated", entity: "ContributionScheme", entityId: s.id });
+    revalidatePath("/app/settings/contributions", "layout");
+    return ok((await getTranslations())("contrib.deactivated", { name: s.name }));
+  } catch (e) {
+    return handleError(e);
+  }
+}
+
+/**
+ * Records the explicit decision that a scheme does not apply to the company (with the reason), or reverses it.
+ * Owners and administrators only; a statutory scheme marked as not applicable no longer blocks finalising payroll.
+ */
+export async function setSchemeApplicabilityAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireApprover();
+    const t = await getTranslations();
+    const s = await db.contributionScheme.findFirst({ where: { id: String(fd.get("id")), companyId: ctx.company.id } });
+    if (!s) throw new UserError("errors.notFound");
+    const notApplicable = fd.get("notApplicable") === "true";
+    const reason = String(fd.get("reason") ?? "").trim();
+    if (notApplicable && reason.length < 5) return { ok: false, message: t("validation.fixFields"), errors: { reason: [t("contrib.reasonRequired")] }, ts: Date.now() };
+    await db.contributionScheme.update({ where: { id: s.id }, data: notApplicable ? { notApplicable: true, notApplicableReason: reason.slice(0, 300), isActive: false } : { notApplicable: false, notApplicableReason: null } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: notApplicable ? "contribution.scheme_not_applicable" : "contribution.scheme_applicable", entity: "ContributionScheme", entityId: s.id, details: { type: s.type, basis: s.basis, reason: notApplicable ? reason : null } });
+    revalidatePath("/app/settings/contributions", "layout");
+    return ok(t(notApplicable ? "contrib.markedNotApplicable" : "contrib.markedApplicable", { name: s.name }));
+  } catch (e) {
+    return handleError(e);
+  }
 }
 
 const enrollmentSchema = z.object({

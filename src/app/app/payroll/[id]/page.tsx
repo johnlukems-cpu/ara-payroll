@@ -9,7 +9,7 @@ import { can } from "@/lib/permissions";
 import { eligibleEmployeesWhere } from "@/lib/payroll/service";
 import { ActionForm } from "@/components/action-form";
 import { ComponentAssignmentForm } from "@/components/component-assignment-form";
-import { componentOptions, isStatutory } from "@/lib/server/pay-components";
+import { componentOptions, isStatutory, missingStatutoryContributions } from "@/lib/server/pay-components";
 import { toDateInput } from "@/lib/format";
 import { ActionButton } from "@/components/confirm-button";
 import { SubmitButton } from "@/components/submit-button";
@@ -38,6 +38,7 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   });
   if (!run) notFound();
   const editable = run.status === "DRAFT" || run.status === "CALCULATED";
+  const missing = editable ? await missingStatutoryContributions(ctx.company.id, run.year, run.month) : [];
   const canRun = can(ctx.role, "payroll.run");
   const canApprove = can(ctx.role, "payroll.approve");
 
@@ -93,6 +94,12 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         <Alert variant="warning" className="mb-4">{t("run.legalPending")} <Link href="/app/tax/rules" className="font-medium underline">{t("dashboard.reviewRules")}</Link>{run.legalAcknowledgedById && <> · {t("run.acknowledged")}</>}</Alert>
       )}
       {run.taxRuleSet && !run.taxRuleSet.isVerified && <Alert variant="warning" className="mb-4">{t("run.unverified")}</Alert>}
+      {(run.status === "DRAFT" || run.status === "CALCULATED") && missing.length > 0 && (
+        <Alert variant="error" className="mb-4">
+          <span data-testid="statutory-missing">{t("run.statutoryMissing", { list: missing.map((m) => t(`enums.contributionType.${m.type}`)).join(", ") })}</span>{" "}
+          <Link href="/app/settings/contributions" className="font-medium underline">{t("run.statutoryMissingLink")}</Link>
+        </Alert>
+      )}
       {run.status === "DRAFT" && run.payslips.length > 0 && <Alert variant="info" className="mb-4">{t("run.inputsChanged")}</Alert>}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">

@@ -1,4 +1,16 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+/** Records the explicit decision that the statutory health insurance and FVO schemes do not apply (test companies). */
+async function markStatutoryNotApplicable(page: Page, en = false) {
+  for (const type of ["HEALTH", "FVO"]) {
+    await page.goto("/app/settings/contributions");
+    await page.getByTestId(`validation-${type}`).getByRole("link").click();
+    await page.getByText(en ? "Mark as not applicable" : "Markeren als niet van toepassing").click();
+    await page.fill("input[name=reason]", "E2E-test: werkgever valt niet onder deze regeling");
+    await page.getByRole("button", { name: en ? "Not applicable" : "Niet van toepassing", exact: true }).click();
+    await expect(page.getByText(en ? /is marked as not applicable/ : /is gemarkeerd als niet van toepassing/)).toBeVisible();
+  }
+}
 
 test("visitors get Dutch by default and can switch language; the choice persists", async ({ page }) => {
   await page.goto("/login");
@@ -75,6 +87,15 @@ test("owner registers, pays a USD-salaried employee and approves payroll (Englis
   await page.reload();
   await expect(page.getByRole("cell", { name: /Anita Ramsaran/ })).toBeVisible();
   await expect(page.getByRole("cell", { name: /^USD / }).last()).toBeVisible();
+
+  // Statutory contribution schemes not yet configured: finalising is blocked until they are approved or marked not applicable.
+  await expect(page.getByTestId("statutory-missing")).toBeVisible();
+  await page.getByLabel(/I acknowledge that the statutory rules/).check();
+  await page.getByRole("button", { name: "Approve", exact: true }).click();
+  await expect(page.getByText(/cannot be finalised: the statutory scheme/)).toBeVisible();
+  await markStatutoryNotApplicable(page, true);
+  await page.goto(runUrl);
+  await expect(page.getByTestId("statutory-missing")).toHaveCount(0);
 
   // Statutory rules are pending legal validation: approval requires an explicit acknowledgement.
   await expect(page.getByText(/pending legal validation/).first()).toBeVisible();
@@ -342,6 +363,13 @@ test("fixed and extra allowances/deductions via dropdowns, duplicate checks and 
   expect(pdf.status()).toBe(200);
   const composeUrl = page.url();
 
+  // Statutory schemes still missing: finalising is blocked until they are approved or marked not applicable.
+  await expect(page.getByTestId("statutory-missing")).toBeVisible();
+  await page.getByLabel(/Ik bevestig dat de wettelijke regels/).check();
+  await page.getByRole("button", { name: "Goedkeuren", exact: true }).click();
+  await expect(page.getByText(/kan niet definitief worden gemaakt/).first()).toBeVisible();
+  await markStatutoryNotApplicable(page);
+
   // A salary change after calculation: approval recalculates first and refuses to approve outdated figures.
   await page.goto(composeUrl.replace(/\/app\/payroll\/[^/]+\/employees\/([^/?]+).*/, "/app/employees/$1?tab=contracts"));
   await page.fill("#baseSalary", "21000");
@@ -388,12 +416,16 @@ test("employee and employer contributions: scheme setup, payroll, payslip, repor
   await page.goto("/app/settings/contributions");
   await expect(page.getByRole("link", { name: "Bijdragen", exact: true })).toBeVisible();
   await expect(page.getByText(/vult geen percentages of bedragen vooraf in/)).toBeVisible();
-  for (const type of ["HEALTH", "PENSION", "FVO"]) await expect(page.getByTestId(`scheme-${type}`).getByText("Inactief")).toBeVisible();
+  // Validation overview: nothing configured yet; statutory schemes block finalising payroll.
+  for (const type of ["HEALTH", "PENSION", "FVO"]) await expect(page.getByTestId(`validation-${type}`)).toContainText("Niet geconfigureerd");
+  await expect(page.getByTestId("validation-HEALTH")).toContainText("blokkeert het definitief maken");
+  await expect(page.getByTestId("validation-PENSION")).not.toContainText("blokkeert"); // voluntary
+  await expect(page.getByTestId("payroll-blocked")).toContainText("Ziektekostenverzekering, FVO-bijdrage");
 
-  // Activating without rates is refused.
-  await page.getByTestId("scheme-FVO").getByRole("link", { name: "Bewerken" }).click();
-  await page.getByLabel("Actief", { exact: false }).first().check();
-  await page.getByRole("button", { name: "Wijzigingen opslaan" }).click();
+  // Approving without rates is refused.
+  page.on("dialog", (dlg) => dlg.accept());
+  await page.getByTestId("validation-FVO").getByRole("link", { name: "Instellen" }).click();
+  await page.getByRole("button", { name: "Tarieven goedkeuren en activeren" }).click();
   await expect(page.getByText("Vul een werknemers- of werkgeverstarief in voordat u de regeling activeert.").first()).toBeVisible();
 
   // Health insurance 2% / 3% and pension 4% / 6% (pre-tax).
@@ -404,12 +436,31 @@ test("employee and employer contributions: scheme setup, payroll, payslip, repor
     await page.fill("#employerRate", er);
     await page.fill("#effectiveFrom", "2026-01-01");
     if (preTax) await page.selectOption("#employeeTax", "PRE_TAX");
-    await page.getByLabel("Actief", { exact: false }).first().check();
     await page.getByRole("button", { name: "Wijzigingen opslaan" }).click();
     await expect(page.getByText("Regeling opgeslagen.")).toBeVisible();
+    await page.reload();
+    await expect(page.getByTestId("scheme-status")).toContainText("Wacht op goedkeuring"); // rates alone do not activate
+    await page.getByRole("button", { name: "Tarieven goedkeuren en activeren" }).click();
+    await expect(page.getByText(/is goedgekeurd en actief/)).toBeVisible();
   };
   await configure("HEALTH", "2", "3");
   await configure("PENSION", "4", "6", true);
+  await page.goto("/app/settings/contributions");
+  await expect(page.getByTestId("validation-HEALTH")).toContainText("Actief");
+  await expect(page.getByTestId("payroll-blocked")).toContainText("FVO-bijdrage"); // FVO still open
+
+  // A rate change resets the approval: the scheme stops being used until it is approved again.
+  await page.getByTestId("validation-PENSION").getByRole("link", { name: "Instellen" }).click();
+  await page.fill("#employerRate", "6,5");
+  await page.getByRole("button", { name: "Wijzigingen opslaan" }).click();
+  await expect(page.getByText(/de regeling is gedeactiveerd tot ze opnieuw is goedgekeurd/)).toBeVisible();
+  await page.reload();
+  await expect(page.getByTestId("scheme-status")).toContainText("Wacht op goedkeuring");
+  await page.fill("#employerRate", "6");
+  await page.getByRole("button", { name: "Wijzigingen opslaan" }).click();
+  await expect(page.getByText("Regeling opgeslagen.")).toBeVisible();
+  await page.getByRole("button", { name: "Tarieven goedkeuren en activeren" }).click();
+  await expect(page.getByText(/is goedgekeurd en actief/)).toBeVisible();
 
   // Employee profile: contributions section and the renamed dropdowns.
   await page.goto(`${employeeUrl}?tab=pay`);

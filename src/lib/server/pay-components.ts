@@ -3,6 +3,7 @@ import type { AssignmentFrequency, PayComponent, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { COMPONENT_LIBRARY, CONTRIBUTION_LIBRARY, libraryDefaults, SYSTEM_CODES } from "@/lib/payroll/library";
 import { scheduleFor } from "@/lib/payroll/schedule";
+import { statutoryGaps } from "@/lib/payroll/contributions";
 import { periodBounds } from "@/lib/payroll/service";
 import { UserError } from "./errors";
 
@@ -216,4 +217,14 @@ export async function recalcOpenRuns(companyId: string, employeeId: string, calc
     try { await calculate(r.id); } catch { failed++; await db.payrollRun.update({ where: { id: r.id }, data: { status: "DRAFT" } }); }
   }
   return { recalculated: runs.length - failed, failed };
+}
+
+/**
+ * Statutory contribution types that block finalising payroll for a period: a statutory scheme applies, but no
+ * scheme of that type is active, approved and configured (and it was not marked as not applicable).
+ */
+export async function missingStatutoryContributions(companyId: string, year: number, month: number) {
+  const { start, end } = periodBounds(year, month);
+  const schemes = await db.contributionScheme.findMany({ where: { companyId } });
+  return statutoryGaps(schemes, start, end).map((type) => ({ type, schemes: schemes.filter((s) => s.type === type && s.basis === "STATUTORY" && !s.notApplicable).map((s) => s.name) }));
 }

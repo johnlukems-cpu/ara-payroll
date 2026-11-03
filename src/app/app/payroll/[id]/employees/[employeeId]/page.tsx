@@ -10,7 +10,7 @@ import { can } from "@/lib/permissions";
 import { periodBounds } from "@/lib/payroll/service";
 import { scheduleFor, type ScheduleDecision } from "@/lib/payroll/schedule";
 import { payslipSummary, SUMMARY_ROWS } from "@/lib/payroll/summary";
-import { componentOptions, isStatutory } from "@/lib/server/pay-components";
+import { componentOptions, isStatutory, missingStatutoryContributions } from "@/lib/server/pay-components";
 import { toDateInput } from "@/lib/format";
 import { ActionForm } from "@/components/action-form";
 import { ActionButton } from "@/components/confirm-button";
@@ -57,6 +57,7 @@ export default async function ComposePayslipPage({ params }: { params: Promise<{
     db.payrollInput.findUnique({ where: { runId_employeeId: { runId: run.id, employeeId: e.id } } }),
   ]);
   const editable = (run.status === "DRAFT" || run.status === "CALCULATED") && can(ctx.role, "payroll.run");
+  const missing = run.status === "DRAFT" || run.status === "CALCULATED" ? await missingStatutoryContributions(ctx.company.id, run.year, run.month) : [];
   const canApprove = can(ctx.role, "payroll.approve");
   const contract = e.contracts[0];
   const salaryCur = contract?.salaryCurrency ?? ctx.company.currency;
@@ -245,7 +246,10 @@ export default async function ComposePayslipPage({ params }: { params: Promise<{
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">8. {t("compose.steps.finalise")}</h2>
         <Card>
           <CardContent className="flex flex-wrap items-center justify-between gap-4 pt-5 text-sm">
-            <p className="max-w-2xl text-muted-foreground">{t("compose.finaliseText")}</p>
+            <div className="max-w-2xl space-y-2">
+              <p className="text-muted-foreground">{t("compose.finaliseText")}</p>
+              {missing.length > 0 && <p className="text-destructive" data-testid="statutory-missing">{t("run.statutoryMissing", { list: missing.map((m) => t(`enums.contributionType.${m.type}`)).join(", ") })}</p>}
+            </div>
             {canApprove && run.status === "CALCULATED" ? (
               <ActionForm notify="toast" action={approveRunAction} className="flex items-center gap-2">
                 <input type="hidden" name="runId" value={run.id} />

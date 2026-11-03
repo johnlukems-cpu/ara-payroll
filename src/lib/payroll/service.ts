@@ -8,7 +8,7 @@ import {
 import { LEAVE_CATEGORY_COMPONENT } from "./library";
 import { priorAccrual, scheduleFor } from "./schedule";
 import { CONTRIBUTION_LIBRARY } from "./library";
-import { effectiveShares, schemeApplies } from "./contributions";
+import { effectiveShares, isEffective, schemeApplies } from "./contributions";
 import type { ContributionInput } from "./engine";
 import { workingDaysBetween } from "@/lib/leave";
 import { RateBook } from "@/lib/server/rates";
@@ -175,9 +175,9 @@ export async function calculateRun(runId: string) {
   const adjustments = await db.payrollAdjustment.findMany({ where: { runId }, include: { component: true }, orderBy: { createdAt: "asc" } });
   // Contribution schemes (health insurance, pension, FVO) active in the period.
   const schemes = await db.contributionScheme.findMany({
-    where: { companyId: run.companyId, isActive: true, effectiveFrom: { lte: end }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: start } }] },
+    where: { companyId: run.companyId, isActive: true, approvedAt: { not: null }, notApplicable: false, effectiveFrom: { lte: end }, OR: [{ effectiveTo: null }, { effectiveTo: { gte: start } }] },
     orderBy: { effectiveFrom: "asc" },
-  });
+  }).then((list) => list.filter(isEffective)); // active, approved and configured only
 
   // Rule sets per tax regime (the Art. 17a regime is only used for employees explicitly linked to it).
   const regimeRules = new Map<TaxRegime, TaxRuleSet>([["STANDARD", ruleSet]]);
