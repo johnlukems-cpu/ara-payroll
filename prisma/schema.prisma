@@ -315,29 +315,32 @@ enum PlatformRole {
 
 /// Subscription package. Prices are defaults for new subscriptions; contracts keep their own agreed terms.
 model Plan {
-  id            String         @id @default(cuid())
-  code          String         @unique // starter, business, professional, enterprise
-  nameNl        String
-  nameEn        String
-  descriptionNl String?
-  descriptionEn String?
-  monthlyPrice  Int? // minor units; null = price on request
-  yearlyPrice   Int?
-  currency      String         @default("SRD")
-  minEmployees  Int?
-  maxEmployees  Int? // null = unlimited / by agreement
-  modules       Json           @default("[]") // module keys
-  featuresNl    Json           @default("[]") // display lines (website)
-  featuresEn    Json           @default("[]")
-  trialDays     Int            @default(30)
-  discountBp    Int            @default(0) // standard discount
-  isActive      Boolean        @default(true) // can be assigned
-  isPublished   Boolean        @default(true) // shown on the website
-  popular       Boolean        @default(false)
-  sortOrder     Int            @default(0)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @default(now()) @updatedAt
-  subscriptions Subscription[]
+  id             String         @id @default(cuid())
+  code           String         @unique // starter, business, professional, enterprise
+  nameNl         String
+  nameEn         String
+  descriptionNl  String?
+  descriptionEn  String?
+  monthlyPrice   Int? // minor units; null = price on request
+  yearlyPrice    Int?
+  currency       String         @default("SRD")
+  minEmployees   Int?
+  maxEmployees   Int? // null = unlimited / by agreement
+  modules        Json           @default("[]") // module keys
+  featuresNl     Json           @default("[]") // display lines (website)
+  featuresEn     Json           @default("[]")
+  trialDays      Int            @default(30)
+  discountBp     Int            @default(0) // standard discount
+  isActive       Boolean        @default(true) // can be assigned
+  isPublished    Boolean        @default(true) // shown on the website
+  popular        Boolean        @default(false)
+  sortOrder      Int            @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @default(now()) @updatedAt
+  subscriptions  Subscription[]
+  maxUsers       Int? // null = unlimited
+  storageLimitMb Int? // document storage per customer; null = unlimited
+  supportLevel   String? // e.g. "Standaard", "Prioriteit" (free text, shown to the customer)
 }
 
 enum SubscriptionStatus {
@@ -383,6 +386,9 @@ model Subscription {
   plan            Plan                @relation(fields: [planId], references: [id])
   events          SubscriptionEvent[]
   invoices        Invoice[]
+  maxUsers        Int? // agreed terms, copied from the plan
+  storageLimitMb  Int?
+  supportLevel    String?
 
   @@index([organizationId, status])
 }
@@ -437,6 +443,10 @@ model Invoice {
   organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
   payments       Payment[]
+  sentAt         DateTime? // recorded by an administrator when the invoice was sent to the customer
+  sentById       String?
+  remindedAt     DateTime? // last payment reminder recorded
+  reminderCount  Int           @default(0)
 
   @@index([organizationId, status])
 }
@@ -578,7 +588,7 @@ model Department {
 }
 
 model Employee {
-  id               String                 @id @default(cuid())
+  id               String                   @id @default(cuid())
   companyId        String
   userId           String?
   employeeNumber   String
@@ -588,7 +598,7 @@ model Employee {
   dateOfBirth      DateTime?
   gender           String?
   maritalStatus    String?
-  numberOfChildren Int                    @default(0)
+  numberOfChildren Int                      @default(0)
   email            String?
   phone            String?
   address          String?
@@ -596,17 +606,17 @@ model Employee {
   bankName         String?
   bankAccount      String?
   paymentCurrency  String? // currency net pay is paid in; null = salary currency
-  taxRegime        TaxRegime              @default(STANDARD)
+  taxRegime        TaxRegime                @default(STANDARD)
   departmentId     String?
   jobTitle         String?
   hireDate         DateTime
   terminationDate  DateTime?
-  status           EmployeeStatus         @default(ACTIVE)
-  createdAt        DateTime               @default(now())
-  updatedAt        DateTime               @updatedAt
-  company          Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user             User?                  @relation(fields: [userId], references: [id], onDelete: SetNull)
-  department       Department?            @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  status           EmployeeStatus           @default(ACTIVE)
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+  company          Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user             User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  department       Department?              @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   contracts        Contract[]
   components       EmployeePayComponent[]
   contributions    EmployeeContribution[]
@@ -614,6 +624,7 @@ model Employee {
   payslips         Payslip[]
   leaveRequests    LeaveRequest[]
   documents        EmployeeDocument[]
+  leaveAdjustments LeaveBalanceAdjustment[]
 
   @@unique([companyId, employeeNumber])
   @@index([companyId, status])
@@ -784,6 +795,7 @@ model PayrollRun {
   payslips              Payslip[]
   /// Snapshot of the statutory rates and parameters used, stored when the run is finalised (approved).
   legalSnapshot         Json?
+  corrections           PayrollCorrection[]
 
   @@unique([companyId, year, month])
 }
@@ -956,25 +968,26 @@ model EmployeeContribution {
 }
 
 model LeaveType {
-  id                    String         @id @default(cuid())
+  id                    String                   @id @default(cuid())
   companyId             String
   code                  String
   name                  String
-  isPaid                Boolean        @default(true)
-  annualEntitlementDays Float          @default(0)
-  category              LeaveCategory  @default(SPECIAL)
-  payPercentBp          Int            @default(10000) // share of salary the employer continues to pay during this leave
+  isPaid                Boolean                  @default(true)
+  annualEntitlementDays Float                    @default(0)
+  category              LeaveCategory            @default(SPECIAL)
+  payPercentBp          Int                      @default(10000) // share of salary the employer continues to pay during this leave
   statutoryDays         Float? // statutory entitlement in working days (per event for parental categories)
-  companyExtraDays      Float          @default(0) // additional company benefit on top of the statutory entitlement
-  unit                  LeaveUnit      @default(DAYS)
-  allowPartTime         Boolean        @default(false)
-  carryForward          Boolean        @default(false)
-  maxCarryForwardDays   Float          @default(0)
+  companyExtraDays      Float                    @default(0) // additional company benefit on top of the statutory entitlement
+  unit                  LeaveUnit                @default(DAYS)
+  allowPartTime         Boolean                  @default(false)
+  carryForward          Boolean                  @default(false)
+  maxCarryForwardDays   Float                    @default(0)
   componentCode         String? // payroll component code for leave lines (LEV001…)
-  legalStatus           LegalStatus    @default(COMPANY_POLICY)
+  legalStatus           LegalStatus              @default(COMPANY_POLICY)
   legalReference        String?
-  company               Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company               Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   requests              LeaveRequest[]
+  adjustments           LeaveBalanceAdjustment[]
 
   @@unique([companyId, code])
 }
@@ -1003,7 +1016,7 @@ model LeaveRequest {
 }
 
 model EmployeeDocument {
-  id             String        @id @default(cuid())
+  id             String           @id @default(cuid())
   employeeId     String
   fileName       String
   mimeType       String
@@ -1011,9 +1024,13 @@ model EmployeeDocument {
   storageKey     String
   uploadedBy     String?
   leaveRequestId String?
-  createdAt      DateTime      @default(now())
-  employee       Employee      @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  leaveRequest   LeaveRequest? @relation(fields: [leaveRequestId], references: [id], onDelete: SetNull)
+  createdAt      DateTime         @default(now())
+  employee       Employee         @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveRequest   LeaveRequest?    @relation(fields: [leaveRequestId], references: [id], onDelete: SetNull)
+  category       DocumentCategory @default(OTHER)
+  description    String?
+  archivedAt     DateTime?
+  archivedById   String?
 }
 
 model AuditLog {
@@ -1276,4 +1293,46 @@ model ContactRequest {
   createdAt        DateTime           @default(now())
 
   @@index([handled, createdAt])
+}
+
+enum DocumentCategory {
+  EMPLOYMENT_CONTRACT
+  ADDENDUM
+  IDENTITY
+  DIPLOMA
+  CERTIFICATE
+  BANK
+  TAX
+  PENSION
+  LEAVE
+  OTHER
+}
+
+/// Correction procedure: an approved run can only be reopened with a reason; the approved payslips are kept here.
+model PayrollCorrection {
+  id        String     @id @default(cuid())
+  runId     String
+  reason    String
+  userId    String?
+  snapshot  Json // approved run totals and payslips (with lines) as they were before the correction
+  createdAt DateTime   @default(now())
+  run       PayrollRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId, createdAt])
+}
+
+/// Manual correction of a leave balance (e.g. opening balance, carry-forward decision), in days; positive or negative.
+model LeaveBalanceAdjustment {
+  id          String    @id @default(cuid())
+  employeeId  String
+  leaveTypeId String
+  year        Int
+  days        Float
+  reason      String
+  createdById String?
+  createdAt   DateTime  @default(now())
+  employee    Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType   LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@index([employeeId, year])
 }

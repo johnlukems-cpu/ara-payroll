@@ -273,9 +273,23 @@ export async function reopenRunAction(_: ActionState, fd: FormData): Promise<Act
     const ctx = await requirePermission("payroll.approve");
     const run = await loadRun(ctx.company.id, String(fd.get("runId")));
     if (run.status !== "APPROVED") throw new UserError("errors.onlyApprovedReopen");
+    // Correction procedure: a stated reason is required and the approved payslips are kept unchanged as a version.
+    const reason = z.string().trim().min(10, "errors.correctionReason").max(500).safeParse(fd.get("reason") ?? "");
+    if (!reason.success) throw new UserError("errors.correctionReason");
     await assertPeriodReopenable(ctx.company.id, run.year, run.month);
-    await db.payrollRun.update({ where: { id: run.id }, data: { status: "CALCULATED", approvedById: null, approvedAt: null } });
-    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "payroll.reopen", entity: "PayrollRun", entityId: run.id });
+    const slips = await db.payslip.findMany({ where: { runId: run.id }, include: { lines: { orderBy: { sortOrder: "asc" } } }, orderBy: { employeeName: "asc" } });
+    const snapshot = {
+      approvedAt: run.approvedAt?.toISOString() ?? null, approvedById: run.approvedById, currency: run.currency,
+      totals: { gross: run.totalGross, net: run.totalNet, wageTax: run.totalWageTax, aov: run.totalAov, employer: run.totalEmployer, employees: run.employeeCount },
+      legalSnapshot: run.legalSnapshot ?? null,
+      payslips: slips.map(({ trace: _trace, ...p }) => p),
+    };
+    await db.$transaction(async (tx) => {
+      const reopened = await tx.payrollRun.updateMany({ where: { id: run.id, status: "APPROVED" }, data: { status: "CALCULATED", approvedById: null, approvedAt: null } });
+      if (reopened.count !== 1) throw new UserError("errors.onlyApprovedReopen");
+      await tx.payrollCorrection.create({ data: { runId: run.id, reason: reason.data, userId: ctx.user.id, snapshot: JSON.parse(JSON.stringify(snapshot)) } });
+    });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "payroll.reopen", entity: "PayrollRun", entityId: run.id, details: { reason: reason.data, totalNetBefore: run.totalNet } });
     runId = run.id;
   } catch (e) {
     return handleError(e);
@@ -289,7 +303,9 @@ export async function markPaidAction(_: ActionState, fd: FormData): Promise<Acti
     const ctx = await requirePermission("payroll.approve");
     const run = await loadRun(ctx.company.id, String(fd.get("runId")));
     if (run.status !== "APPROVED") throw new UserError("errors.approveBeforePaid");
-    await db.payrollRun.update({ where: { id: run.id }, data: { status: "PAID", paidAt: new Date() } });
+    // Conditional update: a run is marked paid once, only from APPROVED (guards against double submits).
+    const paid = await db.payrollRun.updateMany({ where: { id: run.id, status: "APPROVED" }, data: { status: "PAID", paidAt: new Date() } });
+    if (paid.count !== 1) throw new UserError("errors.approveBeforePaid");
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "payroll.paid", entity: "PayrollRun", entityId: run.id });
     runId = run.id;
   } catch (e) {

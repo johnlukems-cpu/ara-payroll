@@ -118,6 +118,9 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
                 <dt className="text-muted-foreground">{t("saas.sub.agreedPrice")}</dt><dd className="tabular">{money(cyclePrice(sub), sub.currency)}</dd>
                 <dt className="text-muted-foreground">{t("saas.sub.discount")}</dt><dd className="tabular">{sub.discountBp ? `${sub.discountBp / 100}%` : "—"}</dd>
                 <dt className="text-muted-foreground">{t("saas.sub.employees")}</dt><dd className="tabular" data-testid="capacity">{employees} / {cap ?? "∞"}</dd>
+                <dt className="text-muted-foreground">{t("saas.plans.maxUsers")}</dt><dd className="tabular" data-testid="user-limit">{sub.maxUsers ?? "∞"}</dd>
+                <dt className="text-muted-foreground">{t("saas.plans.storageLimitMb")}</dt><dd className="tabular">{sub.storageLimitMb != null ? `${sub.storageLimitMb} MB` : "∞"}</dd>
+                {sub.supportLevel && <><dt className="text-muted-foreground">{t("saas.plans.supportLevel")}</dt><dd>{sub.supportLevel}</dd></>}
                 <dt className="text-muted-foreground">{t("saas.sub.start")}</dt><dd className="tabular">{f.date(sub.startDate)}</dd>
                 {sub.trialEnd && <><dt className="text-muted-foreground">{t("saas.sub.trialEnd")}</dt><dd className="tabular">{f.date(sub.trialEnd)}{sub.status === "TRIAL" && ` (${t("saas.daysLeft", { days: trialDaysLeft(sub.trialEnd, now) ?? 0 })})`}</dd></>}
                 <dt className="text-muted-foreground">{t("saas.sub.nextInvoice")}</dt><dd className="tabular">{f.date(sub.nextInvoiceDate)}</dd>
@@ -157,6 +160,12 @@ export default async function CustomerDetailPage({ params, searchParams }: { par
                   )}
                 <OpForm action={subscriptionAction} title={t("saas.sub.ops.capacity")} submit={t("common.save")} hidden={{ id: live.id, op: "capacity" }} testId="op-capacity">
                   <OpField label={t("saas.sub.extraEmployees")} wide><Input name="extra" type="number" min={0} defaultValue={live.extraEmployees} /></OpField>
+                </OpForm>
+                <OpForm action={subscriptionAction} title={t("saas.sub.ops.limits")} submit={t("common.save")} hidden={{ id: live.id, op: "limits" }} testId="op-limits">
+                  <OpField label={t("saas.plans.maxUsers")}><Input name="maxUsers" type="number" min={1} defaultValue={live.maxUsers ?? ""} /></OpField>
+                  <OpField label={t("saas.plans.storageLimitMb")}><Input name="storageLimitMb" type="number" min={1} defaultValue={live.storageLimitMb ?? ""} /></OpField>
+                  <OpField label={t("saas.plans.supportLevel")} wide><Input name="supportLevel" defaultValue={live.supportLevel ?? ""} /></OpField>
+                  <p className="text-xs text-muted-foreground sm:col-span-2">{t("saas.plans.maxHint")}</p>
                 </OpForm>
                 <OpForm action={subscriptionAction} title={t("saas.sub.ops.discount")} submit={t("common.save")} hidden={{ id: live.id, op: "discount" }} testId="op-discount">
                   <OpField label={t("saas.sub.discountPct")}><Input name="discount" inputMode="decimal" defaultValue={String(live.discountBp / 100)} /></OpField>

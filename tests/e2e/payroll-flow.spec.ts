@@ -185,6 +185,8 @@ test("owner registers, pays a USD-salaried employee and approves payroll (Englis
 
   // Reopening the payroll is blocked once its declaration has been approved.
   await page.goto(runUrl);
+  await page.getByTestId("run-correction").locator("summary").click();
+  await page.getByTestId("run-correction").locator("input[name=reason]").fill("Correction of overtime hours after approval");
   await page.getByRole("button", { name: "Reopen" }).click();
   await expect(page.getByText(/require a supplementary declaration/)).toBeVisible();
 

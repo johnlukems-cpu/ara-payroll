@@ -45,9 +45,9 @@ export async function saveSaasSettings(value: SaasSettings) {
 export const currentSubscription = (organizationId: string, client: Tx | typeof db = db) =>
   client.subscription.findFirst({ where: { organizationId }, orderBy: { createdAt: "desc" }, include: { plan: true } });
 
-const terms = (s: Pick<Subscription, "planId" | "status" | "billingCycle" | "priceMonthly" | "priceYearly" | "currency" | "maxEmployees" | "extraEmployees" | "discountBp" | "trialEnd" | "nextInvoiceDate">) => ({
+const terms = (s: Pick<Subscription, "planId" | "status" | "billingCycle" | "priceMonthly" | "priceYearly" | "currency" | "maxEmployees" | "extraEmployees" | "maxUsers" | "storageLimitMb" | "supportLevel" | "discountBp" | "trialEnd" | "nextInvoiceDate">) => ({
   planId: s.planId, status: s.status, billingCycle: s.billingCycle, priceMonthly: s.priceMonthly, priceYearly: s.priceYearly, currency: s.currency,
-  maxEmployees: s.maxEmployees, extraEmployees: s.extraEmployees, discountBp: s.discountBp, trialEnd: s.trialEnd?.toISOString() ?? null, nextInvoiceDate: s.nextInvoiceDate?.toISOString() ?? null,
+  maxEmployees: s.maxEmployees, extraEmployees: s.extraEmployees, maxUsers: s.maxUsers, storageLimitMb: s.storageLimitMb, supportLevel: s.supportLevel, discountBp: s.discountBp, trialEnd: s.trialEnd?.toISOString() ?? null, nextInvoiceDate: s.nextInvoiceDate?.toISOString() ?? null,
 });
 
 async function event(tx: Tx, sub: Subscription, type: string, userId: string | null, details: Record<string, unknown>) {
@@ -63,7 +63,7 @@ export async function createSubscription(tx: Tx, organizationId: string, plan: P
   const sub = await tx.subscription.create({
     data: {
       organizationId, planId: plan.id, status: trial ? "TRIAL" : "ACTIVE", billingCycle: opts.cycle ?? "MONTHLY",
-      priceMonthly: plan.monthlyPrice, priceYearly: plan.yearlyPrice, currency: plan.currency, maxEmployees: plan.maxEmployees, discountBp: plan.discountBp,
+      priceMonthly: plan.monthlyPrice, priceYearly: plan.yearlyPrice, currency: plan.currency, maxEmployees: plan.maxEmployees, maxUsers: plan.maxUsers, storageLimitMb: plan.storageLimitMb, supportLevel: plan.supportLevel, discountBp: plan.discountBp,
       trialStart: trial ? now : null, trialEnd, startDate: now, nextInvoiceDate: trialEnd ?? now,
     },
   });
@@ -87,7 +87,7 @@ export async function changePlan(subscriptionId: string, planCode: string, userI
   if (!LIVE.includes(sub.status)) throw new UserError("saasErrors.invalidTransition");
   const type = plan.sortOrder > sub.plan.sortOrder ? "UPGRADED" : "DOWNGRADED";
   return db.$transaction(async (tx) => {
-    const updated = await tx.subscription.update({ where: { id: sub.id }, data: { planId: plan.id, priceMonthly: plan.monthlyPrice, priceYearly: plan.yearlyPrice, currency: plan.currency, maxEmployees: plan.maxEmployees } });
+    const updated = await tx.subscription.update({ where: { id: sub.id }, data: { planId: plan.id, priceMonthly: plan.monthlyPrice, priceYearly: plan.yearlyPrice, currency: plan.currency, maxEmployees: plan.maxEmployees, maxUsers: plan.maxUsers, storageLimitMb: plan.storageLimitMb, supportLevel: plan.supportLevel } });
     await event(tx, updated, type, userId, { from: sub.plan.code, to: plan.code, before: terms(sub), after: terms(updated) });
     return updated;
   });
@@ -156,6 +156,37 @@ export const convertTrial = (id: string, userId: string, cycle: BillingCycle, no
 
 export const setCapacity = (id: string, userId: string, extraEmployees: number) =>
   apply(id, userId, () => ({ type: "CAPACITY_CHANGED", data: { extraEmployees }, details: { extraEmployees } }));
+
+/** Agreed limits for a customer: users, document storage and support level. */
+export const setLimits = (id: string, userId: string, l: { maxUsers: number | null; storageLimitMb: number | null; supportLevel: string | null }) =>
+  apply(id, userId, () => ({ type: "LIMITS_CHANGED", data: l, details: l }));
+
+/** Staff users (all roles except employee self-service) of a customer, counted once across its companies. */
+export async function assertUserCapacity(organizationId: string, userId?: string | null, client: Tx | typeof db = db) {
+  const sub = await client.subscription.findFirst({ where: { organizationId }, orderBy: { createdAt: "desc" } });
+  if (sub?.maxUsers == null) return;
+  const users = await client.membership.findMany({ where: { company: { organizationId }, role: { not: "EMPLOYEE" } }, select: { userId: true }, distinct: ["userId"] });
+  if (userId && users.some((u) => u.userId === userId)) return; // already counted (e.g. added to a second company)
+  if (users.length >= sub.maxUsers) throw new UserError("saasErrors.userLimit", { max: sub.maxUsers });
+}
+
+/** Records that an invoice was sent to the customer (by e-mail or otherwise, outside the application). */
+export async function markInvoiceSent(invoiceId: string, userId: string) {
+  const inv = await db.invoice.findUnique({ where: { id: invoiceId } });
+  if (!inv) throw new UserError("errors.notFound");
+  if (inv.sentAt) throw new UserError("saasErrors.alreadySent");
+  await db.invoice.update({ where: { id: inv.id }, data: { sentAt: new Date(), sentById: userId } });
+  await db.auditLog.create({ data: { companyId: null, userId, action: "invoice.sent", entity: "Organization", entityId: inv.organizationId, details: { invoice: inv.number } } });
+}
+
+/** Records a payment reminder sent for an open invoice. */
+export async function recordInvoiceReminder(invoiceId: string, userId: string) {
+  const inv = await db.invoice.findUnique({ where: { id: invoiceId } });
+  if (!inv || inv.kind !== "INVOICE") throw new UserError("errors.notFound");
+  if (inv.status !== "OPEN" && inv.status !== "PARTIALLY_PAID") throw new UserError("saasErrors.invoiceClosed");
+  await db.invoice.update({ where: { id: inv.id }, data: { remindedAt: new Date(), reminderCount: { increment: 1 } } });
+  await db.auditLog.create({ data: { companyId: null, userId, action: "invoice.reminder", entity: "Organization", entityId: inv.organizationId, details: { invoice: inv.number, reminder: inv.reminderCount + 1 } } });
+}
 
 export const setDiscount = (id: string, userId: string, discountBp: number, note: string | null) =>
   apply(id, userId, () => ({ type: "DISCOUNT_CHANGED", data: { discountBp, discountNote: note }, details: { discountBp, note } }));

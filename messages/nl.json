@@ -48,7 +48,12 @@
     "perHour": "/u",
     "employeesCount": "{count, plural, one {# werknemer} other {# werknemers}}",
     "yes": "Ja",
-    "no": "Nee"
+    "no": "Nee",
+    "export": {
+      "csv": "CSV",
+      "xlsx": "Excel",
+      "pdf": "PDF"
+    }
   },
   "nav": {
     "dashboard": "Overzicht",
@@ -188,6 +193,18 @@
     "contributionTax": {
       "PRE_TAX": "Aftrekbaar vóór loonbelasting",
       "AFTER_TAX": "Niet aftrekbaar (na belasting)"
+    },
+    "documentCategory": {
+      "EMPLOYMENT_CONTRACT": "Arbeidsovereenkomst",
+      "ADDENDUM": "Addendum",
+      "IDENTITY": "Identiteitsdocument",
+      "DIPLOMA": "Diploma",
+      "CERTIFICATE": "Certificaat",
+      "BANK": "Bankdocument",
+      "TAX": "Belastingdocument",
+      "PENSION": "Pensioendocument",
+      "LEAVE": "Verlofdocument",
+      "OTHER": "Overig personeelsdocument"
     }
   },
   "auth": {
@@ -456,7 +473,8 @@
     "docCols": {
       "file": "Bestand",
       "size": "Grootte",
-      "uploaded": "Geüpload"
+      "uploaded": "Geüpload",
+      "category": "Categorie"
     },
     "deleteDocConfirm": "Dit document definitief verwijderen?",
     "uploadTitle": "Document uploaden",
@@ -475,7 +493,33 @@
     "bulkSkipped": "Overgeslagen (bestaat al of niet toegestaan): {list}.",
     "componentUpdated": "{name} bijgewerkt.",
     "recalculated": "{count, plural, one {# open loonrun} other {# open loonruns}} opnieuw berekend.",
-    "recalcFailed": "Een open loonrun kon niet opnieuw worden berekend en staat weer op concept."
+    "recalcFailed": "Een open loonrun kon niet opnieuw worden berekend en staat weer op concept.",
+    "employeeNumberHint": "Leeg laten om automatisch het volgende vrije nummer te gebruiken.",
+    "archived": "Werknemer gearchiveerd (uit dienst). Historie en loonstroken blijven bewaard.",
+    "reactivated": "Werknemer opnieuw geactiveerd.",
+    "archivedNotice": "Deze werknemer is gearchiveerd en uit dienst sinds {date}.",
+    "reactivate": "Opnieuw activeren",
+    "archiveTitle": "Uitdiensttreding registreren en archiveren",
+    "archive": "Archiveren",
+    "archiveReason": "Reden (optioneel)",
+    "archiveHint": "De werknemer verschijnt niet meer in nieuwe verloningen na de datum uit dienst. Contracten, salarisgeschiedenis, documenten en loonstroken blijven bewaard.",
+    "docDescription": "Omschrijving (optioneel)",
+    "docView": "Bekijken",
+    "docDownload": "Downloaden",
+    "docArchiveAction": "Archiveren",
+    "docRestore": "Terugzetten",
+    "docArchive": "Gearchiveerde documenten",
+    "docArchived": "Document gearchiveerd.",
+    "docRestored": "Document teruggezet.",
+    "docHistory": "Documentgeschiedenis",
+    "docEvent": {
+      "upload": "Geüpload",
+      "view": "Bekeken",
+      "download": "Gedownload",
+      "archive": "Gearchiveerd",
+      "restore": "Teruggezet",
+      "delete": "Verwijderd"
+    }
   },
   "payroll": {
     "title": "Verloningen",
@@ -614,7 +658,14 @@
     "snapshotBrackets": "Schijven",
     "snapshotOvertime": "Overwerk",
     "snapshotAge": "tot {age} jaar",
-    "snapshotNoSchemes": "Geen bijdrageregelingen gebruikt."
+    "snapshotNoSchemes": "Geen bijdrageregelingen gebruikt.",
+    "correction": "Correctie: verloning heropenen",
+    "correctionReason": "Reden van de correctie",
+    "correctionHint": "De goedgekeurde loonstroken worden als versie bewaard en de correctie wordt vastgelegd. Na herberekening moet de verloning opnieuw worden goedgekeurd. Is de aangifte al goedgekeurd of ingediend, dan is een suppletieaangifte nodig.",
+    "correctionHistory": "Correctiehistorie",
+    "correctionHistorySub": "Eerder goedgekeurde versies van deze verloning blijven bewaard.",
+    "correctionDate": "Datum",
+    "correctionNetBefore": "Netto vóór correctie"
   },
   "payslip": {
     "title": "Loonstrook",
@@ -793,7 +844,36 @@
     "rejected": "Verlof afgewezen.",
     "cancelled": "Verlof geannuleerd.",
     "overlap": "Deze periode overlapt met een bestaande verlofaanvraag.",
-    "noWorkingDays": "De gekozen periode bevat geen werkdagen."
+    "noWorkingDays": "De gekozen periode bevat geen werkdagen.",
+    "adjusted": "Verlofsaldo gecorrigeerd.",
+    "tabs": {
+      "requests": "Aanvragen",
+      "calendar": "Verlofkalender",
+      "overview": "Saldi en rapportage",
+      "parental": "Ouderschap en zwangerschap"
+    },
+    "calendar": {
+      "title": "Verlofkalender {period}",
+      "subtitle": "Goedgekeurd en aangevraagd verlof per werknemer. Weekenden en vaste feestdagen zijn grijs; variabele feestdagen staan niet in de kalender.",
+      "allDepartments": "Alle afdelingen",
+      "nonWorking": "Weekend of feestdag",
+      "empty": "Geen verlof in deze maand."
+    },
+    "overview": {
+      "title": "Verlofsaldi en rapportage {year}",
+      "subtitle": "Saldi per werknemer (recht inclusief overgedragen dagen en correcties, min opgenomen dagen) en opgenomen verlof en verzuim per afdeling.",
+      "year": "Jaar",
+      "balances": "Saldi per werknemer",
+      "balancesSub": "Groot getal: resterend saldo in dagen. Daaronder: recht en opgenomen, plus eventuele correcties.",
+      "cell": "recht {entitlement} · opgenomen {taken}",
+      "adjustTitle": "Saldo corrigeren",
+      "adjustDays": "Aantal dagen (+ of −)",
+      "adjustReason": "Reden",
+      "adjustHint": "De correctie geldt voor {year} en wordt met reden vastgelegd in het controlespoor, bijvoorbeeld een beginsaldo of een besluit over overgedragen dagen.",
+      "adjustments": "Correcties dit jaar",
+      "perDepartment": "Opgenomen verlof en verzuim per afdeling",
+      "perDepartmentSub": "Goedgekeurde dagen per verlofsoort (inclusief ziekteverlof)."
+    }
   },
   "reports": {
     "title": "Rapportages",
@@ -1307,7 +1387,11 @@
     "schemeNotApplicable": "Deze regeling is gemarkeerd als niet van toepassing.",
     "statutoryConfigMissing": "De verloning kan niet definitief worden gemaakt: de wettelijke regeling(en) {list} zijn niet ingesteld en goedgekeurd (Instellingen → Bijdragen).",
     "schemeStatutoryUnverified": "Een wettelijke regeling kan pas worden goedgekeurd nadat de juridische grondslag is geverifieerd. Controleer de officiële tekst, zet de juridische status op Geverifieerd en sla op.",
-    "subscriptionBlocked": "Uw abonnement geeft op dit moment geen toegang tot deze functie. Neem contact op met ARA Intelligent Solutions."
+    "subscriptionBlocked": "Uw abonnement geeft op dit moment geen toegang tot deze functie. Neem contact op met ARA Intelligent Solutions.",
+    "alreadyArchived": "Deze werknemer is al gearchiveerd.",
+    "notArchived": "Deze werknemer is niet gearchiveerd.",
+    "correctionReason": "Geef een reden voor de correctie van minimaal 10 tekens.",
+    "invalidAdjustment": "Voer een aantal dagen in (veelvoud van 0,5, niet 0)."
   },
   "bracket": {
     "required": "er is ten minste één schijf vereist",
@@ -2510,7 +2594,8 @@
       "EXPIRED": "Verlopen",
       "CAPACITY_CHANGED": "Extra capaciteit aangepast",
       "DISCOUNT_CHANGED": "Korting aangepast",
-      "PRICE_AGREED": "Prijsafspraak aangepast"
+      "PRICE_AGREED": "Prijsafspraak aangepast",
+      "LIMITS_CHANGED": "Limieten aangepast"
     },
     "dashboard": {
       "title": "Overzicht",
@@ -2612,7 +2697,8 @@
         "convertTrial": "Omzetten naar betaald abonnement",
         "capacity": "Extra capaciteit",
         "discount": "Korting toekennen",
-        "price": "Prijsafspraak"
+        "price": "Prijsafspraak",
+        "limits": "Limieten en ondersteuning"
       }
     },
     "msg": {
@@ -2639,7 +2725,8 @@
         "capacity": "Capaciteit aangepast.",
         "discount": "Korting aangepast.",
         "price": "Prijsafspraak aangepast.",
-        "invoice": "Factuur aangemaakt."
+        "invoice": "Factuur aangemaakt.",
+        "limits": "Limieten aangepast."
       },
       "request": {
         "review": "Aanvraag in behandeling genomen.",
@@ -2649,7 +2736,9 @@
         "approve": "Aanvraag afgehandeld.",
         "approved": "Registratie goedgekeurd: account, bedrijf en proefabonnement zijn aangemaakt. De klant kan nu inloggen.",
         "convert": "Klant aangemaakt."
-      }
+      },
+      "invoiceSent": "Factuur geregistreerd als verzonden.",
+      "reminderRecorded": "Betalingsherinnering geregistreerd."
     },
     "access": {
       "title": "Toegang beperkt",
@@ -2752,7 +2841,10 @@
       "active": "Actief",
       "inactive": "Inactief",
       "published": "Op website",
-      "contractNote": "Prijswijzigingen gelden alleen voor nieuwe abonnementen. Bestaande klanten behouden hun afgesproken prijs en voorwaarden; elke wijziging per klant wordt in de abonnementshistorie bewaard."
+      "contractNote": "Prijswijzigingen gelden alleen voor nieuwe abonnementen. Bestaande klanten behouden hun afgesproken prijs en voorwaarden; elke wijziging per klant wordt in de abonnementshistorie bewaard.",
+      "maxUsers": "Maximum aantal gebruikers",
+      "storageLimitMb": "Documentopslag (MB)",
+      "supportLevel": "Ondersteuningsniveau"
     },
     "billing": {
       "title": "Facturatie en betalingen",
@@ -2798,7 +2890,14 @@
       "billTo": "FACTUUR AAN",
       "kkf": "KKF {value}",
       "paymentInstructions": "Betaalinstructies",
-      "pdfFooter": "Gegenereerd door ARA Payroll — ARA Intelligent Solutions"
+      "pdfFooter": "Gegenereerd door ARA Payroll — ARA Intelligent Solutions",
+      "sentAt": "Verzonden op",
+      "notSent": "Niet verzonden",
+      "sent": "Verzonden",
+      "reminders": "Herinneringen",
+      "markSent": "Registreren als verzonden",
+      "recordReminder": "Herinnering registreren",
+      "sendNote": "ARA Payroll verstuurt zelf geen e-mail. Sla de PDF op, verstuur deze aan de klant en registreer daarna de verzending of herinnering."
     },
     "trials": {
       "title": "Proefperiodes",
@@ -2911,6 +3010,42 @@
     "userNotFound": "Er is geen gebruiker met dit e-mailadres.",
     "ownRole": "U kunt uw eigen superbeheerdersrol niet intrekken.",
     "employeeLimit": "Het maximum van {max} medewerkers voor uw abonnement is bereikt. Neem contact op met ARA Intelligent Solutions voor uitbreiding.",
-    "invalidTransition": "Deze wijziging is niet mogelijk in de huidige status van het abonnement."
+    "invalidTransition": "Deze wijziging is niet mogelijk in de huidige status van het abonnement.",
+    "storageLimit": "De documentopslag van uw abonnement ({mb} MB) is vol. Archiveer of verwijder documenten, of neem contact op met ARA Intelligent Solutions.",
+    "userLimit": "Het maximum van {max} gebruikers voor uw abonnement is bereikt. Neem contact op met ARA Intelligent Solutions voor uitbreiding.",
+    "alreadySent": "Deze factuur is al als verzonden geregistreerd."
+  },
+  "hrReports": {
+    "title": "HR- en kostenrapportages",
+    "subtitle": "Werknemersbestand, afdelingen, in- en uitstroom, contracten en loonkosten per werknemer. Alle cijfers komen uit de vastgelegde gegevens.",
+    "toPayrollReports": "Naar salarisrapportages",
+    "contractType": "Soort contract",
+    "active": "Actief",
+    "hires": "Instroom",
+    "leavers": "Uitstroom",
+    "headcountEnd": "Aantal aan einde periode",
+    "start": "Begindatum",
+    "end": "Einddatum",
+    "daysLeft": "Dagen tot einde",
+    "noEnd": "Onbepaald",
+    "net": "Netto",
+    "employerCharges": "Werkgeverslasten",
+    "totalCost": "Totale loonkosten",
+    "roster": {
+      "title": "Werknemersbestand"
+    },
+    "departments": {
+      "title": "Werknemers per afdeling"
+    },
+    "movement": {
+      "title": "In- en uitstroom per maand"
+    },
+    "contracts": {
+      "title": "Contractoverzicht"
+    },
+    "costs": {
+      "title": "Loonkosten per werknemer",
+      "basis": "goedgekeurde en betaalde verloningen, in de rapportagevaluta"
+    }
   }
 }

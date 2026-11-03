@@ -1,8 +1,9 @@
-import { Download } from "lucide-react";
+import { ExportLinks } from "@/components/export-links";
 import { requirePage } from "@/lib/server/auth";
 import { getI18n } from "@/lib/server/i18n";
 import { annualStatements, contributionReport, departmentCosts, yearlySummary } from "@/lib/server/reports";
 import { Button, buttonVariants } from "@/components/ui/button";
+import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/form";
 import { Alert, EmptyState, PageHeader, Stat } from "@/components/ui/misc";
@@ -55,6 +56,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
               {Array.from({ length: 6 }, (_, i) => now - i).map((y) => <option key={y}>{y}</option>)}
             </Select>
             <Button variant="secondary" type="submit">{t("common.show")}</Button>
+            <Link href={`/app/reports/hr?year=${year}`} className={buttonVariants({ variant: "outline" })} data-testid="to-hr-reports">{t("hrReports.title")}</Link>
           </form>
         }
       />
@@ -80,7 +82,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       <Card className="mt-6">
         <CardHeader className="flex-row items-center justify-between">
           <div><CardTitle>{t("reports.remitTitle")}</CardTitle><CardDescription>{t("reports.remitSub")}</CardDescription></div>
-          <a className={buttonVariants({ variant: "outline", size: "sm" })} href={`/api/reports/tax?year=${year}`}><Download /> {t("common.csv")}</a>
+          <ExportLinks href={`/api/reports/tax?year=${year}`} />
         </CardHeader>
         <Table>
           <THead><TR><TH>{t("reports.cols.month")}</TH><TH>{t("reports.cols.status")}</TH><TH className="text-right">{t("reports.cols.employees")}</TH><TH>{t("reports.cols.currency")}</TH><TH className="text-right">{t("reports.cols.gross")}</TH><TH className="text-right">{t("reports.cols.wageTax")}</TH><TH className="text-right">{t("reports.cols.aov")}</TH><TH className="text-right">{t("reports.cols.remit")}</TH></TR></THead>
@@ -115,7 +117,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       <Card className="mt-6" data-testid="report-contributions">
         <CardHeader className="flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div><CardTitle>{t("reports.contrib.title")}</CardTitle><CardDescription>{t("reports.contrib.sub")}</CardDescription></div>
-          <a className={buttonVariants({ variant: "outline", size: "sm" })} href={`/api/reports/contributions?year=${year}`}><Download /> {t("common.csv")}</a>
+          <ExportLinks href={`/api/reports/contributions?year=${year}`} /><ExportLinks href={`/api/reports/contributions?year=${year}&part=employees`} />
         </CardHeader>
         {contrib.months.length === 0 ? <EmptyState title={t("reports.annualEmpty")} /> : (
           <>
@@ -150,7 +152,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       <Card className="mt-6">
         <CardHeader className="flex-row items-center justify-between">
           <div><CardTitle>{t("reports.annualTitle", { year })}</CardTitle><CardDescription>{t("reports.annualSub")}</CardDescription></div>
-          <a className={buttonVariants({ variant: "outline", size: "sm" })} href={`/api/reports/annual?year=${year}`}><Download /> {t("common.csv")}</a>
+          <ExportLinks href={`/api/reports/annual?year=${year}`} />
         </CardHeader>
         {statements.length === 0 ? <EmptyState title={t("reports.annualEmpty")} /> : (
           <Table>

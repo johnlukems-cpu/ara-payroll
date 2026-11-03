@@ -13,13 +13,14 @@ import { ActionForm } from "@/components/action-form";
 import { ActionButton } from "@/components/confirm-button";
 import { SubmitButton } from "@/components/submit-button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/form";
+import { Input, Select } from "@/components/ui/form";
 import { Alert, EmptyState, PageHeader } from "@/components/ui/misc";
 import { Badge, StatusBadge } from "@/components/ui/badge";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import {
-  addContractAction, deleteDocumentAction, enableSelfServiceAction, updateEmployeeAction, uploadDocumentAction,
+  addContractAction, archiveEmployeeAction, archiveDocumentAction, deleteDocumentAction, enableSelfServiceAction, reactivateEmployeeAction, updateEmployeeAction, uploadDocumentAction,
 } from "@/app/actions/employees";
+import { OpField, OpForm } from "@/components/admin-op-form";
 import { ContractFields, EmployeeFields } from "../fields";
 import { EmployeeComponentsTab } from "./components-tab";
 
@@ -46,6 +47,14 @@ export default async function EmployeePage({ params, searchParams }: { params: P
     },
   });
   if (!e) notFound();
+  const canDelete = can(ctx.role, "company.manage");
+  const DOC_CATEGORIES = ["EMPLOYMENT_CONTRACT", "ADDENDUM", "IDENTITY", "DIPLOMA", "CERTIFICATE", "BANK", "TAX", "PENSION", "LEAVE", "OTHER"] as const;
+  const [docHistory, uploaders] = tab === "documents"
+    ? await Promise.all([
+        db.auditLog.findMany({ where: { companyId: ctx.company.id, entity: "Employee", entityId: e.id, action: { in: ["document.upload", "document.view", "document.download", "document.archive", "document.restore", "document.delete"] } }, orderBy: { createdAt: "desc" }, take: 50, include: { user: { select: { name: true } } } }),
+        db.user.findMany({ where: { id: { in: e.documents.map((d) => d.uploadedBy ?? "").filter(Boolean) } }, select: { id: true, name: true } }).then((us) => new Map(us.map((u) => [u.id, u.name]))),
+      ])
+    : [[], new Map<string, string>()] as const;
   const visibleTabs = TABS.filter((x) => canSalary || !["contracts", "pay", "payslips"].includes(x));
   const current = e.contracts[0];
   const currencies = await getCurrencies();
@@ -77,6 +86,14 @@ export default async function EmployeePage({ params, searchParams }: { params: P
         }
       />
       {sp.created && <Alert variant="success" className="mb-4">{t("employees.created")}</Alert>}
+      {canEdit && e.status === "TERMINATED" && (
+        <Alert variant="warning" className="mb-4">
+          <span className="flex flex-wrap items-center justify-between gap-3" data-testid="employee-archived">
+            {t("employee.archivedNotice", { date: f.date(e.terminationDate) })}
+            <ActionButton action={reactivateEmployeeAction} fields={{ id: e.id }} size="sm" data-testid="employee-reactivate">{t("employee.reactivate")}</ActionButton>
+          </span>
+        </Alert>
+      )}
 
       {canSalary && current && (
         <Card className="mb-6">
@@ -113,7 +130,19 @@ export default async function EmployeePage({ params, searchParams }: { params: P
             <EmployeeFields e={e} currencies={currencies} art17aAvailable={art17aAvailable} departments={await db.department.findMany({ where: { companyId: ctx.company.id }, orderBy: { name: "asc" } })} showStatus />
             <div className="flex justify-end"><SubmitButton>{t("common.saveChanges")}</SubmitButton></div>
           </ActionForm>
-        ) : (
+        ) : null
+      )}
+      {tab === "details" && canEdit && e.status !== "TERMINATED" && (
+        <div className="mt-6 max-w-xl">
+          <OpForm action={archiveEmployeeAction} title={t("employee.archiveTitle")} submit={t("employee.archive")} hidden={{ id: e.id }} variant="destructive" testId="employee-archive">
+            <OpField label={t("employee.terminationDate")}><Input name="terminationDate" type="date" required /></OpField>
+            <OpField label={t("employee.archiveReason")}><Input name="reason" /></OpField>
+            <p className="text-xs text-muted-foreground sm:col-span-2">{t("employee.archiveHint")}</p>
+          </OpForm>
+        </div>
+      )}
+      {tab === "details" && !canEdit && (
+        (
           <Card><CardContent className="grid gap-4 pt-5 text-sm sm:grid-cols-3">
             {([[t("employee.idNumber"), e.idNumber], [t("employee.dateOfBirth"), f.date(e.dateOfBirth)], [t("employee.email"), e.email], [t("employee.phone"), e.phone], [t("employee.district"), e.district], [t("employee.hireDate"), f.date(e.hireDate)], [t("employee.children_short"), e.numberOfChildren]] as const).map(([k, v]) => (
               <div key={k}><p className="text-muted-foreground">{k}</p><p className="font-medium">{v ?? "—"}</p></div>
@@ -245,33 +274,69 @@ export default async function EmployeePage({ params, searchParams }: { params: P
 
       {tab === "documents" && (
         <div className="space-y-6">
-          <Card>
-            {e.documents.length === 0 ? <EmptyState title={t("employee.noDocuments")} description={t("employee.noDocumentsText")} /> : (
-              <Table>
-                <THead><TR><TH>{t("employee.docCols.file")}</TH><TH>{t("employee.docCols.size")}</TH><TH>{t("employee.docCols.uploaded")}</TH><TH /></TR></THead>
-                <TBody>
-                  {e.documents.map((d) => (
-                    <TR key={d.id}>
-                      <TD><a className="font-medium text-primary hover:underline" href={`/api/documents/${d.id}`}>{d.fileName}</a></TD>
-                      <TD>{f.number(d.size / 1024, 0)} KB</TD>
-                      <TD className="tabular">{f.date(d.createdAt)}</TD>
-                      <TD className="text-right">{canEdit && <ActionButton action={deleteDocumentAction} fields={{ id: d.id }} variant="ghost" size="sm" confirm={t("employee.deleteDocConfirm")}>{t("common.delete")}</ActionButton>}</TD>
-                    </TR>
-                  ))}
-                </TBody>
-              </Table>
-            )}
-          </Card>
+          {[false, true].map((archived) => {
+            const docs = e.documents.filter((d) => !!d.archivedAt === archived);
+            if (archived && docs.length === 0) return null;
+            return (
+              <Card key={String(archived)} data-testid={archived ? "documents-archived" : "documents-active"}>
+                {archived && <CardHeader><CardTitle>{t("employee.docArchive")}</CardTitle></CardHeader>}
+                {docs.length === 0 ? <EmptyState title={t("employee.noDocuments")} description={t("employee.noDocumentsText")} /> : (
+                  <Table>
+                    <THead><TR><TH>{t("employee.docCols.file")}</TH><TH>{t("employee.docCols.category")}</TH><TH>{t("employee.docCols.size")}</TH><TH>{t("employee.docCols.uploaded")}</TH><TH /></TR></THead>
+                    <TBody>
+                      {docs.map((d) => (
+                        <TR key={d.id} data-testid={`doc-${d.fileName}`}>
+                          <TD><span className="font-medium">{d.fileName}</span>{d.description && <span className="block text-xs text-muted-foreground">{d.description}</span>}</TD>
+                          <TD><Badge variant="muted">{t(`enums.documentCategory.${d.category}`)}</Badge></TD>
+                          <TD className="tabular">{f.number(d.size / 1024, 0)} KB</TD>
+                          <TD className="tabular text-xs">{f.date(d.createdAt)}<span className="block text-muted-foreground">{uploaders.get(d.uploadedBy ?? "") ?? "—"}</span></TD>
+                          <TD className="whitespace-nowrap text-right">
+                            <span className="inline-flex flex-wrap items-center justify-end gap-1">
+                              {["application/pdf", "image/png", "image/jpeg"].includes(d.mimeType) && <a className="px-2 text-sm text-primary hover:underline" href={`/api/documents/${d.id}?view=1`} target="_blank" rel="noopener noreferrer">{t("employee.docView")}</a>}
+                              <a className="px-2 text-sm text-primary hover:underline" href={`/api/documents/${d.id}`}>{t("employee.docDownload")}</a>
+                              {canEdit && <ActionButton action={archiveDocumentAction} fields={archived ? { id: d.id, restore: "1" } : { id: d.id }} variant="ghost" size="sm">{t(archived ? "employee.docRestore" : "employee.docArchiveAction")}</ActionButton>}
+                              {canDelete && <ActionButton action={deleteDocumentAction} fields={{ id: d.id }} variant="ghost" size="sm" confirm={t("employee.deleteDocConfirm")}>{t("common.delete")}</ActionButton>}
+                            </span>
+                          </TD>
+                        </TR>
+                      ))}
+                    </TBody>
+                  </Table>
+                )}
+              </Card>
+            );
+          })}
           {canEdit && (
             <Card>
               <CardHeader><CardTitle>{t("employee.uploadTitle")}</CardTitle><CardDescription>{t("employee.uploadHint")}</CardDescription></CardHeader>
               <CardContent>
-                <ActionForm action={uploadDocumentAction} className="flex flex-wrap items-end gap-3" resetOnSuccess>
+                <ActionForm action={uploadDocumentAction} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 lg:items-end" resetOnSuccess>
                   <input type="hidden" name="employeeId" value={e.id} />
-                  <Input type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.docx" className="max-w-sm py-1.5" aria-label={t("employee.file")} />
+                  <label className="space-y-1 text-sm"><span className="text-xs text-muted-foreground">{t("employee.docCols.category")}</span>
+                    <Select name="category" defaultValue="OTHER" aria-label={t("employee.docCols.category")}>{DOC_CATEGORIES.map((c) => <option key={c} value={c}>{t(`enums.documentCategory.${c}`)}</option>)}</Select>
+                  </label>
+                  <label className="space-y-1 text-sm"><span className="text-xs text-muted-foreground">{t("employee.docDescription")}</span><Input name="description" maxLength={200} /></label>
+                  <Input type="file" name="file" accept=".pdf,.png,.jpg,.jpeg,.docx" className="py-1.5" aria-label={t("employee.file")} />
                   <SubmitButton pendingText={t("employee.uploading")}>{t("employee.upload")}</SubmitButton>
                 </ActionForm>
               </CardContent>
+            </Card>
+          )}
+          {docHistory.length > 0 && (
+            <Card>
+              <CardHeader><CardTitle>{t("employee.docHistory")}</CardTitle></CardHeader>
+              <Table data-testid="documents-history">
+                <TBody>
+                  {docHistory.map((h) => (
+                    <TR key={h.id}>
+                      <TD className="whitespace-nowrap text-xs">{f.dateTime(h.createdAt)}</TD>
+                      <TD className="text-sm">{t(`employee.docEvent.${h.action.slice(9)}` as never)}</TD>
+                      <TD className="text-sm">{(h.details as { fileName?: string } | null)?.fileName ?? "—"}</TD>
+                      <TD className="text-xs text-muted-foreground">{h.user?.name ?? "—"}</TD>
+                    </TR>
+                  ))}
+                </TBody>
+              </Table>
             </Card>
           )}
         </div>

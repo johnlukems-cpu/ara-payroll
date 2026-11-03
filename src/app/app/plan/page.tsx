@@ -38,6 +38,9 @@ export default async function CustomerPlanPage() {
             <dl className="grid gap-x-6 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
               <div><dt className="text-muted-foreground">{t("saas.sub.agreedPrice")}</dt><dd className="tabular font-medium">{price == null ? t("pricing.onRequest") : f.money(price, sub.currency)}{sub.discountBp ? ` (−${sub.discountBp / 100}%)` : ""}</dd></div>
               <div><dt className="text-muted-foreground">{t("saas.sub.employees")}</dt><dd className="tabular font-medium">{employees} / {capacity(sub) ?? "∞"}</dd></div>
+              <div><dt className="text-muted-foreground">{t("saas.plans.maxUsers")}</dt><dd className="tabular font-medium">{sub.maxUsers ?? "∞"}</dd></div>
+              <div><dt className="text-muted-foreground">{t("saas.plans.storageLimitMb")}</dt><dd className="tabular font-medium">{sub.storageLimitMb != null ? `${sub.storageLimitMb} MB` : "∞"}</dd></div>
+              {sub.supportLevel && <div><dt className="text-muted-foreground">{t("saas.plans.supportLevel")}</dt><dd className="font-medium">{sub.supportLevel}</dd></div>}
               <div><dt className="text-muted-foreground">{t("saas.sub.start")}</dt><dd className="tabular">{f.date(sub.startDate)}</dd></div>
               {sub.status === "TRIAL" && <div><dt className="text-muted-foreground">{t("saas.sub.trialEnd")}</dt><dd className="tabular">{f.date(sub.trialEnd)} ({t("saas.daysLeft", { days: trialDaysLeft(sub.trialEnd, now) ?? 0 })})</dd></div>}
               {sub.nextInvoiceDate && <div><dt className="text-muted-foreground">{t("saas.sub.nextInvoice")}</dt><dd className="tabular">{f.date(sub.nextInvoiceDate)}</dd></div>}

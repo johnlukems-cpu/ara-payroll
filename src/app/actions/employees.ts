@@ -16,11 +16,12 @@ import { assertActiveCurrency } from "@/lib/server/rates";
 import { assertNoFixedDuplicate, assertPensionNotDouble, parseOverrides, recalcOpenRuns, resolveComponent } from "@/lib/server/pay-components";
 import { calculateRun } from "@/lib/payroll/service";
 import { capacity } from "@/lib/saas";
+import { nextEmployeeNumber } from "@/lib/server/employee-number";
 import { parseMoney } from "@/lib/format";
 import { currencyField, dateField, moneyField, numberField, optionalDate, optionalText, percentField } from "@/lib/validation";
 
 const employeeSchema = z.object({
-  employeeNumber: z.string({ error: "validation.required" }).min(1, "validation.required").max(30),
+  employeeNumber: z.string().trim().max(30).optional(),
   firstName: z.string({ error: "validation.required" }).min(1, "validation.required").max(80),
   lastName: z.string({ error: "validation.required" }).min(1, "validation.required").max(80),
   idNumber: optionalText(40),
@@ -81,6 +82,15 @@ async function ensureDepartment(companyId: string, departmentId: string | null) 
   return d.id;
 }
 
+/** Employee capacity of the subscription (plan maximum + extra capacity), across all companies of the customer. */
+async function assertEmployeeCapacity(organizationId: string) {
+  const sub = await db.subscription.findFirst({ where: { organizationId }, orderBy: { createdAt: "desc" } });
+  const max = capacity(sub);
+  if (max == null) return;
+  const used = await db.employee.count({ where: { company: { organizationId }, status: { not: "TERMINATED" } } });
+  if (used >= max) throw new UserError("saasErrors.employeeLimit", { max });
+}
+
 export async function createEmployeeAction(_: ActionState, fd: FormData): Promise<ActionState> {
   let id: string;
   try {
@@ -90,19 +100,14 @@ export async function createEmployeeAction(_: ActionState, fd: FormData): Promis
     const c = contractSchema.parse({ ...raw, startDate: raw.contractStart ?? raw.hireDate });
     await ensureCurrencies(c.salaryCurrency, e.paymentCurrency);
     await ensureRegimeAllowed(ctx.company.id, e.taxRegime);
-    // Employee capacity of the subscription (plan maximum + extra capacity granted), across all companies of the customer.
-    const sub = await db.subscription.findFirst({ where: { organizationId: ctx.company.organizationId }, orderBy: { createdAt: "desc" } });
-    const max = capacity(sub);
-    if (max != null) {
-      const used = await db.employee.count({ where: { company: { organizationId: ctx.company.organizationId }, status: { not: "TERMINATED" } } });
-      if (used >= max) throw new UserError("saasErrors.employeeLimit", { max });
-    }
+    await assertEmployeeCapacity(ctx.company.organizationId);
     const departmentId = await ensureDepartment(ctx.company.id, e.departmentId);
+    const employeeNumber = e.employeeNumber || (await nextEmployeeNumber(ctx.company.id));
     const created = await db.employee.create({
-      data: { ...e, departmentId, companyId: ctx.company.id, contracts: { create: c } },
+      data: { ...e, employeeNumber, departmentId, companyId: ctx.company.id, contracts: { create: c } },
     });
     id = created.id;
-    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.create", entity: "Employee", entityId: id, details: { employeeNumber: e.employeeNumber } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.create", entity: "Employee", entityId: id, details: { employeeNumber } });
   } catch (err) {
     return handleError(err);
   }
@@ -117,11 +122,13 @@ export async function updateEmployeeAction(_: ActionState, fd: FormData): Promis
     const existing = await db.employee.findFirst({ where: { id, companyId: ctx.company.id } });
     if (!existing) throw new UserError("errors.notFound");
     const e = employeeSchema.extend({
+      employeeNumber: z.string({ error: "validation.required" }).trim().min(1, "validation.required").max(30),
       status: z.enum(["ACTIVE", "ON_LEAVE", "TERMINATED"]),
       terminationDate: optionalDate,
     }).parse(raw);
     const t = await getTranslations();
     if (e.status === "TERMINATED" && !e.terminationDate) return { ok: false, message: t("errors.terminationDateRequired"), errors: { terminationDate: [t("validation.required")] } };
+    if (existing.status === "TERMINATED" && e.status !== "TERMINATED") await assertEmployeeCapacity(ctx.company.organizationId);
     await ensureCurrencies(e.paymentCurrency);
     if (e.taxRegime !== existing.taxRegime) await ensureRegimeAllowed(ctx.company.id, e.taxRegime);
     const departmentId = await ensureDepartment(ctx.company.id, e.departmentId);
@@ -129,6 +136,42 @@ export async function updateEmployeeAction(_: ActionState, fd: FormData): Promis
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.update", entity: "Employee", entityId: id });
     revalidatePath(`/app/employees/${id}`);
     return ok(t("employees.saved"));
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+/** Archives an employee (leaving service): status TERMINATED with a leaving date; history and payslips are kept. */
+export async function archiveEmployeeAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requirePermission("employees.edit");
+    const d = z.object({ id: z.string().min(1), terminationDate: dateField, reason: optionalText(300) }).parse(formObject(fd));
+    const emp = await db.employee.findFirst({ where: { id: d.id, companyId: ctx.company.id } });
+    if (!emp) throw new UserError("errors.notFound");
+    if (emp.status === "TERMINATED") throw new UserError("errors.alreadyArchived");
+    if (d.terminationDate < emp.hireDate) throw new UserError("validation.endAfterStart");
+    await db.employee.update({ where: { id: emp.id }, data: { status: "TERMINATED", terminationDate: d.terminationDate } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.archive", entity: "Employee", entityId: emp.id, details: { terminationDate: d.terminationDate.toISOString().slice(0, 10), reason: d.reason } });
+    revalidatePath(`/app/employees/${emp.id}`);
+    return ok((await getTranslations())("employee.archived"));
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+/** Reactivates an archived employee (re-hire); the subscription's employee limit applies. */
+export async function reactivateEmployeeAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requirePermission("employees.edit");
+    const id = z.string().min(1).parse(fd.get("id"));
+    const emp = await db.employee.findFirst({ where: { id, companyId: ctx.company.id } });
+    if (!emp) throw new UserError("errors.notFound");
+    if (emp.status !== "TERMINATED") throw new UserError("errors.notArchived");
+    await assertEmployeeCapacity(ctx.company.organizationId);
+    await db.employee.update({ where: { id: emp.id }, data: { status: "ACTIVE", terminationDate: null } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.reactivate", entity: "Employee", entityId: emp.id, details: { previousTerminationDate: emp.terminationDate?.toISOString().slice(0, 10) ?? null } });
+    revalidatePath(`/app/employees/${emp.id}`);
+    return ok((await getTranslations())("employee.reactivated"));
   } catch (err) {
     return handleError(err);
   }
@@ -268,6 +311,16 @@ export async function removeComponentAction(_: ActionState, fd: FormData): Promi
 const ALLOWED_MIME = new Set(["application/pdf", "image/png", "image/jpeg", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"]);
 const MAX_UPLOAD = 8 * 1024 * 1024;
 
+const DOC_CATEGORIES = ["EMPLOYMENT_CONTRACT", "ADDENDUM", "IDENTITY", "DIPLOMA", "CERTIFICATE", "BANK", "TAX", "PENSION", "LEAVE", "OTHER"] as const;
+
+/** Document storage limit of the subscription (agreed terms), across all companies of the customer. */
+async function assertStorageQuota(organizationId: string, addBytes: number) {
+  const sub = await db.subscription.findFirst({ where: { organizationId }, orderBy: { createdAt: "desc" } });
+  if (sub?.storageLimitMb == null) return;
+  const used = (await db.employeeDocument.aggregate({ where: { employee: { company: { organizationId } } }, _sum: { size: true } }))._sum.size ?? 0;
+  if (used + addBytes > sub.storageLimitMb * 1024 * 1024) throw new UserError("saasErrors.storageLimit", { mb: sub.storageLimitMb });
+}
+
 export async function uploadDocumentAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const ctx = await requirePermission("employees.edit");
@@ -276,12 +329,14 @@ export async function uploadDocumentAction(_: ActionState, fd: FormData): Promis
     if (!(file instanceof File) || file.size === 0) throw new UserError("errors.chooseFile");
     if (file.size > MAX_UPLOAD) throw new UserError("errors.fileTooLarge");
     if (!ALLOWED_MIME.has(file.type)) throw new UserError("errors.fileType");
+    const meta = z.object({ category: z.enum(DOC_CATEGORIES).default("OTHER"), description: optionalText(200) }).parse(formObject(fd));
     const emp = await db.employee.findFirst({ where: { id: employeeId, companyId: ctx.company.id } });
     if (!emp) throw new UserError("errors.notFound");
+    await assertStorageQuota(ctx.company.organizationId, file.size);
     const key = await storage.put(Buffer.from(await file.arrayBuffer()), ctx.company.id);
     const fileName = file.name.replace(/[^\w.\- ()]/g, "_").slice(0, 150);
-    await db.employeeDocument.create({ data: { employeeId, fileName, mimeType: file.type, size: file.size, storageKey: key, uploadedBy: ctx.user.id } });
-    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "document.upload", entity: "Employee", entityId: employeeId, details: { fileName } });
+    const doc = await db.employeeDocument.create({ data: { employeeId, fileName, mimeType: file.type, size: file.size, storageKey: key, uploadedBy: ctx.user.id, category: meta.category, description: meta.description } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "document.upload", entity: "Employee", entityId: employeeId, details: { fileName, documentId: doc.id, category: meta.category } });
     revalidatePath(`/app/employees/${employeeId}`);
     return ok((await getTranslations())("employee.docUploaded"));
   } catch (err) {
@@ -289,9 +344,27 @@ export async function uploadDocumentAction(_: ActionState, fd: FormData): Promis
   }
 }
 
-export async function deleteDocumentAction(_: ActionState, fd: FormData): Promise<ActionState> {
+/** Archives or restores a document (kept in storage; hidden from the active list). */
+export async function archiveDocumentAction(_: ActionState, fd: FormData): Promise<ActionState> {
   try {
     const ctx = await requirePermission("employees.edit");
+    const id = z.string().parse(fd.get("id"));
+    const restore = fd.get("restore") === "1";
+    const doc = await db.employeeDocument.findFirst({ where: { id, employee: { companyId: ctx.company.id } } });
+    if (!doc) throw new UserError("errors.notFound");
+    await db.employeeDocument.update({ where: { id }, data: restore ? { archivedAt: null, archivedById: null } : { archivedAt: new Date(), archivedById: ctx.user.id } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: restore ? "document.restore" : "document.archive", entity: "Employee", entityId: doc.employeeId, details: { fileName: doc.fileName, documentId: doc.id } });
+    revalidatePath(`/app/employees/${doc.employeeId}`);
+    return ok((await getTranslations())(restore ? "employee.docRestored" : "employee.docArchived"));
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+/** Permanent deletion: owners and administrators only (company.manage); recorded in the audit log. */
+export async function deleteDocumentAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requirePermission("company.manage");
     const id = z.string().parse(fd.get("id"));
     const doc = await db.employeeDocument.findFirst({ where: { id, employee: { companyId: ctx.company.id } } });
     if (!doc) throw new UserError("errors.notFound");

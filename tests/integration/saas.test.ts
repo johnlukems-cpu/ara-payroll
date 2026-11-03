@@ -11,6 +11,7 @@ import { PrismaClient, type Plan, type User } from "@prisma/client";
 import {
   approveRegistration, cancelSubscription, changePlan, convertTrial, createCustomer, createSubscriptionInvoice, creditInvoice, extendTrial,
   processSubscriptions, recordPayment, renewSubscription, resumeSubscription, saasSettings, setDiscount, startSupportAccess, suspendSubscription,
+  assertUserCapacity, markInvoiceSent, recordInvoiceReminder, setLimits,
 } from "@/lib/server/saas";
 import { accessFor, addDays } from "@/lib/saas";
 
@@ -32,7 +33,7 @@ const access = async () => { const s = await sub(); return accessFor((await org(
 const day = (n: number) => addDays(new Date(), n);
 
 beforeAll(async () => {
-  basic = await db.plan.create({ data: { code: `it-basic-${TS}`, nameNl: "IT Basis", nameEn: "IT Basic", monthlyPrice: 75000, yearlyPrice: 750000, maxEmployees: 2, trialDays: 30, sortOrder: 900, isPublished: false } });
+  basic = await db.plan.create({ data: { code: `it-basic-${TS}`, nameNl: "IT Basis", nameEn: "IT Basic", monthlyPrice: 75000, yearlyPrice: 750000, maxEmployees: 2, maxUsers: 1, storageLimitMb: 50, supportLevel: "Standaard", trialDays: 30, sortOrder: 900, isPublished: false } });
   plus = await db.plan.create({ data: { code: `it-plus-${TS}`, nameNl: "IT Plus", nameEn: "IT Plus", monthlyPrice: 150000, yearlyPrice: 1500000, maxEmployees: 30, trialDays: 30, sortOrder: 901, isPublished: false } });
   admin = await db.user.create({ data: { email: emails[2], name: "IT SaaS admin", passwordHash: "x", platformRole: "SAAS_ADMIN" } });
   superAdmin = await db.user.create({ data: { email: emails[3], name: "IT super", passwordHash: "x", platformRole: "SUPER_ADMIN" } });
@@ -61,7 +62,7 @@ describe("registration and approval", () => {
     expect(await db.payComponent.count({ where: { companyId } })).toBeGreaterThan(0); // company defaults seeded
 
     const s = await sub();
-    expect(s).toMatchObject({ status: "TRIAL", planId: basic.id, priceMonthly: 75000, maxEmployees: 2 });
+    expect(s).toMatchObject({ status: "TRIAL", planId: basic.id, priceMonthly: 75000, maxEmployees: 2, maxUsers: 1, storageLimitMb: 50, supportLevel: "Standaard" });
     expect(Math.round((s.trialEnd!.getTime() - s.trialStart!.getTime()) / 86_400_000)).toBe(30);
     expect(s.events.map((e) => e.type)).toEqual(["ASSIGNED"]);
     expect((await org()).status).toBe("TRIAL");
@@ -181,6 +182,31 @@ describe("invoices and payments", () => {
     await recordPayment(inv.id, admin.id, { amount: inv.total, paidAt: new Date(), methodCode: "BANK_TRANSFER", reference: "BANK-3", note: null });
     expect((await sub()).status).toBe("ACTIVE");
     expect((await org()).status).toBe("ACTIVE");
+  });
+});
+
+describe("plan limits and invoice dispatch", () => {
+  it("enforces the agreed user limit, ignoring users already counted", async () => {
+    const owner = await db.user.findUniqueOrThrow({ where: { email: emails[0] } });
+    await setLimits(subId, admin.id, { maxUsers: 1, storageLimitMb: 50, supportLevel: "Standaard" });
+    await expect(assertUserCapacity(orgId)).rejects.toThrow();
+    await expect(assertUserCapacity(orgId, owner.id)).resolves.toBeUndefined();
+    await setLimits(subId, admin.id, { maxUsers: 5, storageLimitMb: null, supportLevel: null });
+    await expect(assertUserCapacity(orgId)).resolves.toBeUndefined();
+    expect((await sub()).events.at(-1)!.type).toBe("LIMITS_CHANGED");
+  });
+
+  it("records sending and reminders without marking anything paid", async () => {
+    const inv = await createSubscriptionInvoice(subId, admin.id);
+    await markInvoiceSent(inv.id, admin.id);
+    await expect(markInvoiceSent(inv.id, admin.id)).rejects.toThrow();
+    await recordInvoiceReminder(inv.id, admin.id);
+    await recordInvoiceReminder(inv.id, admin.id);
+    const after = await db.invoice.findUniqueOrThrow({ where: { id: inv.id } });
+    expect(after.sentAt).not.toBeNull();
+    expect(after).toMatchObject({ reminderCount: 2, status: "OPEN", amountPaid: 0 });
+    await creditInvoice(inv.id, admin.id, null, "Test opruimen");
+    await expect(recordInvoiceReminder(inv.id, admin.id)).rejects.toThrow();
   });
 });
 

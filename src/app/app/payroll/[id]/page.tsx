@@ -10,6 +10,7 @@ import { eligibleEmployeesWhere } from "@/lib/payroll/service";
 import { ActionForm } from "@/components/action-form";
 import { ComponentAssignmentForm } from "@/components/component-assignment-form";
 import { LegalSnapshotCard } from "@/components/legal-snapshot-card";
+import { OpField, OpForm } from "@/components/admin-op-form";
 import { componentOptions, isStatutory, missingStatutoryContributions } from "@/lib/server/pay-components";
 import { toDateInput } from "@/lib/format";
 import { ActionButton } from "@/components/confirm-button";
@@ -35,9 +36,10 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   const notice = (NOTICES as readonly string[]).includes(noticeKey ?? "") ? t(`run.notices.${noticeKey as (typeof NOTICES)[number]}`) : null;
   const run = await db.payrollRun.findFirst({
     where: { id, companyId: ctx.company.id },
-    include: { company: true, taxRuleSet: true, payslips: { orderBy: { employeeName: "asc" } }, adjustments: { include: { component: true } }, inputs: true },
+    include: { company: true, taxRuleSet: true, payslips: { orderBy: { employeeName: "asc" } }, adjustments: { include: { component: true } }, inputs: true, corrections: { orderBy: { createdAt: "desc" } } },
   });
   if (!run) notFound();
+  const corrections = run.corrections;
   const editable = run.status === "DRAFT" || run.status === "CALCULATED";
   const missing = editable ? await missingStatutoryContributions(ctx.company.id, run.year, run.month) : [];
   const canRun = can(ctx.role, "payroll.run");
@@ -76,7 +78,12 @@ export default async function RunPage({ params, searchParams }: { params: Promis
                 <SubmitButton>{t("run.approve")}</SubmitButton>
               </ActionForm>
             )}
-            {canApprove && run.status === "APPROVED" && <ActionButton action={reopenRunAction} fields={{ runId: run.id }} variant="outline">{t("run.reopen")}</ActionButton>}
+            {canApprove && run.status === "APPROVED" && (
+              <OpForm action={reopenRunAction} title={t("run.correction")} submit={t("run.reopen")} hidden={{ runId: run.id }} testId="run-correction">
+                <OpField label={t("run.correctionReason")} wide><Input name="reason" required minLength={10} /></OpField>
+                <p className="text-xs text-muted-foreground sm:col-span-2">{t("run.correctionHint")}</p>
+              </OpForm>
+            )}
             {canApprove && run.status === "APPROVED" && <ActionButton action={markPaidAction} fields={{ runId: run.id }} confirm={t("run.markPaidConfirm")}>{t("run.markPaid")}</ActionButton>}
           </>
         }
@@ -231,6 +238,20 @@ export default async function RunPage({ params, searchParams }: { params: Promis
       </Card>
 
       {run.legalSnapshot && <LegalSnapshotCard snapshot={run.legalSnapshot} />}
+      {corrections.length > 0 && (
+        <Card className="mt-6" data-testid="run-corrections">
+          <CardHeader><CardTitle>{t("run.correctionHistory")}</CardTitle><CardDescription>{t("run.correctionHistorySub")}</CardDescription></CardHeader>
+          <Table>
+            <THead><TR><TH>{t("run.correctionDate")}</TH><TH>{t("run.correctionReason")}</TH><TH className="text-right">{t("run.correctionNetBefore")}</TH></TR></THead>
+            <TBody>
+              {corrections.map((c) => {
+                const snap = c.snapshot as { totals?: { net?: number }; currency?: string };
+                return <TR key={c.id}><TD className="whitespace-nowrap text-xs">{f.dateTime(c.createdAt)}</TD><TD className="text-sm">{c.reason}</TD><TD className="tabular text-right">{f.money(snap.totals?.net ?? 0, snap.currency ?? run.currency)}</TD></TR>;
+              })}
+            </TBody>
+          </Table>
+        </Card>
+      )}
 
       {editable && canRun && (
         <div className="mt-8 flex justify-end">

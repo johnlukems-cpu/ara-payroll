@@ -31,7 +31,7 @@ export async function EmployeeFields({ e, departments, currencies, showStatus, a
   return (
     <div className="space-y-5">
       <Section title={t("employee.sections.personal")}>
-        <F name="employeeNumber" label={t("employee.employeeNumber")}><Input id="employeeNumber" name="employeeNumber" defaultValue={e?.employeeNumber} required /></F>
+        <F name="employeeNumber" label={t("employee.employeeNumber")} hint={t("employee.employeeNumberHint")}><Input id="employeeNumber" name="employeeNumber" defaultValue={e?.employeeNumber} /></F>
         <F name="firstName" label={t("employee.firstName")}><Input id="firstName" name="firstName" defaultValue={e?.firstName} required /></F>
         <F name="lastName" label={t("employee.lastName")}><Input id="lastName" name="lastName" defaultValue={e?.lastName} required /></F>
         <F name="idNumber" label={t("employee.idNumber")} hint={t("employee.idNumberHint")}><Input id="idNumber" name="idNumber" defaultValue={e?.idNumber ?? ""} /></F>

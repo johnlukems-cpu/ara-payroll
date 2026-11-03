@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { EmptyState, PageHeader, Stat } from "@/components/ui/misc";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
 import { InvoiceBadge } from "@/components/saas-badges";
+import { Badge } from "@/components/ui/badge";
 
 export async function generateMetadata() {
   const { t } = await getI18n();
@@ -77,7 +78,7 @@ export default async function BillingPage({ searchParams }: { searchParams: Prom
                   <TD className="tabular text-xs">{i.kind === "INVOICE" ? f.date(i.dueDate) : "—"}</TD>
                   <TD className="tabular text-right">{f.money(i.total, i.currency)}</TD>
                   <TD className="tabular text-right">{i.kind === "INVOICE" && i.status !== "CREDITED" && i.status !== "VOID" ? f.money(i.total - i.amountPaid, i.currency) : "—"}</TD>
-                  <TD><InvoiceBadge status={i.status} overdue={isOverdue(i, now)} /></TD>
+                  <TD className="space-x-1"><InvoiceBadge status={i.status} overdue={isOverdue(i, now)} />{i.kind === "INVOICE" && i.status !== "PAID" && i.status !== "CREDITED" && <Badge variant={i.sentAt ? "accent" : "muted"}>{t(i.sentAt ? "saas.billing.sent" : "saas.billing.notSent")}</Badge>}</TD>
                 </TR>
               ))}
             </TBody>

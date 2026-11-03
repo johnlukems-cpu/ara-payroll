@@ -1,34 +1,43 @@
 import "server-only";
 import { db } from "@/lib/db";
 
-const yearRange = (year: number) => ({ gte: new Date(Date.UTC(year, 0, 1)), lte: new Date(Date.UTC(year, 11, 31)) });
-
 /**
  * Annual leave balances (entitlement prorated by hire date) including carried-forward days where the
  * leave type allows it, capped by its maximum.
  */
 export async function leaveBalances(companyId: string, employeeId: string, year: number) {
-  const [types, emp, used, usedPrev] = await Promise.all([
+  return (await leaveBalancesFor(companyId, [employeeId], year)).get(employeeId) ?? [];
+}
+
+/**
+ * Balances for several employees at once (overview pages). Taken days count the approved days of each request
+ * (or the requested days when no separate approval quantity was recorded); manual adjustments are added.
+ */
+export async function leaveBalancesFor(companyId: string, employeeIds: string[], year: number) {
+  const [types, emps, requests, adjustments] = await Promise.all([
     db.leaveType.findMany({ where: { companyId, annualEntitlementDays: { gt: 0 } }, orderBy: { name: "asc" } }),
-    db.employee.findUniqueOrThrow({ where: { id: employeeId } }),
-    db.leaveRequest.groupBy({ by: ["leaveTypeId"], where: { employeeId, status: "APPROVED", startDate: yearRange(year) }, _sum: { days: true, approvedDays: true } }),
-    db.leaveRequest.groupBy({ by: ["leaveTypeId"], where: { employeeId, status: "APPROVED", startDate: yearRange(year - 1) }, _sum: { days: true, approvedDays: true } }),
+    db.employee.findMany({ where: { id: { in: employeeIds }, companyId } }),
+    db.leaveRequest.findMany({ where: { employeeId: { in: employeeIds }, status: "APPROVED", startDate: { gte: new Date(Date.UTC(year - 1, 0, 1)), lte: new Date(Date.UTC(year, 11, 31)) } }, select: { employeeId: true, leaveTypeId: true, startDate: true, days: true, approvedDays: true } }),
+    db.leaveBalanceAdjustment.findMany({ where: { employeeId: { in: employeeIds }, year: { in: [year - 1, year] } } }),
   ]);
-  const entitlementFor = (base: number, y: number) => {
-    const hireYear = emp.hireDate.getUTCFullYear();
-    const factor = hireYear < y ? 1 : hireYear > y ? 0 : (12 - emp.hireDate.getUTCMonth()) / 12;
-    return Math.round(base * factor * 2) / 2;
-  };
-  const taken = (rows: typeof used, id: string) => {
-    const r = rows.find((u) => u.leaveTypeId === id);
-    return r?._sum.approvedDays ?? r?._sum.days ?? 0;
-  };
-  return types.map((t) => {
-    const carried = t.carryForward ? Math.max(0, Math.min(t.maxCarryForwardDays, entitlementFor(t.annualEntitlementDays, year - 1) - taken(usedPrev, t.id))) : 0;
-    const entitlement = entitlementFor(t.annualEntitlementDays, year) + carried;
-    const takenNow = taken(used, t.id);
-    return { type: t, entitlement, carried, taken: takenNow, remaining: entitlement - takenNow };
-  });
+  const out = new Map<string, { type: (typeof types)[number]; entitlement: number; carried: number; adjusted: number; taken: number; remaining: number }[]>();
+  for (const emp of emps) {
+    const entitlementFor = (base: number, y: number) => {
+      const hireYear = emp.hireDate.getUTCFullYear();
+      const factor = hireYear < y ? 1 : hireYear > y ? 0 : (12 - emp.hireDate.getUTCMonth()) / 12;
+      return Math.round(base * factor * 2) / 2;
+    };
+    const taken = (typeId: string, y: number) => requests.filter((r) => r.employeeId === emp.id && r.leaveTypeId === typeId && r.startDate.getUTCFullYear() === y).reduce((s, r) => s + (r.approvedDays ?? r.days), 0);
+    const adj = (typeId: string, y: number) => adjustments.filter((a) => a.employeeId === emp.id && a.leaveTypeId === typeId && a.year === y).reduce((s, a) => s + a.days, 0);
+    out.set(emp.id, types.map((t) => {
+      const carried = t.carryForward ? Math.max(0, Math.min(t.maxCarryForwardDays, entitlementFor(t.annualEntitlementDays, year - 1) + adj(t.id, year - 1) - taken(t.id, year - 1))) : 0;
+      const adjusted = adj(t.id, year);
+      const entitlement = entitlementFor(t.annualEntitlementDays, year) + carried + adjusted;
+      const takenNow = taken(t.id, year);
+      return { type: t, entitlement, carried, adjusted, taken: takenNow, remaining: entitlement - takenNow };
+    }));
+  }
+  return out;
 }
 
 /**

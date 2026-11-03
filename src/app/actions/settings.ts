@@ -1,5 +1,6 @@
 "use server";
 
+import { assertUserCapacity } from "@/lib/server/saas";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { randomBytes } from "node:crypto";
@@ -318,6 +319,7 @@ export async function inviteUserAction(_: ActionState, fd: FormData): Promise<Ac
     const data = z.object({ name: z.string({ error: "validation.required" }).min(2).max(120), email: z.email("validation.email").transform((e) => e.toLowerCase()), role: roleEnum }).parse(formObject(fd));
     if (data.role === "OWNER" && ctx.role !== "OWNER") throw new UserError("errors.ownerOnlyAdd");
     let user = await db.user.findUnique({ where: { email: data.email } });
+    await assertUserCapacity(ctx.company.organizationId, user?.id); // staff users count against the subscription limit
     let temp: string | null = null;
     if (!user) {
       temp = randomBytes(9).toString("base64url");
@@ -342,6 +344,7 @@ export async function changeRoleAction(_: ActionState, fd: FormData): Promise<Ac
     const role = z.enum(["OWNER", "ADMIN", "PAYROLL_MANAGER", "HR_MANAGER", "ACCOUNTANT", "EMPLOYEE"]).parse(fd.get("role"));
     if (m.userId === ctx.user.id) throw new UserError("errors.ownRole");
     if ((role === "OWNER" || m.role === "OWNER") && ctx.role !== "OWNER") throw new UserError("errors.ownerOnlyChange");
+    if (m.role === "EMPLOYEE" && role !== "EMPLOYEE") await assertUserCapacity(ctx.company.organizationId, m.userId);
     await db.membership.update({ where: { id: m.id }, data: { role } });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "user.role_changed", entity: "Membership", entityId: m.id, details: { from: m.role, to: role } });
     revalidatePath("/app/settings/users");

@@ -48,7 +48,12 @@
     "perHour": "/h",
     "employeesCount": "{count, plural, one {# employee} other {# employees}}",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "export": {
+      "csv": "CSV",
+      "xlsx": "Excel",
+      "pdf": "PDF"
+    }
   },
   "nav": {
     "dashboard": "Dashboard",
@@ -188,6 +193,18 @@
     "contributionTax": {
       "PRE_TAX": "Deductible before wage tax",
       "AFTER_TAX": "Not deductible (after tax)"
+    },
+    "documentCategory": {
+      "EMPLOYMENT_CONTRACT": "Employment contract",
+      "ADDENDUM": "Addendum",
+      "IDENTITY": "Identity document",
+      "DIPLOMA": "Diploma",
+      "CERTIFICATE": "Certificate",
+      "BANK": "Bank document",
+      "TAX": "Tax document",
+      "PENSION": "Pension document",
+      "LEAVE": "Leave document",
+      "OTHER": "Other personnel document"
     }
   },
   "auth": {
@@ -456,7 +473,8 @@
     "docCols": {
       "file": "File",
       "size": "Size",
-      "uploaded": "Uploaded"
+      "uploaded": "Uploaded",
+      "category": "Category"
     },
     "deleteDocConfirm": "Delete this document permanently?",
     "uploadTitle": "Upload document",
@@ -475,7 +493,33 @@
     "bulkSkipped": "Skipped (already assigned or not allowed): {list}.",
     "componentUpdated": "{name} updated.",
     "recalculated": "{count, plural, one {# open payroll run} other {# open payroll runs}} recalculated.",
-    "recalcFailed": "An open payroll run could not be recalculated and is back in draft."
+    "recalcFailed": "An open payroll run could not be recalculated and is back in draft.",
+    "employeeNumberHint": "Leave empty to use the next free number automatically.",
+    "archived": "Employee archived (left service). History and payslips are kept.",
+    "reactivated": "Employee reactivated.",
+    "archivedNotice": "This employee is archived and left service on {date}.",
+    "reactivate": "Reactivate",
+    "archiveTitle": "Register leaving and archive",
+    "archive": "Archive",
+    "archiveReason": "Reason (optional)",
+    "archiveHint": "The employee no longer appears in payroll runs after the leaving date. Contracts, salary history, documents and payslips are kept.",
+    "docDescription": "Description (optional)",
+    "docView": "View",
+    "docDownload": "Download",
+    "docArchiveAction": "Archive",
+    "docRestore": "Restore",
+    "docArchive": "Archived documents",
+    "docArchived": "Document archived.",
+    "docRestored": "Document restored.",
+    "docHistory": "Document history",
+    "docEvent": {
+      "upload": "Uploaded",
+      "view": "Viewed",
+      "download": "Downloaded",
+      "archive": "Archived",
+      "restore": "Restored",
+      "delete": "Deleted"
+    }
   },
   "payroll": {
     "title": "Payroll runs",
@@ -614,7 +658,14 @@
     "snapshotBrackets": "Brackets",
     "snapshotOvertime": "Overtime",
     "snapshotAge": "until age {age}",
-    "snapshotNoSchemes": "No contribution schemes used."
+    "snapshotNoSchemes": "No contribution schemes used.",
+    "correction": "Correction: reopen payroll",
+    "correctionReason": "Reason for the correction",
+    "correctionHint": "The approved payslips are kept as a version and the correction is recorded. After recalculation the payroll must be approved again. If the declaration has already been approved or submitted, a supplementary declaration is required.",
+    "correctionHistory": "Correction history",
+    "correctionHistorySub": "Previously approved versions of this payroll are kept.",
+    "correctionDate": "Date",
+    "correctionNetBefore": "Net before correction"
   },
   "payslip": {
     "title": "Payslip",
@@ -793,7 +844,36 @@
     "rejected": "Leave rejected.",
     "cancelled": "Leave cancelled.",
     "overlap": "This period overlaps an existing leave request.",
-    "noWorkingDays": "The selected period contains no working days."
+    "noWorkingDays": "The selected period contains no working days.",
+    "adjusted": "Leave balance corrected.",
+    "tabs": {
+      "requests": "Requests",
+      "calendar": "Leave calendar",
+      "overview": "Balances and reports",
+      "parental": "Parental and maternity"
+    },
+    "calendar": {
+      "title": "Leave calendar {period}",
+      "subtitle": "Approved and requested leave per employee. Weekends and fixed public holidays are grey; movable holidays are not in the calendar.",
+      "allDepartments": "All departments",
+      "nonWorking": "Weekend or holiday",
+      "empty": "No leave this month."
+    },
+    "overview": {
+      "title": "Leave balances and reports {year}",
+      "subtitle": "Balances per employee (entitlement incl. carried-forward days and corrections, minus days taken) and leave and absence taken per department.",
+      "year": "Year",
+      "balances": "Balances per employee",
+      "balancesSub": "Large figure: remaining balance in days. Below: entitlement and taken, plus any corrections.",
+      "cell": "entitlement {entitlement} · taken {taken}",
+      "adjustTitle": "Correct balance",
+      "adjustDays": "Number of days (+ or −)",
+      "adjustReason": "Reason",
+      "adjustHint": "The correction applies to {year} and is recorded with its reason in the audit trail, e.g. an opening balance or a carry-forward decision.",
+      "adjustments": "Corrections this year",
+      "perDepartment": "Leave and absence taken per department",
+      "perDepartmentSub": "Approved days per leave type (including sick leave)."
+    }
   },
   "reports": {
     "title": "Reports",
@@ -1307,7 +1387,11 @@
     "schemeNotApplicable": "This scheme is marked as not applicable.",
     "statutoryConfigMissing": "The payroll run cannot be finalised: the statutory scheme(s) {list} have not been configured and approved (Settings → Contributions).",
     "schemeStatutoryUnverified": "A statutory scheme can only be approved once its legal basis has been verified. Check the official text, set the legal status to Verified and save.",
-    "subscriptionBlocked": "Your subscription does not currently give access to this feature. Please contact ARA Intelligent Solutions."
+    "subscriptionBlocked": "Your subscription does not currently give access to this feature. Please contact ARA Intelligent Solutions.",
+    "alreadyArchived": "This employee is already archived.",
+    "notArchived": "This employee is not archived.",
+    "correctionReason": "Please give a reason for the correction of at least 10 characters.",
+    "invalidAdjustment": "Enter a number of days (multiple of 0.5, not 0)."
   },
   "bracket": {
     "required": "at least one bracket is required",
@@ -2510,7 +2594,8 @@
       "EXPIRED": "Expired",
       "CAPACITY_CHANGED": "Extra capacity changed",
       "DISCOUNT_CHANGED": "Discount changed",
-      "PRICE_AGREED": "Price agreement changed"
+      "PRICE_AGREED": "Price agreement changed",
+      "LIMITS_CHANGED": "Limits changed"
     },
     "dashboard": {
       "title": "Dashboard",
@@ -2612,7 +2697,8 @@
         "convertTrial": "Convert to paid subscription",
         "capacity": "Extra capacity",
         "discount": "Grant discount",
-        "price": "Price agreement"
+        "price": "Price agreement",
+        "limits": "Limits and support"
       }
     },
     "msg": {
@@ -2639,7 +2725,8 @@
         "capacity": "Capacity changed.",
         "discount": "Discount changed.",
         "price": "Price agreement changed.",
-        "invoice": "Invoice created."
+        "invoice": "Invoice created.",
+        "limits": "Limits changed."
       },
       "request": {
         "review": "Request taken into review.",
@@ -2649,7 +2736,9 @@
         "approve": "Request handled.",
         "approved": "Registration approved: account, company and trial subscription have been created. The customer can now sign in.",
         "convert": "Customer created."
-      }
+      },
+      "invoiceSent": "Invoice recorded as sent.",
+      "reminderRecorded": "Payment reminder recorded."
     },
     "access": {
       "title": "Access restricted",
@@ -2752,7 +2841,10 @@
       "active": "Active",
       "inactive": "Inactive",
       "published": "On website",
-      "contractNote": "Price changes apply to new subscriptions only. Existing customers keep their agreed price and terms; every change per customer is kept in the subscription history."
+      "contractNote": "Price changes apply to new subscriptions only. Existing customers keep their agreed price and terms; every change per customer is kept in the subscription history.",
+      "maxUsers": "Maximum users",
+      "storageLimitMb": "Document storage (MB)",
+      "supportLevel": "Support level"
     },
     "billing": {
       "title": "Billing and payments",
@@ -2798,7 +2890,14 @@
       "billTo": "BILL TO",
       "kkf": "KKF {value}",
       "paymentInstructions": "Payment instructions",
-      "pdfFooter": "Generated by ARA Payroll — ARA Intelligent Solutions"
+      "pdfFooter": "Generated by ARA Payroll — ARA Intelligent Solutions",
+      "sentAt": "Sent on",
+      "notSent": "Not sent",
+      "sent": "Sent",
+      "reminders": "Reminders",
+      "markSent": "Record as sent",
+      "recordReminder": "Record reminder",
+      "sendNote": "ARA Payroll does not send e-mail itself. Download the PDF, send it to the customer and then record the sending or reminder."
     },
     "trials": {
       "title": "Trials",
@@ -2911,6 +3010,42 @@
     "userNotFound": "There is no user with this email address.",
     "ownRole": "You cannot revoke your own super administrator role.",
     "employeeLimit": "The maximum of {max} employees for your subscription has been reached. Contact ARA Intelligent Solutions to extend it.",
-    "invalidTransition": "This change is not possible in the subscription’s current status."
+    "invalidTransition": "This change is not possible in the subscription’s current status.",
+    "storageLimit": "The document storage of your subscription ({mb} MB) is full. Archive or delete documents, or contact ARA Intelligent Solutions.",
+    "userLimit": "The maximum of {max} users for your subscription has been reached. Contact ARA Intelligent Solutions to extend it.",
+    "alreadySent": "This invoice has already been recorded as sent."
+  },
+  "hrReports": {
+    "title": "HR and cost reports",
+    "subtitle": "Employee roster, departments, inflow and outflow, contracts and wage costs per employee. All figures come from recorded data.",
+    "toPayrollReports": "To payroll reports",
+    "contractType": "Contract type",
+    "active": "Active",
+    "hires": "Inflow",
+    "leavers": "Outflow",
+    "headcountEnd": "Headcount at end of period",
+    "start": "Start date",
+    "end": "End date",
+    "daysLeft": "Days until end",
+    "noEnd": "Indefinite",
+    "net": "Net",
+    "employerCharges": "Employer charges",
+    "totalCost": "Total wage cost",
+    "roster": {
+      "title": "Employee roster"
+    },
+    "departments": {
+      "title": "Employees per department"
+    },
+    "movement": {
+      "title": "Inflow and outflow per month"
+    },
+    "contracts": {
+      "title": "Contract overview"
+    },
+    "costs": {
+      "title": "Wage costs per employee",
+      "basis": "approved and paid payroll runs, in the reporting currency"
+    }
   }
 }

@@ -1,3 +1,4 @@
+import { nextEmployeeNumber } from "@/lib/server/employee-number";
 import { db } from "@/lib/db";
 import { requirePage } from "@/lib/server/auth";
 import { getI18n } from "@/lib/server/i18n";
@@ -16,16 +17,16 @@ export async function generateMetadata() {
 export default async function NewEmployeePage() {
   const ctx = await requirePage("employees.edit");
   const { t } = await getI18n();
-  const [departments, count, currencies] = await Promise.all([
+  const [departments, employeeNumber, currencies] = await Promise.all([
     db.department.findMany({ where: { companyId: ctx.company.id }, orderBy: { name: "asc" } }),
-    db.employee.count({ where: { companyId: ctx.company.id } }),
+    nextEmployeeNumber(ctx.company.id),
     getCurrencies(),
   ]);
   return (
     <div>
       <PageHeader title={t("employees.addTitle")} description={t("employees.addSubtitle")} />
       <ActionForm action={createEmployeeAction} className="space-y-5">
-        <EmployeeFields e={{ employeeNumber: String(1001 + count) }} departments={departments} currencies={currencies} />
+        <EmployeeFields e={{ employeeNumber }} departments={departments} currencies={currencies} />
         <fieldset className="rounded-xl border bg-card p-5">
           <legend className="px-1 text-sm font-semibold">{t("employees.contractSection")}</legend>
           <p className="mb-4 text-xs text-muted-foreground">{t("employees.contractHint")}</p>

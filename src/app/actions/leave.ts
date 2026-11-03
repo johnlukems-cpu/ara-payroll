@@ -146,3 +146,27 @@ export async function cancelLeaveAction(_: ActionState, fd: FormData): Promise<A
     return handleError(e);
   }
 }
+
+/** Manual leave balance correction (opening balance, carry-forward decision, settlement), recorded with a reason. */
+export async function adjustLeaveBalanceAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requirePermission("leave.approve");
+    const d = z.object({
+      employeeId: z.string().min(1), leaveTypeId: z.string().min(1),
+      year: z.coerce.number().int().min(2000).max(2100),
+      days: z.coerce.number().min(-365).max(365).refine((v) => v !== 0 && Math.round(v * 2) === v * 2, "errors.invalidAdjustment"),
+      reason: z.string({ error: "validation.required" }).trim().min(3, "validation.required").max(300),
+    }).parse({ ...formObject(fd), days: String(fd.get("days") ?? "").replace(",", ".") });
+    const [emp, type] = await Promise.all([
+      db.employee.findFirst({ where: { id: d.employeeId, companyId: ctx.company.id } }),
+      db.leaveType.findFirst({ where: { id: d.leaveTypeId, companyId: ctx.company.id } }),
+    ]);
+    if (!emp || !type) throw new UserError("errors.notFound");
+    const adj = await db.leaveBalanceAdjustment.create({ data: { ...d, createdById: ctx.user.id } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "leave.balance_adjusted", entity: "Employee", entityId: emp.id, details: { adjustmentId: adj.id, leaveType: type.code, year: d.year, days: d.days, reason: d.reason } });
+    revalidatePath("/app/leave", "layout");
+    return ok((await getTranslations())("leave.adjusted"));
+  } catch (err) {
+    return handleError(err);
+  }
+}

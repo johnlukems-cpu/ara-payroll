@@ -49,6 +49,9 @@ export default async function PlanPage({ params, searchParams }: { params: Promi
             <Field label={t("saas.plans.yearlyPrice")} hint={t("saas.plans.priceHint")}><Input name="yearlyPrice" inputMode="decimal" defaultValue={decimal(plan?.yearlyPrice)} /><FieldError name="yearlyPrice" /></Field>
             <Field label={t("saas.plans.minEmployees")}><Input name="minEmployees" type="number" min={0} defaultValue={plan?.minEmployees ?? ""} /></Field>
             <Field label={t("saas.plans.maxEmployees")} hint={t("saas.plans.maxHint")}><Input name="maxEmployees" type="number" min={1} defaultValue={plan?.maxEmployees ?? ""} /></Field>
+            <Field label={t("saas.plans.maxUsers")} hint={t("saas.plans.maxHint")}><Input name="maxUsers" type="number" min={1} defaultValue={plan?.maxUsers ?? ""} /></Field>
+            <Field label={t("saas.plans.storageLimitMb")} hint={t("saas.plans.maxHint")}><Input name="storageLimitMb" type="number" min={1} defaultValue={plan?.storageLimitMb ?? ""} /></Field>
+            <Field label={t("saas.plans.supportLevel")}><Input name="supportLevel" maxLength={60} defaultValue={plan?.supportLevel ?? ""} /></Field>
             <Field label={t("saas.plans.trialDays")}><Input name="trialDays" type="number" min={0} max={365} defaultValue={plan?.trialDays ?? 30} /></Field>
             <Field label={t("saas.plans.modules")} hint={t("saas.plans.linesHint")}><Textarea name="modules" rows={4} defaultValue={list(plan?.modules)} /></Field>
             <Field label={t("saas.plans.featuresNl")} hint={t("saas.plans.linesHint")}><Textarea name="featuresNl" rows={6} defaultValue={list(plan?.featuresNl)} /></Field>

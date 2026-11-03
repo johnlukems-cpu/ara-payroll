@@ -5,7 +5,8 @@ import { db } from "@/lib/db";
 import { requireAdminPage } from "@/lib/server/admin-page";
 import { getI18n } from "@/lib/server/i18n";
 import { isOverdue } from "@/lib/saas";
-import { creditInvoiceAction, recordPaymentAction } from "@/app/actions/admin";
+import { creditInvoiceAction, invoiceStatusAction, recordPaymentAction } from "@/app/actions/admin";
+import { ActionButton } from "@/components/confirm-button";
 import { OpField, OpForm } from "@/components/admin-op-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input, Select } from "@/components/ui/form";
@@ -77,7 +78,16 @@ export default async function InvoicePage({ params }: { params: Promise<{ id: st
               <dt className="text-muted-foreground">{t("saas.customers.currency")}</dt><dd>{inv.currency}</dd>
               {inv.subscription && <><dt className="text-muted-foreground">{t("saas.customers.cols.plan")}</dt><dd>{locale === "en" ? inv.subscription.plan.nameEn : inv.subscription.plan.nameNl}</dd></>}
               {inv.notes && <><dt className="text-muted-foreground">{t("saas.billing.notes")}</dt><dd>{inv.notes}</dd></>}
+              {inv.kind === "INVOICE" && <><dt className="text-muted-foreground">{t("saas.billing.sentAt")}</dt><dd className="tabular" data-testid="invoice-sent">{inv.sentAt ? f.date(inv.sentAt) : t("saas.billing.notSent")}</dd></>}
+              {inv.reminderCount > 0 && <><dt className="text-muted-foreground">{t("saas.billing.reminders")}</dt><dd className="tabular">{inv.reminderCount} · {f.date(inv.remindedAt)}</dd></>}
             </dl>
+            {inv.kind === "INVOICE" && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {!inv.sentAt && <ActionButton action={invoiceStatusAction} fields={{ id: inv.id, op: "sent" }} size="sm" variant="secondary" data-testid="invoice-mark-sent">{t("saas.billing.markSent")}</ActionButton>}
+                {payable && <ActionButton action={invoiceStatusAction} fields={{ id: inv.id, op: "reminder" }} size="sm" variant="secondary" data-testid="invoice-reminder">{t("saas.billing.recordReminder")}</ActionButton>}
+              </div>
+            )}
+            <p className="mt-3 text-xs text-muted-foreground">{t("saas.billing.sendNote")}</p>
           </CardContent>
         </Card>
       </div>

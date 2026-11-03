@@ -124,6 +124,7 @@ describe("enum translations", () => {
     [$Enums.ContributionMethod, ["enums.contributionMethod"]],
     [$Enums.ContributionBase, ["enums.contributionBase"]],
     [$Enums.CustomerStatus, ["saas.customerStatus"]],
+    [$Enums.DocumentCategory, ["enums.documentCategory"]],
     [$Enums.SubscriptionStatus, ["saas.subStatus"]],
     [$Enums.InvoiceStatus, ["saas.invoiceStatus"]],
     [$Enums.RequestStatus, ["saas.requestStatus"]],

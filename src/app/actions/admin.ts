@@ -14,7 +14,7 @@ import { parseMoney } from "@/lib/format";
 import {
   approveRegistration, cancelSubscription, changePlan, convertRequest, convertTrial, createSubscription, createSubscriptionInvoice, creditInvoice,
   endSupportAccess, extendTrial, isSaasAdmin, isSuperAdmin, processSubscriptions, recordPayment, renewSubscription, resumeSubscription,
-  saveSaasSettings, setAgreedPrice, setCapacity, setDiscount, startSupportAccess, suspendSubscription,
+  saveSaasSettings, setAgreedPrice, setCapacity, setDiscount, setLimits, startSupportAccess, suspendSubscription, markInvoiceSent, recordInvoiceReminder,
 } from "@/lib/server/saas";
 
 /** Server-side authorisation for the ARA administration portal. */
@@ -105,6 +105,11 @@ export async function subscriptionAction(_: ActionState, fd: FormData): Promise<
       case "discount": await setDiscount(subId, uid, pct(raw.discount), raw.note ?? null); break;
       case "price": await setAgreedPrice(subId, uid, optionalMoney(raw.monthly), optionalMoney(raw.yearly)); break;
       case "invoice": await createSubscriptionInvoice(subId, uid); break;
+      case "limits": {
+        const n = (v?: string) => (v ? z.coerce.number().int().min(1).max(1_000_000).parse(v) : null);
+        await setLimits(subId, uid, { maxUsers: n(raw.maxUsers), storageLimitMb: n(raw.storageLimitMb), supportLevel: raw.supportLevel?.trim().slice(0, 60) || null });
+        break;
+      }
       default: throw new UserError("validation.invalid");
     }
     return done(`saas.msg.sub.${raw.op}`);
@@ -122,6 +127,19 @@ export async function recordPaymentAction(_: ActionState, fd: FormData): Promise
     const d = z.object({ method: z.string().min(1), paidAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "validation.date"), reference: z.string().max(120).optional(), note: z.string().max(500).optional() }).parse(raw);
     await recordPayment(id(fd), ctx.user.id, { amount: money(raw.amount), paidAt: new Date(`${d.paidAt}T12:00:00Z`), methodCode: d.method, reference: d.reference ?? null, note: d.note ?? null });
     return done("saas.msg.paymentRecorded");
+  } catch (e) {
+    return handleError(e);
+  }
+}
+
+export async function invoiceStatusAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireAdmin();
+    const op = fd.get("op");
+    if (op === "sent") await markInvoiceSent(id(fd), ctx.user.id);
+    else if (op === "reminder") await recordInvoiceReminder(id(fd), ctx.user.id);
+    else throw new UserError("validation.invalid");
+    return done(op === "sent" ? "saas.msg.invoiceSent" : "saas.msg.reminderRecorded");
   } catch (e) {
     return handleError(e);
   }
@@ -201,10 +219,13 @@ export async function savePlanAction(_: ActionState, fd: FormData): Promise<Acti
       currency: z.string().regex(/^[A-Z]{3}$/, "validation.currency"),
       minEmployees: z.coerce.number().int().min(0).max(100000).optional(), maxEmployees: z.coerce.number().int().min(1).max(100000).optional(),
       trialDays: z.coerce.number().int().min(0).max(365), sortOrder: z.coerce.number().int().min(0).max(1000),
+      maxUsers: z.coerce.number().int().min(1).max(100000).optional(), storageLimitMb: z.coerce.number().int().min(1).max(10_000_000).optional(),
+      supportLevel: z.string().trim().max(60).optional(),
     }).parse(raw);
     if (!(await assertActiveCurrency(d.currency))) throw new UserError("errors.currencyInactive", { code: d.currency });
     const data = {
       ...d, descriptionNl: d.descriptionNl ?? null, descriptionEn: d.descriptionEn ?? null, minEmployees: d.minEmployees ?? null, maxEmployees: d.maxEmployees ?? null,
+      maxUsers: d.maxUsers ?? null, storageLimitMb: d.storageLimitMb ?? null, supportLevel: d.supportLevel || null,
       monthlyPrice: optionalMoney(raw.monthlyPrice), yearlyPrice: optionalMoney(raw.yearlyPrice), discountBp: pct(raw.discount),
       modules: lines(raw.modules), featuresNl: lines(raw.featuresNl), featuresEn: lines(raw.featuresEn),
       isActive: raw.isActive === "on", isPublished: raw.isPublished === "on", popular: raw.popular === "on",
