@@ -12,6 +12,34 @@ async function markStatutoryNotApplicable(page: Page, en = false) {
   }
 }
 
+/** Signs in on the given page. */
+async function login(page: Page, email: string, password: string) {
+  await page.goto("/login");
+  await page.fill("#email", email);
+  await page.fill("#password", password);
+  await page.click("button[type=submit]");
+  await page.waitForURL(/\/(app|admin|me)/);
+}
+
+/**
+ * Registrations need approval by ARA (default mode): submits the filled-in registration form, approves the
+ * request in the admin portal as the super administrator (separate browser session), then signs in as the new owner.
+ */
+async function submitRegistrationAndApprove(page: Page, email: string, password = "E2ePassword1") {
+  await page.click("button[type=submit]");
+  await expect(page.getByTestId("registration-submitted")).toBeVisible();
+  const adminContext = await page.context().browser()!.newContext();
+  const admin = await adminContext.newPage();
+  await login(admin, "owner@demo.ara.sr", "Demo12345!");
+  await admin.goto(`/admin/requests?q=${encodeURIComponent(email)}`);
+  admin.once("dialog", (d) => d.accept());
+  await admin.getByTestId(`request-${email}`).getByTestId("request-approve").click();
+  await expect(admin).toHaveURL(/\/admin\/customers\/.+approved=1/);
+  await adminContext.close();
+  await login(page, email, password);
+  await page.goto("/app?welcome=1");
+}
+
 test("visitors get Dutch by default and can switch language; the choice persists", async ({ page }) => {
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: "Aanmelden" })).toBeVisible();
@@ -33,8 +61,7 @@ test("owner registers, pays a USD-salaried employee and approves payroll (Englis
   await page.fill("#organizationName", "E2E Org");
   await page.fill("#companyName", "E2E Company N.V.");
   await page.selectOption("#currency", "SRD");
-  await page.click("button[type=submit]");
-  await expect(page).toHaveURL(/\/app\?welcome=1/);
+  await submitRegistrationAndApprove(page, email);
   await expect(page.getByText("Welcome to ARA Payroll")).toBeVisible();
 
   // Employee on a USD salary, paid out in USD
@@ -261,8 +288,7 @@ test("fixed and extra allowances/deductions via dropdowns, duplicate checks and 
   await page.fill("#organizationName", "Toelagen Org");
   await page.fill("#companyName", "Toelagen N.V.");
   await page.selectOption("#currency", "SRD");
-  await page.click("button[type=submit]");
-  await expect(page).toHaveURL(/\/app\?welcome=1/);
+  await submitRegistrationAndApprove(page, email);
 
   await page.goto("/app/employees/new");
   await page.fill("#firstName", "Ravi");
@@ -394,15 +420,15 @@ test("fixed and extra allowances/deductions via dropdowns, duplicate checks and 
 });
 
 test("employee and employer contributions: scheme setup, payroll, payslip, reports (Dutch and English UI)", async ({ page }) => {
+  const contribEmail = `contrib-${Date.now()}@e2e.test`;
   await page.goto("/register");
   await page.fill("#name", "Bijdragen Beheerder");
-  await page.fill("#email", `contrib-${Date.now()}@e2e.test`);
+  await page.fill("#email", contribEmail);
   await page.fill("#password", "E2ePassword1");
   await page.fill("#organizationName", "Bijdragen Org");
   await page.fill("#companyName", "Bijdragen N.V.");
   await page.selectOption("#currency", "SRD");
-  await page.click("button[type=submit]");
-  await expect(page).toHaveURL(/\/app\?welcome=1/);
+  await submitRegistrationAndApprove(page, contribEmail);
 
   await page.goto("/app/employees/new");
   await page.fill("#firstName", "Maya");

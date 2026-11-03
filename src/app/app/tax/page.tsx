@@ -30,7 +30,7 @@ export default async function TaxDashboard() {
   const [declarations, runs, notifications, taxRule, aovRule] = await Promise.all([
     db.declaration.findMany({ where: { companyId, type: "LB_AOV_MONTHLY" }, orderBy: [{ year: "desc" }, { month: "desc" }, { version: "desc" }], include: { files: { select: { downloadCount: true } } } }),
     db.payrollRun.findMany({ where: { companyId }, orderBy: [{ year: "desc" }, { month: "desc" }], take: 12 }),
-    db.notification.findMany({ where: { companyId, readAt: null }, orderBy: { createdAt: "desc" }, take: 10 }),
+    db.notification.findMany({ where: { companyId, readAt: null, NOT: { type: { startsWith: "subscription." } } }, orderBy: { createdAt: "desc" }, take: 10 }),
     findRuleSet(companyId, now),
     findAovRuleSet(companyId, now),
   ]);

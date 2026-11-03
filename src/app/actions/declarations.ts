@@ -180,7 +180,7 @@ export async function prepareDeclarationAction(_: ActionState, fd: FormData): Pr
 export async function markNotificationsReadAction(): Promise<ActionState> {
   try {
     const ctx = await requirePermission("tax.view");
-    await db.notification.updateMany({ where: { companyId: ctx.company.id, readAt: null }, data: { readAt: new Date() } });
+    await db.notification.updateMany({ where: { companyId: ctx.company.id, readAt: null, NOT: { type: { startsWith: "subscription." } } }, data: { readAt: new Date() } });
     revalidatePath("/app/tax");
     return null;
   } catch (e) {

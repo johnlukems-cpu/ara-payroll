@@ -9,11 +9,12 @@ import { Nav, type NavItem } from "@/components/shell/nav";
 import { CompanySwitcher } from "@/components/shell/company-switcher";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { logoutAction } from "@/app/actions/auth";
+import { endSupportFromAppAction } from "@/app/actions/admin";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await requirePage();
   if (ctx.role === "EMPLOYEE") redirect("/me");
-  const { t } = await getI18n();
+  const { t, f } = await getI18n();
   const r = ctx.role;
   const items: NavItem[] = [
     { href: "/app", label: t("nav.dashboard"), icon: "dashboard" },
@@ -25,8 +26,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     ...(can(r, "payroll.view") ? [{ href: "/app/exchange-rates", label: t("nav.exchangeRates"), icon: "rates" } as NavItem] : []),
     { href: "/app/companies", label: t("nav.companies"), icon: "companies" },
     ...(can(r, "settings.manage") || can(r, "users.manage") ? [{ href: "/app/settings", label: t("nav.settings"), icon: "settings" } as NavItem] : []),
+    ...(can(r, "company.manage") && !ctx.support ? [{ href: "/app/plan", label: t("nav.plan"), icon: "billing" } as NavItem] : []),
     ...(can(r, "audit.view") ? [{ href: "/app/audit", label: t("nav.audit"), icon: "audit" } as NavItem] : []),
     ...(ctx.user.isPlatformAdmin ? [{ href: "/app/admin", label: t("nav.admin"), icon: "admin" } as NavItem] : []),
+    ...(ctx.user.isPlatformAdmin || ctx.user.platformRole ? [{ href: "/admin", label: t("nav.saasPortal"), icon: "customers" } as NavItem] : []),
   ];
   const companies = ctx.memberships.map((m) => ({ id: m.companyId, name: m.company.name }));
 
@@ -64,6 +67,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             {items.map((i) => <Link key={i.href} href={i.href} className="whitespace-nowrap rounded-md px-3 py-1.5 hover:bg-muted">{i.label}</Link>)}
           </div>
         </div>
+        {ctx.support && (
+          <div className="no-print flex flex-wrap items-center justify-between gap-2 bg-warning px-4 py-2 text-sm text-white" data-testid="support-banner">
+            <span>{t("saas.support.banner", { company: ctx.company.name, time: f.dateTime(ctx.support.expiresAt) })}</span>
+            <form action={endSupportFromAppAction}><input type="hidden" name="id" value={ctx.support.id} /><button className="rounded bg-white/20 px-2 py-0.5 text-xs font-medium hover:bg-white/30">{t("saas.support.end")}</button></form>
+          </div>
+        )}
+        {!ctx.support && ctx.access.level === "WARNING" && (
+          <div className="no-print bg-warning/15 px-4 py-2 text-sm" data-testid="access-warning">
+            {(t as unknown as (k: string, v: Record<string, number>) => string)(`saas.access.warning.${ctx.access.reason}`, { days: ctx.access.daysLeft ?? 0 })}
+          </div>
+        )}
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-8">{children}</main>
       </div>
     </div>

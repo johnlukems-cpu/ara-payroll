@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { ActionForm, FieldError } from "@/components/action-form";
 import { SubmitButton } from "@/components/submit-button";
 import { Field, Input, Select, Textarea } from "@/components/ui/form";
 import { submitContactAction } from "@/app/actions/contact";
-import { isPlanId, PLANS } from "@/lib/pricing";
+import { db } from "@/lib/db";
 import { AuthShell } from "../auth-shell";
 
 export async function generateMetadata() {
@@ -17,7 +17,9 @@ export default async function ContactPage({ searchParams }: { searchParams: Prom
   const t = await getTranslations();
   const sp = await searchParams;
   const type = sp.type === "quote" ? "QUOTE" : "DEMO";
-  const plan = isPlanId(sp.plan) ? sp.plan : "";
+  const locale = await getLocale();
+  const plans = await db.plan.findMany({ where: { isActive: true, isPublished: true }, orderBy: { sortOrder: "asc" } });
+  const plan = plans.some((p) => p.code === sp.plan) ? sp.plan! : "";
   return (
     <AuthShell
       title={t(type === "QUOTE" ? "contact.quoteTitle" : "contact.demoTitle")}
@@ -31,7 +33,7 @@ export default async function ContactPage({ searchParams }: { searchParams: Prom
         <Field label={t("contact.plan")} htmlFor="plan">
           <Select id="plan" name="plan" defaultValue={plan}>
             <option value="">{t("contact.noPlan")}</option>
-            {PLANS.map((p) => <option key={p.id} value={p.id}>{t(`pricing.plans.${p.id}.name`)}</option>)}
+            {plans.map((p) => <option key={p.code} value={p.code}>{locale === "en" ? p.nameEn : p.nameNl}</option>)}
           </Select>
         </Field>
         <Field label={t("contact.name")} htmlFor="name"><Input id="name" name="name" autoComplete="name" /><FieldError name="name" /></Field>

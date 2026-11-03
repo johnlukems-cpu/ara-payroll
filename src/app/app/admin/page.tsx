@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePage } from "@/lib/server/auth";
@@ -93,11 +94,11 @@ export default async function AdminPage() {
               {requests.map((r) => (
                 <TR key={r.id} className={r.handled ? "opacity-60" : ""}>
                   <TD className="tabular whitespace-nowrap text-xs">{f.date(r.createdAt)}</TD>
-                  <TD><Badge variant={r.type === "DEMO" ? "accent" : "default"}>{t(`contact.types.${r.type}`)}</Badge>{r.plan && <span className="block text-xs text-muted-foreground">{t(`pricing.plans.${r.plan}.name` as never)}</span>}</TD>
+                  <TD><Badge variant={r.type === "DEMO" ? "accent" : "default"}>{t(`contact.types.${r.type}`)}</Badge>{r.plan && <span className="block text-xs text-muted-foreground">{t.has(`pricing.plans.${r.plan}.name` as never) ? t(`pricing.plans.${r.plan}.name` as never) : r.plan}</span>}</TD>
                   <TD className="text-sm">{r.name}<a href={`mailto:${r.email}`} className="block text-xs text-primary hover:underline">{r.email}</a>{r.phone && <span className="block text-xs text-muted-foreground">{r.phone}</span>}</TD>
                   <TD className="text-sm">{r.company}{r.employees != null && <span className="block text-xs text-muted-foreground">{t("contact.employeesCount", { count: r.employees })}</span>}</TD>
                   <TD className="max-w-sm whitespace-pre-line text-xs">{r.message ?? "—"}</TD>
-                  <TD className="text-right">{r.handled ? <Badge variant="muted">{t("contact.handled")}</Badge> : <ActionButton action={markContactHandledAction} fields={{ id: r.id }} variant="outline" size="sm">{t("contact.markHandled")}</ActionButton>}</TD>
+                  <TD className="text-right">{r.handled ? <Badge variant="muted">{t("contact.handled")}</Badge> : r.type === "REGISTRATION" ? <Link href="/admin/requests" className="text-xs text-primary hover:underline">{t("nav.saasPortal")}</Link> : <ActionButton action={markContactHandledAction} fields={{ id: r.id }} variant="outline" size="sm">{t("contact.markHandled")}</ActionButton>}</TD>
                 </TR>
               ))}
             </TBody>

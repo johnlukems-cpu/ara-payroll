@@ -9,4 +9,4 @@ export default function proxy(req: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = { matcher: ["/app/:path*", "/me/:path*", "/onboarding", "/api/((?!health).*)"] };
+export const config = { matcher: ["/app/:path*", "/admin/:path*", "/subscription", "/me/:path*", "/onboarding", "/api/((?!health|cron).*)"] };

@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowLeftRight, BarChart3, Building2, CalendarDays, FileClock, Landmark, LayoutDashboard, Settings, ShieldCheck, Users, Wallet } from "lucide-react";
+import { ArrowLeftRight, BarChart3, Building2, CalendarDays, FileClock, Hourglass, Inbox, Landmark, LayoutDashboard, LifeBuoy, Package, Receipt, Settings, ShieldCheck, UserCog, Users, Wallet } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const ICONS = { dashboard: LayoutDashboard, employees: Users, payroll: Wallet, leave: CalendarDays, reports: BarChart3, rates: ArrowLeftRight, tax: Landmark, companies: Building2, settings: Settings, audit: FileClock, admin: ShieldCheck };
+const ICONS = { dashboard: LayoutDashboard, employees: Users, payroll: Wallet, leave: CalendarDays, reports: BarChart3, rates: ArrowLeftRight, tax: Landmark, companies: Building2, settings: Settings, audit: FileClock, admin: ShieldCheck, customers: Building2, requests: Inbox, plans: Package, billing: Receipt, trials: Hourglass, users: UserCog, support: LifeBuoy };
 
 export type NavItem = { href: string; label: string; icon: keyof typeof ICONS };
 
@@ -15,7 +15,7 @@ export function Nav({ items }: { items: NavItem[] }) {
     <nav className="flex flex-col gap-0.5">
       {items.map((it) => {
         const Icon = ICONS[it.icon];
-        const active = it.href === "/app" ? path === "/app" : path.startsWith(it.href);
+        const active = it.href === "/app" || it.href === "/admin" ? path === it.href : path.startsWith(it.href);
         return (
           <Link
             key={it.href}

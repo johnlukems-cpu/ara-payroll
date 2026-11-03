@@ -3,12 +3,14 @@ import { Check, Sparkles } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { formatPlanPrice, planHref, PLANS, TRIAL_DAYS } from "@/lib/pricing";
+import { formatPlanPrice, TRIAL_DAYS } from "@/lib/pricing";
+import { publishedPlans } from "@/lib/server/plans";
 
 /** Pricing plans (from lib/pricing.ts) with calls to action that lead to registration or a demo/quote request. */
 export async function PricingSection() {
   const t = await getTranslations();
   const locale = await getLocale();
+  const plans = await publishedPlans(locale);
   return (
     <section id="prijzen" aria-labelledby="pricing-title" className="scroll-mt-8 pt-24">
       <div className="mx-auto max-w-2xl text-center">
@@ -18,10 +20,10 @@ export async function PricingSection() {
       </div>
 
       <div className="mt-12 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-        {PLANS.map((p) => (
+        {plans.map((p) => (
           <div
-            key={p.id}
-            data-testid={`plan-${p.id}`}
+            key={p.code}
+            data-testid={`plan-${p.code}`}
             className={cn(
               "relative flex flex-col rounded-2xl bg-white p-6 text-slate-900 shadow-sm transition duration-200 hover:-translate-y-0.5 hover:shadow-xl",
               p.popular ? "ring-2 ring-[#4fb3ff] xl:-mt-3 xl:pb-9" : "ring-1 ring-white/10",
@@ -32,12 +34,12 @@ export async function PricingSection() {
                 <Sparkles className="h-3.5 w-3.5" /> {t("pricing.popular")}
               </span>
             )}
-            <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-[#0B3D91]">{t(`pricing.plans.${p.id}.name`)}</h3>
-            <p className="mt-1 text-sm text-slate-500">{t(`pricing.plans.${p.id}.employees`)}</p>
+            <h3 className="text-sm font-semibold uppercase tracking-[0.14em] text-[#0B3D91]">{p.name}</h3>
+            <p className="mt-1 text-sm text-slate-500">{p.description}</p>
             <div className="mt-5 flex items-baseline gap-1.5">
-              {p.priceSrd != null ? (
+              {p.price != null ? (
                 <>
-                  <span className="text-3xl font-semibold tracking-tight text-slate-900">{formatPlanPrice(p.priceSrd, locale)}</span>
+                  <span className="text-3xl font-semibold tracking-tight text-slate-900">{formatPlanPrice(p.price, locale, p.currency)}</span>
                   <span className="text-sm text-slate-500">{t("pricing.perMonth")}</span>
                 </>
               ) : (
@@ -45,18 +47,18 @@ export async function PricingSection() {
               )}
             </div>
             <ul className="mt-6 flex-1 space-y-2.5 text-sm">
-              {Array.from({ length: p.features }, (_, i) => (
+              {p.features.map((f, i) => (
                 <li key={i} className="flex items-start gap-2">
                   <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#0B3D91]" aria-hidden="true" />
-                  <span>{t(`pricing.plans.${p.id}.features.${i}` as never)}</span>
+                  <span>{f}</span>
                 </li>
               ))}
             </ul>
             <Link
-              href={planHref(p)}
+              href={p.href}
               className={cn(buttonVariants({ variant: p.popular ? "default" : "outline", size: "lg" }), "mt-7 w-full", !p.popular && "border-[#0B3D91]/30 text-[#0B3D91] hover:bg-[#0B3D91]/5")}
             >
-              {t(`pricing.plans.${p.id}.cta`)}
+              {p.cta}
             </Link>
           </div>
         ))}

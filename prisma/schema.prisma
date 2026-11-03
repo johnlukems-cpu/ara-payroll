@@ -276,24 +276,230 @@ enum PayslipLineType {
 }
 
 /// A customer account (e.g. a single business or an accounting firm managing several companies).
+/// A customer (tenant account) of ARA Payroll. Holds one or more companies (payroll administrations).
 model Organization {
-  id        String    @id @default(cuid())
-  name      String
-  createdAt DateTime  @default(now())
-  companies Company[]
+  id                 String          @id @default(cuid())
+  name               String
+  registrationNumber String? // KKF / chamber of commerce number
+  contactName        String?
+  contactEmail       String?
+  phone              String?
+  address            String?
+  country            String          @default("Suriname")
+  status             CustomerStatus  @default(ACTIVE)
+  notes              String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @default(now()) @updatedAt
+  companies          Company[]
+  subscriptions      Subscription[]
+  invoices           Invoice[]
+  payments           Payment[]
+  supportSessions    SupportAccess[]
+}
+
+enum CustomerStatus {
+  NEW_REQUEST
+  IN_REVIEW
+  ACTIVE
+  TRIAL
+  PAYMENT_DUE
+  SUSPENDED
+  CANCELLED
+}
+
+/// ARA Intelligent Solutions staff roles (separate from customer roles).
+enum PlatformRole {
+  SUPER_ADMIN
+  SAAS_ADMIN
+}
+
+/// Subscription package. Prices are defaults for new subscriptions; contracts keep their own agreed terms.
+model Plan {
+  id            String         @id @default(cuid())
+  code          String         @unique // starter, business, professional, enterprise
+  nameNl        String
+  nameEn        String
+  descriptionNl String?
+  descriptionEn String?
+  monthlyPrice  Int? // minor units; null = price on request
+  yearlyPrice   Int?
+  currency      String         @default("SRD")
+  minEmployees  Int?
+  maxEmployees  Int? // null = unlimited / by agreement
+  modules       Json           @default("[]") // module keys
+  featuresNl    Json           @default("[]") // display lines (website)
+  featuresEn    Json           @default("[]")
+  trialDays     Int            @default(30)
+  discountBp    Int            @default(0) // standard discount
+  isActive      Boolean        @default(true) // can be assigned
+  isPublished   Boolean        @default(true) // shown on the website
+  popular       Boolean        @default(false)
+  sortOrder     Int            @default(0)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @default(now()) @updatedAt
+  subscriptions Subscription[]
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+  EXPIRED
+}
+
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
+/// A customer's subscription with the agreed contract terms (snapshot of the price at the time of agreement).
+model Subscription {
+  id              String              @id @default(cuid())
+  organizationId  String
+  planId          String
+  status          SubscriptionStatus
+  billingCycle    BillingCycle        @default(MONTHLY)
+  priceMonthly    Int? // agreed price (minor units), independent of later plan price changes
+  priceYearly     Int?
+  currency        String              @default("SRD")
+  maxEmployees    Int?
+  extraEmployees  Int                 @default(0) // additional capacity granted
+  discountBp      Int                 @default(0)
+  discountNote    String?
+  trialStart      DateTime?
+  trialEnd        DateTime?
+  trialReminderAt DateTime? // when the trial-ending notification was sent
+  startDate       DateTime            @default(now())
+  nextInvoiceDate DateTime?
+  endDate         DateTime? // end of a cancelled subscription
+  cancelledAt     DateTime?
+  cancelReason    String?
+  suspendedAt     DateTime?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @default(now()) @updatedAt
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  plan            Plan                @relation(fields: [planId], references: [id])
+  events          SubscriptionEvent[]
+  invoices        Invoice[]
+
+  @@index([organizationId, status])
+}
+
+/// History of every subscription change, with the terms before and after.
+model SubscriptionEvent {
+  id             String       @id @default(cuid())
+  subscriptionId String
+  type           String // ASSIGNED, UPGRADED, DOWNGRADED, RENEWED, SUSPENDED, RESUMED, CANCELLED, TRIAL_EXTENDED, TRIAL_CONVERTED, TRIAL_REMINDER, EXPIRED, CAPACITY_CHANGED, DISCOUNT_CHANGED
+  details        Json         @default("{}")
+  userId         String?
+  createdAt      DateTime     @default(now())
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId, createdAt])
+}
+
+enum InvoiceKind {
+  INVOICE
+  CREDIT_NOTE
+}
+
+enum InvoiceStatus {
+  OPEN
+  PARTIALLY_PAID
+  PAID
+  CREDITED
+  VOID
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  number         String        @unique
+  kind           InvoiceKind   @default(INVOICE)
+  organizationId String
+  subscriptionId String?
+  creditForId    String? // credit note: the invoice it credits
+  issueDate      DateTime
+  dueDate        DateTime
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  currency       String
+  subtotal       Int
+  discount       Int           @default(0)
+  total          Int // negative for credit notes
+  amountPaid     Int           @default(0)
+  status         InvoiceStatus @default(OPEN)
+  lines          Json          @default("[]") // [{ description, quantity, unitPrice, amount }]
+  notes          String?
+  createdById    String?
+  createdAt      DateTime      @default(now())
+  organization   Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  payments       Payment[]
+
+  @@index([organizationId, status])
+}
+
+/// A payment registered by an administrator (no payment provider integration; never confirmed automatically).
+model Payment {
+  id             String       @id @default(cuid())
+  invoiceId      String
+  organizationId String
+  amount         Int
+  currency       String
+  paidAt         DateTime
+  methodCode     String
+  reference      String?
+  note           String?
+  recordedById   String
+  createdAt      DateTime     @default(now())
+  invoice        Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model PaymentMethod {
+  code         String   @id // e.g. BANK_TRANSFER
+  nameNl       String
+  nameEn       String
+  instructions String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+}
+
+/// One gap-free number sequence per series (prefix + year), e.g. "ARA-2026" and "ARA-CN-2026".
+model InvoiceCounter {
+  series String @id
+  last   Int    @default(0)
+}
+
+/// Logged, time-limited, read-only support access of an ARA super administrator to one customer company.
+model SupportAccess {
+  id             String       @id @default(cuid())
+  adminUserId    String
+  organizationId String
+  companyId      String
+  reason         String
+  startedAt      DateTime     @default(now())
+  expiresAt      DateTime
+  endedAt        DateTime?
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([adminUserId, endedAt])
 }
 
 model User {
-  id              String       @id @default(cuid())
-  email           String       @unique
+  id              String        @id @default(cuid())
+  email           String        @unique
   name            String
   passwordHash    String
-  locale          String       @default("nl") // UI language preference: "nl" | "en"
-  isPlatformAdmin Boolean      @default(false)
-  isActive        Boolean      @default(true)
+  locale          String        @default("nl") // UI language preference: "nl" | "en"
+  isPlatformAdmin Boolean       @default(false) // legacy flag: treated as super administrator
+  platformRole    PlatformRole?
+  isActive        Boolean       @default(true)
   lastLoginAt     DateTime?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
   memberships     Membership[]
   sessions        Session[]
   employees       Employee[]
@@ -1032,22 +1238,42 @@ model Notification {
 enum ContactRequestType {
   DEMO
   QUOTE
+  REGISTRATION
+}
+
+enum RequestStatus {
+  NEW
+  IN_REVIEW
+  INFO_REQUESTED
+  DEMO_SCHEDULED
+  APPROVED
+  REJECTED
+  CONVERTED
 }
 
 /// Demo and quote requests from the public website (no payment or subscription logic).
 model ContactRequest {
-  id        String             @id @default(cuid())
-  type      ContactRequestType
-  plan      String? // pricing plan id the visitor came from (starter, business, professional, enterprise)
-  name      String
-  company   String
-  email     String
-  phone     String?
-  employees Int?
-  message   String?
-  locale    String             @default("nl")
-  handled   Boolean            @default(false)
-  createdAt DateTime           @default(now())
+  id               String             @id @default(cuid())
+  type             ContactRequestType
+  plan             String? // pricing plan id the visitor came from (starter, business, professional, enterprise)
+  name             String
+  company          String
+  email            String
+  phone            String?
+  employees        Int?
+  message          String?
+  locale           String             @default("nl")
+  handled          Boolean            @default(false)
+  status           RequestStatus      @default(NEW)
+  organizationName String? // registration: organisation to create
+  currency         String? // registration: base currency of the first company
+  passwordHash     String? // registration: bcrypt hash chosen by the applicant; cleared after the decision
+  demoAt           DateTime?
+  adminNote        String?
+  decidedAt        DateTime?
+  decidedById      String?
+  organizationId   String? // customer created from this request
+  createdAt        DateTime           @default(now())
 
   @@index([handled, createdAt])
 }

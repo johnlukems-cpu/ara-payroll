@@ -5,9 +5,8 @@ import { z } from "zod";
 import { getLocale, getTranslations } from "next-intl/server";
 import { db } from "@/lib/db";
 import { rateLimit } from "@/lib/server/rate-limit";
-import { formObject, handleError, ok, type ActionState } from "@/lib/server/action";
+import { formObject, handleError, ok, UserError, type ActionState } from "@/lib/server/action";
 import { AuthError, getContext } from "@/lib/server/auth";
-import { isPlanId } from "@/lib/pricing";
 import { revalidatePath } from "next/cache";
 
 const schema = z.object({
@@ -33,7 +32,7 @@ export async function submitContactAction(_: ActionState, fd: FormData): Promise
     if (!rateLimit(`contact:${ip}`, 5, 60 * 60_000)) return { ok: false, message: t("contact.tooMany"), ts: Date.now() };
     await db.contactRequest.create({
       data: {
-        type: d.type, plan: isPlanId(d.plan) ? d.plan : null, name: d.name, company: d.company, email: d.email,
+        type: d.type, plan: d.plan && (await db.plan.findUnique({ where: { code: d.plan } })) ? d.plan : null, name: d.name, company: d.company, email: d.email,
         phone: d.phone || null, employees: d.employees, message: d.message || null, locale: await getLocale(),
       },
     });
@@ -48,7 +47,10 @@ export async function markContactHandledAction(_: ActionState, fd: FormData): Pr
   try {
     const ctx = await getContext();
     if (!ctx?.user.isPlatformAdmin) throw new AuthError("errors.forbidden");
-    await db.contactRequest.update({ where: { id: String(fd.get("id")) }, data: { handled: true } });
+    const r = await db.contactRequest.findUnique({ where: { id: String(fd.get("id")) } });
+    // Registrations are approved or rejected in the ARA admin portal (they create an account); not here.
+    if (!r || r.type === "REGISTRATION") throw new UserError("errors.notFound");
+    await db.contactRequest.update({ where: { id: r.id }, data: { handled: true, status: r.status === "CONVERTED" ? r.status : "APPROVED", decidedAt: new Date(), decidedById: ctx.user.id } });
     revalidatePath("/app/admin");
     return ok((await getTranslations())("contact.markedHandled"));
   } catch (e) {

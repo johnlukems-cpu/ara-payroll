@@ -9,7 +9,7 @@ import { db } from "@/lib/db";
 import { createSession, destroySession, setActiveCompany } from "@/lib/server/session";
 import { getContext } from "@/lib/server/auth";
 import { audit } from "@/lib/server/audit";
-import { seedCompanyDefaults } from "@/lib/server/company-setup";
+import { createCustomer, saasSettings } from "@/lib/server/saas";
 import { formObject, handleError, UserError, type ActionState } from "@/lib/server/action";
 import { rateLimit } from "@/lib/server/rate-limit";
 import { assertActiveCurrency } from "@/lib/server/rates";
@@ -44,13 +44,18 @@ export async function loginAction(_: ActionState, fd: FormData): Promise<ActionS
     }
     const user = await db.user.findUnique({ where: { email: data.email }, include: { memberships: { orderBy: { createdAt: "asc" } } } });
     const valid = await bcrypt.compare(data.password, user?.passwordHash ?? DUMMY_HASH);
-    if (!user || !valid || !user.isActive) return { ok: false, message: t("auth.invalidLogin") };
+    if (!user || !valid || !user.isActive) {
+      // A registration still awaiting approval: tell the applicant instead of a generic error (password checked).
+      const pending = !user ? await db.contactRequest.findFirst({ where: { email: data.email, type: "REGISTRATION", status: { in: ["NEW", "IN_REVIEW", "INFO_REQUESTED", "DEMO_SCHEDULED", "APPROVED"] } } }) : null;
+      if (pending?.passwordHash && (await bcrypt.compare(data.password, pending.passwordHash))) return { ok: false, message: t("auth.registrationPending") };
+      return { ok: false, message: t("auth.invalidLogin") };
+    }
     const first = user.memberships[0];
     await createSession(user.id, first?.companyId ?? null);
     await syncLocaleCookie(user.locale);
     await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
     await audit({ companyId: first?.companyId ?? null, userId: user.id, action: "auth.login", entity: "User", entityId: user.id });
-    if (!first) target = "/onboarding";
+    if (!first) target = user.platformRole || user.isPlatformAdmin ? "/admin" : "/onboarding";
     else if (first.role === "EMPLOYEE") target = "/me";
   } catch (e) {
     return handleError(e);
@@ -65,9 +70,12 @@ const registerSchema = z.object({
   organizationName: z.string({ error: "validation.required" }).min(2).max(160),
   companyName: z.string({ error: "validation.required" }).min(2).max(160),
   currency: currencyField,
+  phone: z.string().max(40).optional(),
+  plan: z.string().max(30).optional(),
 });
 
 export async function registerAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  let submitted = false;
   try {
     const t = await getTranslations();
     const data = registerSchema.parse(formObject(fd));
@@ -77,20 +85,27 @@ export async function registerAction(_: ActionState, fd: FormData): Promise<Acti
     const rawLocale = await getLocale();
     const locale = isLocale(rawLocale) ? rawLocale : DEFAULT_LOCALE;
     const passwordHash = await bcrypt.hash(data.password, 12);
-    const { user, company } = await db.$transaction(async (tx) => {
-      const user = await tx.user.create({ data: { email: data.email, name: data.name, passwordHash, locale } });
-      const org = await tx.organization.create({ data: { name: data.organizationName } });
-      const company = await tx.company.create({ data: { name: data.companyName, organizationId: org.id, currency: data.currency } });
-      await tx.membership.create({ data: { userId: user.id, companyId: company.id, role: "OWNER" } });
-      await seedCompanyDefaults(tx, company.id, locale);
-      return { user, company };
-    });
-    await createSession(user.id, company.id);
-    await audit({ companyId: company.id, userId: user.id, action: "auth.register", entity: "Company", entityId: company.id, details: { currency: data.currency } });
+    const plan = (await db.plan.findFirst({ where: { code: data.plan ?? "starter", isActive: true } })) ?? (await db.plan.findFirst({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }));
+    const settings = await saasSettings();
+    if (settings.registrationMode === "APPROVAL") {
+      // Registration becomes a request; the account is created by an ARA administrator after approval.
+      const open = await db.contactRequest.findFirst({ where: { email: data.email, type: "REGISTRATION", status: { notIn: ["CONVERTED", "REJECTED"] } } });
+      if (open) return { ok: false, message: t("auth.registrationAlreadyPending") };
+      await db.contactRequest.create({
+        data: { type: "REGISTRATION", plan: plan?.code ?? null, name: data.name, company: data.companyName, organizationName: data.organizationName, email: data.email, phone: data.phone ?? null, currency: data.currency, passwordHash, locale },
+      });
+      submitted = true;
+    } else {
+      if (!plan) throw new UserError("saasErrors.planInactive");
+      const res = await createCustomer({ organizationName: data.organizationName, companyName: data.companyName, currency: data.currency, locale, owner: { name: data.name, email: data.email, passwordHash }, contact: { phone: data.phone ?? null }, planCode: plan.code, trial: true, userId: null });
+      await db.contactRequest.create({ data: { type: "REGISTRATION", plan: plan.code, name: data.name, company: data.companyName, organizationName: data.organizationName, email: data.email, phone: data.phone ?? null, currency: data.currency, locale, status: "CONVERTED", handled: true, decidedAt: new Date(), organizationId: res.org.id } });
+      await createSession(res.user.id, res.company.id);
+      await audit({ companyId: res.company.id, userId: res.user.id, action: "auth.register", entity: "Company", entityId: res.company.id, details: { currency: data.currency, plan: plan.code } });
+    }
   } catch (e) {
     return handleError(e);
   }
-  redirect("/app?welcome=1");
+  redirect(submitted ? "/register?submitted=1" : "/app?welcome=1");
 }
 
 export async function logoutAction() {

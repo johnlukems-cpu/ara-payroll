@@ -70,6 +70,17 @@ tests/                  unit, integration, e2e
 
 All parameters live in the tax rule set — none are hard-coded in the engine.
 
+## SaaS administration (ARA admin portal)
+
+- **Model:** `Organization` is the customer (status, contact and registration data). `Plan` holds the sellable plans (price per month/year in minor units, currency, employee limit, modules, website features, trial days, standard discount). `Subscription` stores the **agreed terms** (price, currency, limit, discount, extra capacity, trial dates, next invoice date) as a copy, so later plan price changes never alter existing contracts; every change writes a `SubscriptionEvent` with the terms before and after plus a platform `AuditLog` entry. `Invoice` (kind INVOICE or CREDIT_NOTE), `Payment` (manual only), `PaymentMethod`, `InvoiceCounter` (one gap-free sequence per series, e.g. `ARA-2026`, `ARA-CN-2026`) and `SupportAccess`.
+- **Roles:** `User.platformRole` = `SUPER_ADMIN` (everything, incl. settings, roles and support access; legacy `isPlatformAdmin` counts as super) or `SAAS_ADMIN` (customers, subscriptions, invoices, payments). Customer roles stay per company (`Membership.role`: owner/admin = customer administrator, payroll manager = payroll administrator, employee). Every `/admin` page calls `requireAdminPage()`; every admin server action calls `requireAdmin()`.
+- **Pure rules** in `src/lib/saas.ts` (MRR, trial days, `accessFor`, billing cycles, invoice amounts, overdue); database operations in `src/lib/server/saas.ts`.
+- **Access per status:** `getContext()` computes `access` for the active company's organisation; `requirePage` redirects BLOCKED customers to `/subscription`, `requirePermission` refuses actions. Warnings are shown as a banner in the application.
+- **Processing:** `processSubscriptions()` is idempotent (trial reminder once, expiry, arrears, cancellations that reached their end date). It runs on every dashboard visit and via `/api/cron/subscriptions` (requires `CRON_SECRET`).
+- **Payments:** no payment-provider integration. Administrators register received payments manually (amount ≤ outstanding, not in the future); credit notes only for the unpaid part.
+- **Support access:** a super administrator gets a temporary virtual read-only (accountant) membership for one company, with reason and expiry (≤ 8 h), logged in both audit logs and shown as a banner; no impersonation.
+- **Tenant isolation:** enforced in the data-access layer — the active company always comes from the user's own memberships (`switchCompanyAction` and `getContext` ignore other ids), and every page, action and route handler filters by `ctx.company.id` or checks membership. Database row-level security is not used (one Prisma connection role); the E2E suite checks cross-tenant URLs and API requests.
+
 ## Security
 
 - Sessions: random 256-bit token in an `HttpOnly`, `SameSite=Lax`, `Secure` (prod) cookie; only its SHA-256 hash is stored. 12-hour expiry; password change revokes other sessions.

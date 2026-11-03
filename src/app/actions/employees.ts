@@ -15,6 +15,7 @@ import { formObject, handleError, ok, UserError, type ActionState } from "@/lib/
 import { assertActiveCurrency } from "@/lib/server/rates";
 import { assertNoFixedDuplicate, assertPensionNotDouble, parseOverrides, recalcOpenRuns, resolveComponent } from "@/lib/server/pay-components";
 import { calculateRun } from "@/lib/payroll/service";
+import { capacity } from "@/lib/saas";
 import { parseMoney } from "@/lib/format";
 import { currencyField, dateField, moneyField, numberField, optionalDate, optionalText, percentField } from "@/lib/validation";
 
@@ -89,6 +90,13 @@ export async function createEmployeeAction(_: ActionState, fd: FormData): Promis
     const c = contractSchema.parse({ ...raw, startDate: raw.contractStart ?? raw.hireDate });
     await ensureCurrencies(c.salaryCurrency, e.paymentCurrency);
     await ensureRegimeAllowed(ctx.company.id, e.taxRegime);
+    // Employee capacity of the subscription (plan maximum + extra capacity granted), across all companies of the customer.
+    const sub = await db.subscription.findFirst({ where: { organizationId: ctx.company.organizationId }, orderBy: { createdAt: "desc" } });
+    const max = capacity(sub);
+    if (max != null) {
+      const used = await db.employee.count({ where: { company: { organizationId: ctx.company.organizationId }, status: { not: "TERMINATED" } } });
+      if (used >= max) throw new UserError("saasErrors.employeeLimit", { max });
+    }
     const departmentId = await ensureDepartment(ctx.company.id, e.departmentId);
     const created = await db.employee.create({
       data: { ...e, departmentId, companyId: ctx.company.id, contracts: { create: c } },
