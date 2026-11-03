@@ -37,6 +37,15 @@ describe("contribution schemes in the engine", () => {
     expect(r.netPay).toBe(calculatePayslip(emp(), period(), [], rules, aov).netPay);
   });
 
+  it("applies a minimum base (e.g. statutory minimum pension base) only when there is a wage", () => {
+    const low = calculatePayslip(emp({ baseSalary: SRD(1_500) }), period(), [], rules, aov, [scheme({ type: "PENSION", employeeRateBp: 400, employerRateBp: 400, minBase: SRD(2_250), maxBase: SRD(22_500) })]);
+    expect(low.lines.find((l) => l.code === "PENSION-EE")?.amount).toBe(SRD(90)); // 4% of the minimum base 2,250
+    const high = calculatePayslip(emp({ baseSalary: SRD(30_000) }), period(), [], rules, aov, [scheme({ type: "PENSION", employeeRateBp: 400, employerRateBp: 400, minBase: SRD(2_250), maxBase: SRD(22_500) })]);
+    expect(high.lines.find((l) => l.code === "PENSION-EE")?.amount).toBe(SRD(900)); // 4% of the maximum base 22,500
+    const none = calculatePayslip(emp({ baseSalary: SRD(1_500), employedFraction: 0 }), period(), [], rules, aov, [scheme({ type: "PENSION", employeeRateBp: 400, minBase: SRD(2_250) })]);
+    expect(none.lines.some((l) => l.code === "PENSION-EE")).toBe(false);
+  });
+
   it("applies the maximum base and the chosen calculation base", () => {
     const capped = calculatePayslip(emp(), period(), [], rules, aov, [scheme({ employeeRateBp: 1000, maxBase: SRD(10_000) })]);
     expect(capped.lines.find((l) => l.code === "HEALTH-EE")?.amount).toBe(SRD(1_000));
@@ -154,7 +163,7 @@ describe("scheme validation", () => {
     type: "HEALTH", basis: "STATUTORY", method: "PERCENTAGE", employeeRateBp: 0, employerRateBp: 0, employeeAmount: 0, employerAmount: 0,
     isActive: false, approvedAt: null, notApplicable: false, effectiveFrom: d("2026-01-01"), effectiveTo: null, legalStatus: "PENDING_VERIFICATION", legalReference: "ref",
   };
-  const configured = { ...base, employeeRateBp: 200 };
+  const configured = { ...base, employeeRateBp: 200, employerRateBp: 300 };
   const approved = { ...configured, approvedAt: d("2026-01-02") };
   const active = { ...approved, isActive: true };
 
@@ -181,6 +190,19 @@ describe("scheme validation", () => {
     expect(schemeIssues({ ...base, basis: "VOLUNTARY" })).toEqual([{ code: "NOT_CONFIGURED", blocking: false }]);
     expect(schemeIssues({ ...active, legalReference: null }).map((i) => i.code)).toContain("NO_LEGAL_REFERENCE");
     expect(schemeIssues({ ...base, notApplicable: true })).toEqual([]);
+  });
+
+  it("warns when the employer pays less than the employee for a statutory scheme (employer at least half)", () => {
+    expect(schemeIssues({ ...active, legalStatus: "VERIFIED", employeeRateBp: 600, employerRateBp: 400 })).toEqual([{ code: "EMPLOYER_SHARE_BELOW_HALF", blocking: false }]);
+    expect(schemeIssues({ ...active, legalStatus: "VERIFIED", employeeRateBp: 400, employerRateBp: 400 })).toEqual([]);
+    expect(schemeIssues({ ...active, basis: "VOLUNTARY", employeeRateBp: 600, employerRateBp: 400 })).toEqual([]);
+  });
+
+  it("treats a pension covered by employment contracts as no gap", () => {
+    const p = [d("2026-03-01"), d("2026-03-31")] as const;
+    const pension = { ...base, type: "PENSION" as const };
+    expect(statutoryGaps([pension], ...p)).toEqual(["PENSION"]);
+    expect(statutoryGaps([pension], ...p, ["PENSION"])).toEqual([]);
   });
 
   it("finds statutory types without a usable scheme in a period", () => {

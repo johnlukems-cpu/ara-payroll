@@ -77,6 +77,15 @@ describe("translations", () => {
 import { $Enums } from "@prisma/client";
 
 /** Every database enum value shown in the UI must have a translation in both languages. */
+describe("Dutch terminology", () => {
+  it("uses Dutch terms in the Dutch interface (no English leftovers)", () => {
+    const banned = /\b(Dashboard|salarisrun|runs?|Selfservice|Download|Payslip|Employee|Employer|Allowances?|Deductions?|Overtime|Settings|Reports|Approved|Pending|Cancel|Save)\b/i;
+    const allowed = (k: string) => k.startsWith("brand.") || k.startsWith("language.") || k.startsWith("pricing.plans.");
+    const bad = Object.entries(NL).filter(([k, v]) => !allowed(k) && banned.test(String(v).replace(/ARA Payroll/g, "").replace(/\{[a-zA-Z]+\}/g, ""))).map(([k, v]) => `${k}: ${v}`);
+    expect(bad).toEqual([]);
+  });
+});
+
 describe("ICU syntax", () => {
   it("never quotes a placeholder with an apostrophe (ICU treats '{x}' as literal text)", () => {
     const bad = [...Object.entries(NL), ...Object.entries(EN)].filter(([, v]) => /'[{}]/.test(String(v))).map(([k]) => k);
@@ -116,6 +125,8 @@ describe("enum translations", () => {
     [$Enums.ContributionBase, ["enums.contributionBase"]],
     [$Enums.ContributionTax, ["enums.contributionTax"]],
     [$Enums.ContactRequestType, ["contact.types"]],
+    [$Enums.LegalStatus, ["legal"]],
+    [$Enums.LegalSourceState, ["legalRegister.state"]],
     [$Enums.LeaveUnit, ["leaveTypes.units"]],
   ];
   it("has a translation for every enum value", () => {

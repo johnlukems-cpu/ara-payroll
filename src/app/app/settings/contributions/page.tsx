@@ -6,6 +6,7 @@ import { getI18n } from "@/lib/server/i18n";
 import { describeBase, describeShare } from "@/lib/contribution-format";
 import { CONTRIBUTION_TYPES, schemeIssues, schemeState, statutoryGaps } from "@/lib/payroll/contributions";
 import { periodBounds } from "@/lib/payroll/service";
+import { pensionCoveredByContracts } from "@/lib/server/pay-components";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, EmptyState, Stat } from "@/components/ui/misc";
@@ -46,13 +47,20 @@ export default async function ContributionsPage({ searchParams }: { searchParams
   const rows = current.map((s) => ({ s, state: schemeState(s, now), issues: schemeIssues(s) }));
   const count = (states: string[]) => rows.filter((r) => states.includes(r.state)).length;
   const { start, end } = periodBounds(now.getUTCFullYear(), now.getUTCMonth() + 1);
-  const gaps = statutoryGaps(schemes, start, end);
+  const pensionByContract = await pensionCoveredByContracts(ctx.company.id, now.getUTCFullYear(), now.getUTCMonth() + 1);
+  const gaps = statutoryGaps(schemes, start, end, pensionByContract ? ["PENSION"] : []);
+  const register = await db.legalSource.findMany({ where: { code: { in: ["FVO", "WAP-2014", "WNBZ-2014"] } }, select: { code: true, verificationStatus: true, summary: true } });
+  const fvoSource = register.find((r) => r.code === "FVO");
 
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">{t("contrib.intro")}</p>
       {sp.saved && <Alert variant="success">{t("contrib.savedDraft")}</Alert>}
       <Alert variant="info">{t("contrib.noInventedRates")}</Alert>
+      {fvoSource && fvoSource.verificationStatus !== "VERIFIED" && (
+        <Alert variant="warning"><span data-testid="fvo-notice">{t("contrib.fvoNotice", { status: t(`legal.${fvoSource.verificationStatus}`) })}</span> <Link href="/app/tax/legal#FVO" className="font-medium underline">{t("contrib.seeLegalSources")}</Link></Alert>
+      )}
+      {pensionByContract && <Alert variant="info">{t("contrib.pensionByContract")}</Alert>}
       {lookalikes.length > 0 && <Alert variant="warning">{t("contrib.lookalikes", { list: lookalikes.map((c) => `${c.name} (${c.code})`).join(", ") })}</Alert>}
 
       <Card data-testid="validation-overview">

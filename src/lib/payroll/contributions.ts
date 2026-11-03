@@ -8,13 +8,22 @@ export const CONTRIBUTION_TYPES: ContributionType[] = ["HEALTH", "PENSION", "FVO
 
 /** Default schemes created (inactive, rates 0) for every company. Statutory schemes must be verified before use. */
 export const DEFAULT_SCHEMES: {
-  type: ContributionType; nameNl: string; nameEn: string; basis: "STATUTORY" | "VOLUNTARY";
-  base: "BASE_SALARY" | "PENSION_BASE"; employeeTax: "PRE_TAX" | "AFTER_TAX";
-  legalStatus: "PENDING_VERIFICATION" | "COMPANY_POLICY"; legalReference: string;
+  type: ContributionType; nameNl: string; nameEn: string; basis: "STATUTORY" | "VOLUNTARY"; method: "PERCENTAGE" | "FIXED";
+  base: "BASE_SALARY" | "PENSION_BASE" | "GROSS_WAGE"; employeeTax: "PRE_TAX" | "AFTER_TAX";
+  legalStatus: "PARTIALLY_VERIFIED" | "PENDING_VERIFICATION" | "COMPANY_POLICY"; legalReference: string;
 }[] = [
-  { type: "HEALTH", nameNl: "Ziektekostenverzekering", nameEn: "Health insurance", basis: "STATUTORY", base: "BASE_SALARY", employeeTax: "AFTER_TAX", legalStatus: "PENDING_VERIFICATION", legalReference: "Basiszorgverzekering — premie, grondslag en verdeling werkgever/werknemer niet geverifieerd" },
-  { type: "PENSION", nameNl: "Pensioenregeling", nameEn: "Pension scheme", basis: "VOLUNTARY", base: "PENSION_BASE", employeeTax: "PRE_TAX", legalStatus: "COMPANY_POLICY", legalReference: "Pensioenreglement van de werkgever / het pensioenfonds" },
-  { type: "FVO", nameNl: "FVO-bijdrage", nameEn: "FVO contribution", basis: "STATUTORY", base: "BASE_SALARY", employeeTax: "AFTER_TAX", legalStatus: "PENDING_VERIFICATION", legalReference: "Fonds ouderschapsverlof (Wet Arbeidsbescherming Gezin) — percentage en verdeling werkgever/werknemer niet geverifieerd" },
+  {
+    type: "HEALTH", nameNl: "Ziektekostenverzekering", nameEn: "Health insurance", basis: "STATUTORY", method: "FIXED", base: "BASE_SALARY", employeeTax: "AFTER_TAX", legalStatus: "PARTIALLY_VERIFIED",
+    legalReference: "Wet Nationale Basiszorgverzekering (2014): werkgever verzekert iedere werknemer en betaalt minimaal 50% van de premie; premie per leeftijdscategorie (actuele bedragen niet geverifieerd — zie Wettelijke bronnen)",
+  },
+  {
+    type: "PENSION", nameNl: "Pensioenregeling", nameEn: "Pension scheme", basis: "STATUTORY", method: "PERCENTAGE", base: "GROSS_WAGE", employeeTax: "PRE_TAX", legalStatus: "PARTIALLY_VERIFIED",
+    legalReference: "Wet Algemeen Pensioen 2014 (S.B. 2014 no. 113) art. 8; S.B. 2023 no. 118 (minimum- en maximumgrondslag): werkgever minimaal 50% van de premie — percentage per regeling verifiëren (zie Wettelijke bronnen)",
+  },
+  {
+    type: "FVO", nameNl: "FVO-bijdrage", nameEn: "FVO contribution", basis: "STATUTORY", method: "PERCENTAGE", base: "BASE_SALARY", employeeTax: "AFTER_TAX", legalStatus: "PARTIALLY_VERIFIED",
+    legalReference: "Wet Arbeidsbescherming Gezin (S.B. 2019 no. 64) / Fonds Voorzieningen Ouderschapsverlof: volgens officiële publicaties 1% van het basismaandloon excl. toelagen en emolumenten, werknemer max. 50% — premieartikel niet geverifieerd (zie Wettelijke bronnen)",
+  },
 ];
 
 /** Payslip line codes of the two shares of a scheme. */
@@ -73,7 +82,7 @@ export function schemeState(s: SchemeLike, now: Date): SchemeState {
   return "ACTIVE";
 }
 
-export type SchemeIssue = { code: "NOT_CONFIGURED" | "AWAITING_APPROVAL" | "NOT_ACTIVE" | "LEGAL_UNVERIFIED" | "NO_LEGAL_REFERENCE"; blocking: boolean };
+export type SchemeIssue = { code: "NOT_CONFIGURED" | "AWAITING_APPROVAL" | "NOT_ACTIVE" | "LEGAL_UNVERIFIED" | "NO_LEGAL_REFERENCE" | "EMPLOYER_SHARE_BELOW_HALF"; blocking: boolean };
 
 /**
  * Validation issues of a scheme. Missing configuration, approval or activation of a statutory scheme blocks
@@ -88,6 +97,9 @@ export function schemeIssues(s: SchemeLike): SchemeIssue[] {
   else if (!s.isActive) out.push({ code: "NOT_ACTIVE", blocking: statutory });
   if (statutory && s.legalStatus !== "VERIFIED") out.push({ code: "LEGAL_UNVERIFIED", blocking: false });
   if (statutory && !s.legalReference) out.push({ code: "NO_LEGAL_REFERENCE", blocking: false });
+  // Official publications for health insurance, pension (APF) and FVO: the employer pays at least half.
+  const employeeHigher = s.method === "FIXED" ? s.employeeAmount > s.employerAmount : s.employeeRateBp > s.employerRateBp;
+  if (statutory && isConfigured(s) && employeeHigher) out.push({ code: "EMPLOYER_SHARE_BELOW_HALF", blocking: false });
   return out;
 }
 
@@ -98,8 +110,9 @@ const overlapsPeriod = (s: Pick<SchemeLike, "effectiveFrom" | "effectiveTo">, st
  * as not applicable) covers the period, but no scheme of the type is active, approved and configured in it.
  * Payroll for the period cannot be finalised until this is resolved.
  */
-export function statutoryGaps(schemes: SchemeLike[], start: Date, end: Date): ContributionType[] {
+export function statutoryGaps(schemes: SchemeLike[], start: Date, end: Date, coveredTypes: ContributionType[] = []): ContributionType[] {
   return CONTRIBUTION_TYPES.filter((type) => {
+    if (coveredTypes.includes(type)) return false; // e.g. pension percentages in every employment contract
     const ofType = schemes.filter((s) => s.type === type && overlapsPeriod(s, start, end));
     const required = ofType.some((s) => s.basis === "STATUTORY" && !s.notApplicable);
     return required && !ofType.some((s) => isEffective(s));

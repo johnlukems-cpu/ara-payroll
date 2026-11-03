@@ -11,6 +11,7 @@ import { DEFAULT_SR_RULES } from "@/lib/payroll/defaults";
 import { seedCompanyDefaults } from "@/lib/server/company-setup";
 import { contributionReport } from "@/lib/server/reports";
 import { missingStatutoryContributions } from "@/lib/server/pay-components";
+import { buildLegalSnapshot } from "@/lib/server/legal-snapshot";
 
 const db = new PrismaClient();
 const SRD = (v: number) => Math.round(v * 100);
@@ -64,16 +65,22 @@ describe("contribution schemes in payroll", () => {
 
   it("blocks finalising while statutory schemes are not configured and approved, and ignores unapproved schemes", async () => {
     const missing = await missingStatutoryContributions(companyId, 2026, 1);
-    expect(missing.map((m) => m.type)).toEqual(["HEALTH", "FVO"]); // statutory by default; voluntary pension does not block
+    // All three are statutory by default (pension: Wet Algemeen Pensioen 2014). Bob has no contract pension, so pension is not covered.
+    expect(missing.map((m) => m.type)).toEqual(["HEALTH", "PENSION", "FVO"]);
     // Rates set and even marked active, but not approved: not used in payroll, still blocking.
     await db.contributionScheme.updateMany({ where: { companyId, type: "HEALTH" }, data: { isActive: true, employeeRateBp: 200, employerRateBp: 300, effectiveFrom: d("2026-01-01") } });
     const run = await db.payrollRun.findFirstOrThrow({ where: { companyId, month: 1 } });
     await calculateRun(run.id);
     expect((await slip(run.id, anna)).lines.some((l) => l.code.startsWith("HEALTH-"))).toBe(false);
-    expect((await missingStatutoryContributions(companyId, 2026, 1)).map((m) => m.type)).toEqual(["HEALTH", "FVO"]);
+    expect((await missingStatutoryContributions(companyId, 2026, 1)).map((m) => m.type)).toEqual(["HEALTH", "PENSION", "FVO"]);
     // Marking FVO as not applicable (explicit decision) removes it from the blocking list.
     await db.contributionScheme.updateMany({ where: { companyId, type: "FVO" }, data: { notApplicable: true, notApplicableReason: "test" } });
+    expect((await missingStatutoryContributions(companyId, 2026, 1)).map((m) => m.type)).toEqual(["HEALTH", "PENSION"]);
+    // Pension percentages in every employment contract cover the statutory pension obligation.
+    const bobContract = await db.contract.findFirstOrThrow({ where: { employeeId: bob } });
+    await db.contract.update({ where: { id: bobContract.id }, data: { pensionEmployeeBp: 200, pensionEmployerBp: 200 } });
     expect((await missingStatutoryContributions(companyId, 2026, 1)).map((m) => m.type)).toEqual(["HEALTH"]);
+    await db.contract.update({ where: { id: bobContract.id }, data: { pensionEmployeeBp: 0, pensionEmployerBp: 0 } });
     await db.contributionScheme.updateMany({ where: { companyId, type: "FVO" }, data: { notApplicable: false, notApplicableReason: null } });
   });
 
@@ -138,6 +145,17 @@ describe("contribution schemes in payroll", () => {
     expect(feb.employerCosts).toBe(feb.employmentCost - feb.gross);
     const annaRow = r.employees.find((e) => e.employeeId === anna)!;
     expect(annaRow.pensionEmployee).toBe(SRD(800 * 2));
+  });
+
+  it("stores a snapshot of the statutory parameters used by a run", async () => {
+    const run = await db.payrollRun.findFirstOrThrow({ where: { companyId, month: 2 } });
+    const snap = (await buildLegalSnapshot(run.id)) as unknown as { taxRuleSets: { name: string }[]; contributionSchemes: { type: string; employeeRateBp: number }[]; legalSources: { code: string; verificationStatus: string }[] };
+    const used = await db.payslip.findFirstOrThrow({ where: { runId: run.id } });
+    const ruleSet = await db.taxRuleSet.findUniqueOrThrow({ where: { id: used.taxRuleSetId! } });
+    expect(snap.taxRuleSets.map((r) => r.name)).toEqual([ruleSet.name]);
+    expect(snap.contributionSchemes.map((c) => c.type).sort()).toEqual(["FVO", "HEALTH", "PENSION"]);
+    expect(snap.contributionSchemes.find((c) => c.type === "HEALTH")?.employeeRateBp).toBe(200);
+    expect(snap.legalSources.find((l) => l.code === "FVO")?.verificationStatus).toBe("PARTIALLY_VERIFIED");
   });
 
   it("keeps approved payslips unchanged when a scheme rate changes", async () => {

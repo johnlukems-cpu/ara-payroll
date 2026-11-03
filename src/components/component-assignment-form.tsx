@@ -124,7 +124,7 @@ export function ComponentAssignmentForm(props: {
 
       {opt && (
         <div key={opt.value} className="grid gap-4 rounded-lg border bg-muted/30 p-4 sm:grid-cols-2 lg:grid-cols-4">
-          {(opt.legalStatus === "PENDING_VERIFICATION" || opt.legalStatus === "CONFLICT") && (
+          {(opt.legalStatus !== "VERIFIED" && opt.legalStatus !== "COMPANY_POLICY") && (
             <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs sm:col-span-2 lg:col-span-4">{t("assign.legalPending", { reference: opt.legalReference ?? "—" })}</p>
           )}
           {(mode === "bulk" || (mode === "incidental" && props.employees)) && props.employees && (

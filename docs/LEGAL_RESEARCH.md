@@ -82,3 +82,32 @@ Payroll only adjusts salary according to the **approved policy** of each leave t
 3. Resolve the conflicts above (S.B. 2025 no. 101/129; paternity leave duration; FVO contribution).
 4. Decide whether art. 17a applies to any employees; only then can employees be linked to that regime.
 5. Re-verify whenever a new decree is published — periods after “verified until” automatically return to “pending legal validation”.
+
+---
+
+## Hercontrole 3 november 2026
+
+**Werkwijze en beperking.** Officiële websites (gov.sr, sris.sr, dna.sr, belastingdienst.sr, fvo.sr) konden vanuit de onderzoeksomgeving niet rechtstreeks worden geopend. Bevindingen zijn gebaseerd op zoekmachine-uittreksels van die officiële pagina's (in de app: "Officiële bron (uittreksel)") en op secundaire bronnen. Daarom is geen enkele regeling als *Geverifieerd* gemarkeerd; de hoogste status is *Gedeeltelijk geverifieerd*. Alle bewijs en vervangen informatie staat per regeling in het register (Belasting & Aangiften → Wettelijke bronnen).
+
+| Regeling | Bevinding | Status |
+|---|---|---|
+| Wet Loonbelasting (S.B. 1981 no. 181) | Basiswet; bedragen via art. 18a-staatsbesluiten | Niet geverifieerd |
+| S.B. 2024 no. 2 | Beroepskostenaftrek SRD 4.800/jr; belastingvrije som SRD 108.000/jr (9.000/mnd); 8/18/28/38% per SRD 42.000. Geen 2026-wijziging gevonden | Gedeeltelijk geverifieerd |
+| S.B. 2025 no. 101 (22-07-2025) | Vrijstelling bijzondere beloningen SRD 10.016 → 19.500/jr (terugwerkend 1-1-2025); overwerk 5% ≤ 2.500, 15% ≤ 7.500, 25% daarboven (vanaf 1-7-2025) | Conflict |
+| S.B. 2025 no. 129 (29-10-2025, gepubliceerd 31-10-2025) | Zelfde onderwerp als no. 101; inhoud en verhouding niet vastgesteld (eerdere bewering "trekt no. 101 in" niet onderbouwd) | Conflict |
+| Ontwerp kinderbijslag (april 2026) | SRD 125 → 250 per kind, max. 500 → 1.000 — alleen ontwerp, niet toegepast | Niet geverifieerd |
+| Wet AOV | 4% van de heffingsgrondslag (zuiver loon), premieplichtig tot 60 jaar, inhouding op loon, geen werkgeversdeel/franchise gevonden | Gedeeltelijk geverifieerd |
+| Wet Arbeidsbescherming Gezin (S.B. 2019 no. 64) | 16 weken zwangerschaps-/bevallingsverlof (24 bij 3+), vaderschapsverlof 8 dagen, adoptie 6 weken (kind < 18 mnd, art. 6); doorbetaling via FVO | Gedeeltelijk geverifieerd |
+| FVO | 1% van het basismaandloon excl. toelagen/emolumenten; werknemer max. 0,5%, werkgever min. 0,5%; maandelijkse afdracht vóór de 14e; geen maximum gevonden. Tegenstrijdig: start inning (1-3-2023 vs april 2023) en verdeling | Gedeeltelijk geverifieerd — regeling blijft inactief |
+| Wet Algemeen Pensioen 2014 (S.B. 2014 no. 113) | **Nieuw:** pensioen is wettelijk verplicht; werkgever min. 50%; APF-premie 2025: 8% van het brutoloon | Gedeeltelijk geverifieerd |
+| S.B. 2023 no. 118 | Pensioengrondslag min. SRD 2.250, max. SRD 22.500 per maand (vanaf 1-1-2023) | Gedeeltelijk geverifieerd |
+| Wet Nationale Basiszorgverzekering (2014) | Werkgever verzekert iedere werknemer, betaalt min. 50%; premie per leeftijdscategorie, actuele bedragen tegenstrijdig | Gedeeltelijk geverifieerd |
+| Vakantiewet | Werkgever betaalt vakantietoelage (fragment); hoogte niet bevestigd | Niet geverifieerd |
+| Arbeidswet 1963 (art. 64 e.v.) | Overwerkpercentages 150%/200% niet officieel bevestigd (bedrijfsinstelling) | Niet geverifieerd |
+
+**Wijzigingen ten opzichte van de vorige configuratie**
+- Pensioen standaard *wettelijk* (was arbeidsvoorwaardelijk); standaardgrondslag brutoloon. Dekking ook via pensioenpercentage in elke arbeidsovereenkomst.
+- Ziektekostenverzekering standaard *vast bedrag* (premie per leeftijdscategorie) in plaats van percentage.
+- FVO-grondslag: basismaandloon (eerder genoemd: brutoloon).
+- Vaderschapsverlof: 8 dagen (eerder conflict 5/7/8).
+- Vrijstelling bijzondere beloningen in de actieve regelset is nog SRD 10.016; volgens S.B. 2025 no. 101 SRD 19.500 — **niet automatisch aangepast**; beheerder stelt na verificatie een nieuwe regelset-versie vast.

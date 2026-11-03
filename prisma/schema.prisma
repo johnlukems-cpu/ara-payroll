@@ -122,9 +122,18 @@ enum NetEffect {
 /// Legal verification state of a statutory rule or policy setting.
 enum LegalStatus {
   VERIFIED
+  PARTIALLY_VERIFIED // supported by official communications or partial text, but the full primary text was not reviewed
   PENDING_VERIFICATION
   CONFLICT
   COMPANY_POLICY
+}
+
+/// Legal status of a source itself (in force, amended, repealed, still to be verified).
+enum LegalSourceState {
+  IN_FORCE
+  AMENDED
+  REPEALED
+  TO_VERIFY
 }
 
 enum ApprovalStatus {
@@ -525,6 +534,11 @@ model TaxRuleSet {
   bonusExemptAnnual         Int // exempt bijzondere beloning per year (cents)
   isVerified                Boolean        @default(false)
   notes                     String?
+  approvedAt                DateTime?
+  approvedById              String?
+  verifiedAt                DateTime?
+  verifiedById              String?
+  verifiedReviewer          String?
   createdAt                 DateTime       @default(now())
   company                   Company?       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   payrollRuns               PayrollRun[]
@@ -562,6 +576,8 @@ model PayrollRun {
   inputs                PayrollInput[]
   adjustments           PayrollAdjustment[]
   payslips              Payslip[]
+  /// Snapshot of the statutory rates and parameters used, stored when the run is finalised (approved).
+  legalSnapshot         Json?
 
   @@unique([companyId, year, month])
 }
@@ -685,6 +701,7 @@ model ContributionScheme {
   employerRateBp      Int                    @default(0) // werkgeverspercentage
   employeeAmount      Int                    @default(0) // fixed monthly employee share (minor units of currency)
   employerAmount      Int                    @default(0) // fixed monthly employer share
+  minBaseMonthly      Int? // optional minimum monthly base (e.g. a statutory minimum pension base)
   maxBaseMonthly      Int? // optional maximum monthly base (minor units of currency)
   currency            String
   effectiveFrom       DateTime
@@ -874,17 +891,28 @@ model ComponentLibrary {
 
 /// Legal rules register: official sources the statutory rules are based on.
 model LegalSource {
-  code               String      @id // e.g. SB-2024-2
+  code               String           @id // e.g. SB-2024-2
   title              String
   publication        String // e.g. "S.B. 2024 no. 2"
   publishedAt        DateTime?
   effectiveFrom      DateTime?
   subject            String
-  articles           Json        @default("[]") // [{ article, summary }]
+  articles           Json             @default("[]") // [{ article, summary }]
   url                String?
-  verificationStatus LegalStatus @default(PENDING_VERIFICATION)
+  verificationStatus LegalStatus      @default(PENDING_VERIFICATION)
   notes              String?
-  updatedAt          DateTime    @updatedAt
+  article            String? // main article(s), e.g. "art. 12, 13, 14"
+  state              LegalSourceState @default(TO_VERIFY)
+  summary            String? // short summary of the current provision
+  lastAmendment      String? // e.g. "S.B. 2025 no. 129"
+  lastCheckedAt      DateTime?
+  /// Payroll components and parameters that depend on this source, e.g. ["Belastingvrije som", "DED012"].
+  components         Json             @default("[]")
+  /// Verification evidence: [{ source, url, kind: OFFICIAL|SECONDARY, finding, checkedAt }]
+  evidence           Json             @default("[]")
+  /// Earlier statements that were replaced: [{ date, previous, current, reason }]
+  history            Json             @default("[]")
+  updatedAt          DateTime         @updatedAt
 }
 
 /// AOV (Algemene Oudedagsvoorziening) premium rules, versioned by effective date. companyId null = platform default.
@@ -907,6 +935,11 @@ model AovRuleSet {
   approvalStatus     ApprovalStatus @default(APPROVED)
   citations          Json           @default("[]")
   notes              String?
+  approvedAt         DateTime?
+  approvedById       String?
+  verifiedAt         DateTime?
+  verifiedById       String?
+  verifiedReviewer   String?
   createdAt          DateTime       @default(now())
   company            Company?       @relation(fields: [companyId], references: [id], onDelete: Cascade)
   payrollRuns        PayrollRun[]

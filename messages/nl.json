@@ -41,7 +41,7 @@
     "confirmAction": "Weet u het zeker?",
     "notFoundTitle": "Pagina niet gevonden",
     "notFoundText": "Deze pagina kon niet worden gevonden.",
-    "backToDashboard": "Terug naar het dashboard",
+    "backToDashboard": "Terug naar het overzicht",
     "errorTitle": "Er is iets misgegaan",
     "errorText": "De fout is vastgelegd. Probeer het opnieuw.",
     "tryAgain": "Opnieuw proberen",
@@ -51,7 +51,7 @@
     "no": "Nee"
   },
   "nav": {
-    "dashboard": "Dashboard",
+    "dashboard": "Overzicht",
     "employees": "Werknemers",
     "payroll": "Salarisadministratie",
     "leave": "Verlof",
@@ -75,7 +75,7 @@
     "PAYROLL_MANAGER": "Salarisadministrateur",
     "HR_MANAGER": "HR-manager",
     "ACCOUNTANT": "Accountant (alleen lezen)",
-    "EMPLOYEE": "Werknemer (selfservice)"
+    "EMPLOYEE": "Werknemer (medewerkersportaal)"
   },
   "status": {
     "ACTIVE": "Actief",
@@ -212,7 +212,7 @@
     "haveAccount": "Heeft u al een account?",
     "signInLink": "Aanmelden",
     "heroTitle": "Nauwkeurige salarisverwerking, van contract tot loonstrook.",
-    "heroSub": "Loonbelasting · AOV · Meerdere valuta · Loonstroken · Verlof · Selfservice",
+    "heroSub": "Loonbelasting · AOV · Meerdere valuta · Loonstroken · Verlof · Medewerkersportaal",
     "invalidLogin": "Onjuist e-mailadres of wachtwoord.",
     "tooManyAttempts": "Te veel aanmeldpogingen. Wacht 15 minuten en probeer het opnieuw.",
     "tooManyRegistrations": "Te veel registraties vanaf dit adres. Probeer het later opnieuw.",
@@ -244,7 +244,7 @@
       },
       "payslips": {
         "title": "Professionele loonstroken",
-        "text": "Duidelijke PDF-loonstroken in het Nederlands of Engels, direct beschikbaar via de selfservice voor werknemers."
+        "text": "Duidelijke PDF-loonstroken in het Nederlands of Engels, direct beschikbaar via de medewerkersportaal voor werknemers."
       },
       "leave": {
         "title": "Verlofbeheer",
@@ -258,10 +258,10 @@
     "pricing": "Prijzen"
   },
   "dashboard": {
-    "title": "Dashboard",
+    "title": "Overzicht",
     "greeting": "Goedendag, {name}",
     "subtitle": "{company} · Overzicht salarisadministratie",
-    "newRun": "Nieuwe salarisrun",
+    "newRun": "Nieuwe verloning",
     "welcome": "Welkom bij ARA Payroll! Vul eerst uw bedrijfsgegevens in onder Instellingen en voeg daarna uw werknemers toe.",
     "denied": "U heeft geen toegang tot die pagina.",
     "noRules": "Er is geen belastingregelset ingesteld. De salarisadministratie kan pas worden berekend nadat er een is toegevoegd onder Instellingen → Belastingregels.",
@@ -270,10 +270,10 @@
     "activeEmployees": "Actieve werknemers",
     "hiredRecently": "{count} in dienst getreden in de afgelopen 30 dagen",
     "lastNet": "Laatste netto loonsom",
-    "wageTaxLast": "Loonbelasting (laatste run)",
+    "wageTaxLast": "Loonbelasting (laatste verloning)",
     "aovSub": "AOV {amount}",
-    "employerCostLast": "Werkgeverslasten (laatste run)",
-    "noRuns": "Nog geen salarisruns",
+    "employerCostLast": "Werkgeverslasten (laatste verloning)",
+    "noRuns": "Nog geen verloningen",
     "pendingLeave": "Openstaande verlofaanvragen",
     "pendingRates": "Wisselkoersen ter goedkeuring",
     "trendTitle": "Verloop salarisadministratie",
@@ -285,7 +285,7 @@
     "payrollPeriod": "Salarisadministratie {period}",
     "payBy": "{period} uitbetalen vóór {date}",
     "employerCostsSub": "waarvan werkgeverslasten {amount}",
-    "contribMissing": "Wettelijke bijdrageregeling(en) nog niet ingesteld en goedgekeurd: {list}. Salarisruns kunnen pas definitief worden gemaakt als dit is opgelost.",
+    "contribMissing": "Wettelijke bijdrageregeling(en) nog niet ingesteld en goedgekeurd: {list}. Verloningen kunnen pas definitief worden gemaakt als dit is opgelost.",
     "contribConfigure": "Bijdragen instellen"
   },
   "charts": {
@@ -375,8 +375,8 @@
       "parental": "Ouderschapsverlof"
     },
     "noJobTitle": "Geen functie",
-    "selfServiceEnabled": "Selfservice ingeschakeld",
-    "enableSelfService": "Selfservice inschakelen",
+    "selfServiceEnabled": "Medewerkersportaal ingeschakeld",
+    "enableSelfService": "Medewerkersportaal inschakelen",
     "children_short": "Kinderen",
     "salaryOverview": "Salarisoverzicht",
     "salary": "Salaris",
@@ -403,7 +403,7 @@
     "saveContract": "Overeenkomst opslaan",
     "contractSaved": "Nieuwe overeenkomst / salariswijziging vastgelegd.",
     "componentsTitle": "Vaste toelagen en inhoudingen",
-    "componentsSub": "Worden automatisch toegepast in elke salarisrun binnen de geldige periode.",
+    "componentsSub": "Worden automatisch toegepast in elke verloning binnen de geldige periode.",
     "noComponents": "Geen vaste componenten",
     "componentCols": {
       "component": "Component",
@@ -428,7 +428,7 @@
     "noPayslips": "Nog geen loonstroken",
     "payslipCols": {
       "period": "Periode",
-      "runStatus": "Status run",
+      "runStatus": "Status verloning",
       "gross": "Bruto",
       "wageTax": "Loonbelasting",
       "aov": "AOV",
@@ -458,8 +458,8 @@
     "uploading": "Bezig met uploaden…",
     "docUploaded": "Document geüpload.",
     "docDeleted": "Document verwijderd.",
-    "selfServiceNew": "Selfservice ingeschakeld. Deel deze gegevens op een veilige manier: {email} / tijdelijk wachtwoord {password} (wordt maar één keer getoond — vraag de werknemer het na de eerste aanmelding te wijzigen).",
-    "selfServiceExisting": "Selfservice ingeschakeld. {email} heeft al een ARA-account en kan aanmelden met het bestaande wachtwoord.",
+    "selfServiceNew": "Medewerkersportaal ingeschakeld. Deel deze gegevens op een veilige manier: {email} / tijdelijk wachtwoord {password} (wordt maar één keer getoond — vraag de werknemer het na de eerste aanmelding te wijzigen).",
+    "selfServiceExisting": "Medewerkersportaal ingeschakeld. {email} heeft al een ARA-account en kan aanmelden met het bestaande wachtwoord.",
     "taxRegime": "Belastingregime",
     "taxRegimeHint": "Art. 17a geldt alleen voor werknemers binnen het geverifieerde wettelijke toepassingsbereik.",
     "taxRegimeLocked": "Art. 17a kan worden gekozen zodra er een geverifieerde regelset voor het toepassingsbereik is.",
@@ -470,11 +470,11 @@
     "recalcFailed": "Een open loonrun kon niet opnieuw worden berekend en staat weer op concept."
   },
   "payroll": {
-    "title": "Salarisruns",
+    "title": "Verloningen",
     "subtitle": "Maandelijkse salarisperiodes: gegevens invoeren, berekenen, controleren, goedkeuren en uitbetalen.",
-    "newRun": "Nieuwe salarisrun",
-    "noRuns": "Nog geen salarisruns",
-    "noRunsText": "Maak een salarisrun aan voor de huidige maand om salarissen te berekenen en loonstroken te maken.",
+    "newRun": "Nieuwe verloning",
+    "noRuns": "Nog geen verloningen",
+    "noRunsText": "Maak een verloning aan voor de huidige maand om salarissen te berekenen en loonstroken te maken.",
     "cols": {
       "period": "Periode",
       "payDate": "Betaaldatum",
@@ -485,14 +485,14 @@
       "aov": "AOV",
       "net": "Netto"
     },
-    "newTitle": "Nieuwe salarisrun",
+    "newTitle": "Nieuwe verloning",
     "newSubtitle": "Alle actieve werknemers in de periode worden automatisch meegenomen.",
     "month": "Maand",
     "year": "Jaar",
     "payDate": "Betaaldatum",
     "notes": "Opmerkingen (optioneel)",
-    "create": "Salarisrun aanmaken",
-    "exists": "Er bestaat al een salarisrun voor {period}."
+    "create": "Verloning aanmaken",
+    "exists": "Er bestaat al een verloning voor {period}."
   },
   "run": {
     "title": "Salarisadministratie {period}",
@@ -502,7 +502,7 @@
     "calculate": "Salarissen berekenen",
     "recalculate": "Opnieuw berekenen",
     "approve": "Goedkeuren",
-    "approveConfirm": "Deze salarisrun goedkeuren en vergrendelen?",
+    "approveConfirm": "Deze verloning goedkeuren en vergrendelen?",
     "reopen": "Heropenen",
     "markPaid": "Als betaald markeren",
     "markPaidConfirm": "Bevestig dat de salarissen zijn uitbetaald. De periode wordt hiermee definitief afgesloten.",
@@ -566,8 +566,8 @@
       "netPaid": "Uitbetaald",
       "employerCost": "Werkgeverslasten"
     },
-    "deleteRun": "Salarisrun verwijderen",
-    "deleteConfirm": "Deze salarisrun en alle bijbehorende loonstroken verwijderen?",
+    "deleteRun": "Verloning verwijderen",
+    "deleteConfirm": "Deze verloning en alle bijbehorende loonstroken verwijderen?",
     "notices": {
       "approved": "Salarisadministratie goedgekeurd en vergrendeld. De loonstroken zijn nu zichtbaar voor de werknemers.",
       "reopened": "Salarisadministratie heropend. U kunt de invoer wijzigen en opnieuw berekenen.",
@@ -598,7 +598,15 @@
       "DEDUCTION": "Extra inhouding toevoegen"
     },
     "statutoryMissing": "Definitief maken is geblokkeerd: de wettelijke regeling(en) {list} zijn voor deze periode niet ingesteld en goedgekeurd.",
-    "statutoryMissingLink": "Naar Bijdragen"
+    "statutoryMissingLink": "Naar Bijdragen",
+    "snapshotTitle": "Wettelijke momentopname",
+    "snapshotSub": "Tarieven en parameters zoals vastgelegd bij het definitief maken op {date}. Latere wijzigingen hebben geen invloed op deze verloning.",
+    "snapshotTax": "Loonbelasting",
+    "snapshotTaxLine": "Belastingvrije som {free} per maand · beroepskostenaftrek {lump} per maand · vrijstelling bijzondere beloningen {bonus} per jaar",
+    "snapshotBrackets": "Schijven",
+    "snapshotOvertime": "Overwerk",
+    "snapshotAge": "tot {age} jaar",
+    "snapshotNoSchemes": "Geen bijdrageregelingen gebruikt."
   },
   "payslip": {
     "title": "Loonstrook",
@@ -616,7 +624,7 @@
     "taxableWage": "Belastbaar loon",
     "wageTax": "Loonbelasting",
     "aov": "AOV",
-    "backToRun": "Terug naar de salarisrun",
+    "backToRun": "Terug naar de verloning",
     "generated": "Gemaakt met ARA Payroll · Ontwikkeld door ARA Intelligent Solutions",
     "taxNo": "Fiscaal nr. {value}",
     "kkf": "KKF {value}",
@@ -790,7 +798,7 @@
     "monthly": "Maandoverzicht",
     "noData": "Geen salarisgegevens voor dit jaar",
     "deptTitle": "Kosten per afdeling",
-    "deptSub": "Goedgekeurde en betaalde runs",
+    "deptSub": "Goedgekeurde en betaalde verloningen",
     "remitTitle": "Afdracht loonbelasting en AOV",
     "remitSub": "Maandelijks ingehouden bedragen, voor de aangifte loonbelasting bij de Belastingdienst.",
     "cols": {
@@ -804,7 +812,7 @@
       "remit": "Totaal af te dragen"
     },
     "annualTitle": "Jaaropgaven {year}",
-    "annualSub": "Jaartotalen per werknemer (goedgekeurde en betaalde runs), in de wettelijke rekenvaluta.",
+    "annualSub": "Jaartotalen per werknemer (goedgekeurde en betaalde verloningen), in de wettelijke rekenvaluta.",
     "annualEmpty": "Geen goedgekeurde salarisadministratie dit jaar",
     "annualCols": {
       "employee": "Werknemer",
@@ -923,7 +931,7 @@
       "baseTitle": "Basisvaluta",
       "baseText": "{currency} is de rapportagevaluta van {company}. Salaristotalen en rapportages worden in deze valuta uitgedrukt.",
       "changeTitle": "Basisvaluta wijzigen",
-      "changeText": "Een wijziging van de basisvaluta geldt alleen voor salarisadministratie die na de wijziging wordt berekend. Historische salarisgegevens behouden hun oorspronkelijke valuta en wisselkoersen. Alle openstaande (concept of berekende) salarisruns moeten eerst worden goedgekeurd of verwijderd.",
+      "changeText": "Een wijziging van de basisvaluta geldt alleen voor salarisadministratie die na de wijziging wordt berekend. Historische salarisgegevens behouden hun oorspronkelijke valuta en wisselkoersen. Alle openstaande (concept of berekende) verloningen moeten eerst worden goedgekeurd of verwijderd.",
       "newBase": "Nieuwe basisvaluta",
       "reason": "Reden van de wijziging",
       "confirmName": "Typ de bedrijfsnaam ter bevestiging",
@@ -1029,7 +1037,7 @@
       "role": "Rol",
       "removeConfirm": "De toegang van deze gebruiker tot het bedrijf intrekken?",
       "addTitle": "Gebruiker toevoegen",
-      "addSub": "Geef werknemers selfservicetoegang via “Selfservice inschakelen” op hun werknemerspagina.",
+      "addSub": "Geef werknemers toegang tot het medewerkersportaal via “Medewerkersportaal inschakelen” op hun werknemerspagina.",
       "name": "Naam",
       "email": "E-mailadres",
       "add": "Gebruiker toevoegen",
@@ -1072,7 +1080,7 @@
       "notes": "Opmerkingen"
     },
     "scopeCompany": "Bedrijf",
-    "scopePlatform": "Platform",
+    "scopePlatform": "Platformbreed",
     "approve": "Goedkeuren",
     "reject": "Afwijzen",
     "none": "Nog geen wisselkoersen vastgelegd",
@@ -1205,8 +1213,8 @@
     "forbidden": "U heeft geen toestemming voor deze actie.",
     "notFound": "Gegeven niet gevonden.",
     "duplicate": "Er bestaat al een gegeven met deze kenmerken.",
-    "runLocked": "Goedgekeurde of betaalde runs zijn vergrendeld en kunnen niet opnieuw worden berekend.",
-    "runLockedEdit": "Deze salarisrun is vergrendeld. Heropen de run voordat u wijzigingen aanbrengt.",
+    "runLocked": "Goedgekeurde of betaalde verloningen zijn vergrendeld en kunnen niet opnieuw worden berekend.",
+    "runLockedEdit": "Deze verloning is vergrendeld. Heropen de verloning voordat u wijzigingen aanbrengt.",
     "noRuleSet": "Er geldt geen belastingregelset voor deze periode. Stel er een in onder Instellingen → Belastingregels.",
     "missingRates": "Geen goedgekeurde wisselkoers beschikbaar voor: {pairs}. Voeg koersen toe of keur ze goed onder Wisselkoersen.",
     "invalidDepartment": "Ongeldige afdeling.",
@@ -1217,10 +1225,10 @@
     "fileTooLarge": "Bestanden mogen maximaal 8 MB groot zijn.",
     "fileType": "Alleen PDF-, PNG-, JPEG- en DOCX-bestanden zijn toegestaan.",
     "addEmailFirst": "Voeg eerst een e-mailadres toe aan de werknemer.",
-    "selfServiceExists": "Selfservice is al ingeschakeld voor deze werknemer.",
-    "onlyCalculatedApprove": "Alleen berekende runs kunnen worden goedgekeurd. Bereken opnieuw na het wijzigen van de invoer.",
-    "noPayslips": "Deze run bevat geen loonstroken.",
-    "onlyApprovedReopen": "Alleen goedgekeurde (nog niet betaalde) runs kunnen worden heropend.",
+    "selfServiceExists": "Medewerkersportaal is al ingeschakeld voor deze werknemer.",
+    "onlyCalculatedApprove": "Alleen berekende verloningen kunnen worden goedgekeurd. Bereken opnieuw na het wijzigen van de invoer.",
+    "noPayslips": "Deze verloning bevat geen loonstroken.",
+    "onlyApprovedReopen": "Alleen goedgekeurde (nog niet betaalde) verloningen kunnen worden heropend.",
     "approveBeforePaid": "Keur de salarisadministratie goed voordat u deze als betaald markeert.",
     "positiveAmount": "Vul een positief bedrag in.",
     "invalidValue": "Ongeldige waarde: {value}",
@@ -1243,7 +1251,7 @@
     "invalidRateRow": "Ongeldig tarief in rij {row}.",
     "currencyInactive": "{code} is geen actieve valuta.",
     "sameCurrency": "Basisvaluta en tegenvaluta moeten verschillen.",
-    "openRuns": "Keur alle openstaande salarisruns goed of verwijder ze voordat u de basisvaluta wijzigt.",
+    "openRuns": "Keur alle openstaande verloningen goed of verwijder ze voordat u de basisvaluta wijzigt.",
     "nameMismatch": "De ingevoerde bedrijfsnaam komt niet overeen.",
     "sameBase": "Dit is al de basisvaluta.",
     "providerDisabled": "Er is geen koersaanbieder ingeschakeld.",
@@ -1265,7 +1273,7 @@
     "formulaInvalid": "De formule is ongeldig.",
     "treatmentNotAllowed": "Deze fiscale behandeling is niet toegestaan voor deze categorie.",
     "regimeNotVerified": "Art. 17a kan pas worden gekoppeld als er een geverifieerde regelset voor het toepassingsbereik is.",
-    "manualPerRun": "Componenten met handmatige invoer worden per salarisrun als correctie ingevoerd.",
+    "manualPerRun": "Componenten met handmatige invoer worden per verloning als correctie ingevoerd.",
     "childBirthDateRequired": "Vul de (verwachte) geboorte- of aankomstdatum van het kind in.",
     "partTimeNotAllowed": "Deze verlofsoort staat geen deeltijdverlof toe.",
     "componentInactive": "{name} is niet actief of niet goedgekeurd.",
@@ -1289,7 +1297,8 @@
     "schemeEndInFinalPeriod": "Deze regeling is gebruikt in goedgekeurde loonruns: de einddatum kan niet in een afgesloten loonperiode vallen.",
     "versionInFinalPeriod": "Een nieuwe versie kan niet ingaan in een loonperiode die al definitief is gemaakt.",
     "schemeNotApplicable": "Deze regeling is gemarkeerd als niet van toepassing.",
-    "statutoryConfigMissing": "De salarisrun kan niet definitief worden gemaakt: de wettelijke regeling(en) {list} zijn niet ingesteld en goedgekeurd (Instellingen → Bijdragen)."
+    "statutoryConfigMissing": "De verloning kan niet definitief worden gemaakt: de wettelijke regeling(en) {list} zijn niet ingesteld en goedgekeurd (Instellingen → Bijdragen).",
+    "schemeStatutoryUnverified": "Een wettelijke regeling kan pas worden goedgekeurd nadat de juridische grondslag is geverifieerd. Controleer de officiële tekst, zet de juridische status op Geverifieerd en sla op."
   },
   "bracket": {
     "required": "er is ten minste één schijf vereist",
@@ -1326,7 +1335,8 @@
     "percentRequired": "Vul een percentage groter dan 0 in",
     "selfReference": "Een component kan niet naar zichzelf verwijzen",
     "treatmentNotAllowed": "Niet toegestaan voor deze categorie",
-    "unknownComponent": "Onbekende component"
+    "unknownComponent": "Onbekende component",
+    "minAboveMax": "Het minimum mag niet hoger zijn dan het maximum"
   },
   "defaults": {
     "components": {
@@ -1365,7 +1375,8 @@
     "CONFLICT": "Tegenstrijdige bronnen",
     "COMPANY_POLICY": "Bedrijfsbeleid",
     "VALIDATED": "Juridisch gevalideerd",
-    "PENDING_LEGAL_VALIDATION": "Juridische validatie vereist"
+    "PENDING_LEGAL_VALIDATION": "Juridische validatie vereist",
+    "PARTIALLY_VERIFIED": "Gedeeltelijk geverifieerd"
   },
   "tax": {
     "title": "Belasting & Aangiften",
@@ -1399,7 +1410,7 @@
       "deadline": "Uiterste datum",
       "payable": "Te betalen",
       "status": "Status",
-      "download": "Download",
+      "download": "Downloaden",
       "submission": "Indiening",
       "payment": "Betaling",
       "declaration": "Aangifte",
@@ -1423,7 +1434,7 @@
     "howSub": "ARA Payroll stelt de aangifte op; u dient deze zelf in via het officiële kanaal.",
     "how": {
       "1": "Controleer het concept en keur het goed — de bestanden worden aangemaakt (PDF, Excel, CSV).",
-      "2": "Download de aangifte en de onderliggende specificaties.",
+      "2": "Haal de aangifte en de onderliggende specificaties op (downloaden).",
       "3": "Doe de maandaangifte loonbelasting en premie AOV in het online portaal van de Belastingdienst (aangifteperiode volgens bronnen van de 26e tot en met de 10e van de volgende maand — verifiëren).",
       "4": "Leg de indieningsdatum en het kenmerk vast in ARA Payroll en upload het ontvangstbewijs.",
       "5": "Leg acceptatie en betaling vast zodra deze bevestigd zijn. ARA Payroll markeert een aangifte nooit zelf als ingediend."
@@ -1467,7 +1478,7 @@
       "CALCULATED": "Berekend",
       "UNDER_REVIEW": "In beoordeling",
       "APPROVED": "Goedgekeurd",
-      "READY_FOR_DOWNLOAD": "Gereed voor download",
+      "READY_FOR_DOWNLOAD": "Klaar om te downloaden",
       "DOWNLOADED": "Gedownload",
       "SUBMITTED": "Ingediend",
       "ACCEPTED": "Geaccepteerd",
@@ -1484,7 +1495,7 @@
     "previewSub": "Belastingregels: {tax} · AOV-regels: {aov}",
     "months": "{count, plural, one {# maand} other {# maanden}}",
     "snapshotAt": "Berekeningsmomentopname van {date}",
-    "viewRun": "salarisrun",
+    "viewRun": "verloning",
     "actions": "Acties",
     "recalculate": "Opnieuw berekenen uit salarisadministratie",
     "submitForReview": "Ter beoordeling indienen",
@@ -1653,7 +1664,66 @@
     "intro": "Register van wettelijke bronnen. De statussen geven weer wat kon worden bevestigd; niets hiervan vervangt de beoordeling door een gekwalificeerde belastingadviseur. Controleer latere staatsbesluiten en officiële instructies vóór productiegebruik.",
     "published": "gepubliceerd {date}",
     "effective": "in werking {date}",
-    "article": "Art."
+    "article": "Art.",
+    "researchNote": "Laatste controle 3 november 2026. De officiële websites (gov.sr, sris.sr, dna.sr, belastingdienst.sr, fvo.sr) konden vanuit de onderzoeksomgeving niet rechtstreeks worden geopend; bevindingen zijn gebaseerd op uittreksels van die officiële pagina's en op secundaire bronnen. Daarom is geen enkele regeling als volledig geverifieerd gemarkeerd.",
+    "inUseTitle": "Wettelijke instellingen in gebruik",
+    "inUseSub": "Welke tarieven en parameters de salarisberekening op dit moment gebruikt, met bron, status en goedkeuring.",
+    "cols": {
+      "name": "Instelling",
+      "value": "Waarde",
+      "validity": "Geldigheid",
+      "source": "Bron",
+      "status": "Status",
+      "approved": "Goedgekeurd"
+    },
+    "param": {
+      "taxFree": "Belastingvrije som",
+      "lumpSum": "Beroepskostenaftrek",
+      "brackets": "Tariefschijven loonbelasting",
+      "bonusExempt": "Vrijstelling bijzondere beloningen",
+      "overtime": "Tariefschijven overwerk",
+      "childAllowance": "Vrijstelling kinderbijslag",
+      "aov": "AOV-premie"
+    },
+    "childValue": "{amount} per kind, max. {max} kinderen",
+    "month": "maand",
+    "year": "jaar",
+    "verifiedBy": "Geverifieerd op {date} door {name}",
+    "notUsed": "Niet in gebruik",
+    "inUse": "In gebruik",
+    "manageHint": "Beheren:",
+    "manageTax": "Loonbelastingregels",
+    "manageAov": "AOV-regels",
+    "manageSchemes": "Bijdrageregelingen",
+    "usedTax": "loonbelastingregelset {name}",
+    "usedAov": "AOV-regelset {name}",
+    "usedScheme": "bijdrageregeling {name}",
+    "usedLeave": "verlofsoort {name}",
+    "state": {
+      "IN_FORCE": "Geldende wetgeving",
+      "AMENDED": "Gewijzigde wetgeving (geldend, met latere wijzigingen)",
+      "TO_VERIFY": "Nog te verifiëren",
+      "REPEALED": "Vervallen wetgeving"
+    },
+    "f": {
+      "article": "Artikel",
+      "publication": "Officiële publicatie",
+      "published": "Publicatiedatum",
+      "effective": "Ingangsdatum",
+      "lastAmendment": "Laatste wijziging",
+      "lastChecked": "Laatst gecontroleerd op",
+      "components": "Bijbehorende salariscomponenten",
+      "usedIn": "Gebruikt in"
+    },
+    "evidence": "Bewijs van verificatie ({count})",
+    "history": "Vervangen informatie ({count})",
+    "previous": "Eerder",
+    "current": "Nu",
+    "reason": "Reden",
+    "kind": {
+      "OFFICIAL_EXCERPT": "Officiële bron (uittreksel)",
+      "SECONDARY": "Secundaire bron"
+    }
   },
   "components": {
     "intro": "Looncomponenten per categorie. Standaardcomponenten komen uit de centrale ARA-bibliotheek; bedrijven kunnen eigen componenten toevoegen.",
@@ -1898,7 +1968,7 @@
     "aovEmployer": "Werkgeversdeel",
     "leave": "Verlofcorrecties",
     "leaveLine": "{days} dagen, {pct} doorbetaald",
-    "audit": "Audit",
+    "audit": "Controlespoor",
     "taxRules": "Belastingregels",
     "regime": "Belastingregime",
     "aovRules": "AOV-regels",
@@ -2141,7 +2211,9 @@
       "employerRateOverride": "Afwijkend werkgeverspercentage (%)",
       "employeeAmountOverride": "Afwijkend werknemersbedrag",
       "employerAmountOverride": "Afwijkend werkgeversbedrag",
-      "overrideHint": "Leeg = regeling ({value})"
+      "overrideHint": "Leeg = regeling ({value})",
+      "minBase": "Minimumgrondslag per maand (optioneel)",
+      "minBaseHint": "Leeg = geen minimum (bijv. APF-minimum)"
     },
     "statutoryWarning": "Wettelijke regeling: tarieven, grondslag en verdeling zijn in ARA Payroll niet geverifieerd. Een loonrun met een niet-geverifieerde regeling krijgt de status 'wettelijke validatie in behandeling'.",
     "versionTitle": "Tarief wijzigen met ingang van een datum",
@@ -2181,15 +2253,15 @@
       "LEGAL_UNVERIFIED": "Wettelijke grondslag niet geverifieerd",
       "NO_LEGAL_REFERENCE": "Geen wettelijke bron vermeld"
     },
-    "blocksPayroll": "blokkeert het definitief maken van salarisruns",
+    "blocksPayroll": "blokkeert het definitief maken van verloningen",
     "validationTitle": "Validatieoverzicht",
-    "validationSub": "Welke regelingen actief, inactief of onvolledig geconfigureerd zijn, en of salarisruns definitief gemaakt kunnen worden.",
+    "validationSub": "Welke regelingen actief, inactief of onvolledig geconfigureerd zijn, en of verloningen definitief gemaakt kunnen worden.",
     "count": {
       "active": "Actief",
       "inactive": "Inactief / niet van toepassing",
       "incomplete": "Onvolledig geconfigureerd"
     },
-    "payrollBlocked": "Salarisruns voor {period} kunnen niet definitief worden gemaakt: de wettelijke regeling(en) {list} zijn niet ingesteld en goedgekeurd. Stel de tarieven in op basis van geverifieerde regelgeving en keur ze goed, of markeer de regeling als niet van toepassing.",
+    "payrollBlocked": "Verloningen voor {period} kunnen niet definitief worden gemaakt: de wettelijke regeling(en) {list} zijn niet ingesteld en goedgekeurd. Stel de tarieven in op basis van geverifieerde regelgeving en keur ze goed, of markeer de regeling als niet van toepassing.",
     "payrollReady": "Alle wettelijke regelingen voor {period} zijn ingesteld en goedgekeurd of als niet van toepassing gemarkeerd.",
     "configure": "Instellen",
     "savedDraft": "Regeling opgeslagen als concept. Een eigenaar of beheerder moet de tarieven goedkeuren voordat de regeling wordt gebruikt.",
@@ -2215,7 +2287,13 @@
     "deactivated": "{name} is gedeactiveerd.",
     "markedNotApplicable": "{name} is gemarkeerd als niet van toepassing.",
     "markedApplicable": "{name} is weer van toepassing en moet worden ingesteld en goedgekeurd.",
-    "notApplicableList": "Niet van toepassing: {list}."
+    "notApplicableList": "Niet van toepassing: {list}.",
+    "minBaseShort": "min. {amount}",
+    "fvoNotice": "FVO: de juridische grondslag is {status}. Volgens officiële publicaties bedraagt de premie 1% van het basismaandloon (exclusief toelagen en emolumenten), met een werknemersdeel van maximaal de helft; het premieartikel in de wet is nog niet geverifieerd. De FVO-regeling blijft inactief tot een beheerder de officiële grondslag heeft geverifieerd en de tarieven heeft goedgekeurd.",
+    "legalBasisTitle": "Wettelijke grondslag",
+    "seeLegalSources": "Bekijk de bevindingen in Wettelijke bronnen",
+    "pensionByContract": "Pensioen: alle medewerkers hebben een pensioenpercentage in de arbeidsovereenkomst. Daarmee is de wettelijke pensioenplicht voor de verloning gedekt; een pensioenregeling is niet vereist.",
+    "statutoryNeedsVerification": "Een wettelijke regeling kan pas worden goedgekeurd en geactiveerd als de juridische status op 'Geverifieerd' staat: controleer de officiële tekst (Staatsblad) en leg de bron vast."
   },
   "pricing": {
     "eyebrow": "Prijzen",

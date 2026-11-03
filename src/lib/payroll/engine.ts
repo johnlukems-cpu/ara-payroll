@@ -105,6 +105,8 @@ export interface ContributionInput {
   employerAmount: number;
   /** Maximum monthly base (calculation currency); null = no maximum. */
   maxBase: number | null;
+  /** Minimum monthly base (calculation currency), e.g. a statutory minimum pension base; null = none. */
+  minBase?: number | null;
   /** Employee share deducted before wage tax. */
   preTax: boolean;
   /** Print the employer share on the payslip (it always counts as employer cost). */
@@ -492,13 +494,14 @@ export function calculatePayslip(
     b === "BASE_SALARY" ? componentBase : b === "PENSION_BASE" ? pensionBase : b === "REGULAR_WAGE" ? regularWageBeforeDeductions : grossPay;
   const contrib = contributions.map((c) => {
     const raw = Math.max(0, schemeBase(c.base));
-    const base = c.maxBase != null ? Math.min(raw, c.maxBase) : raw;
+    const floored = c.minBase != null && raw > 0 ? Math.max(raw, c.minBase) : raw;
+    const base = c.maxBase != null ? Math.min(floored, c.maxBase) : floored;
     const employee = Math.max(0, c.method === "FIXED" ? c.employeeAmount : applyBp(base, c.employeeRateBp));
     const employer = Math.max(0, c.method === "FIXED" ? c.employerAmount : applyBp(base, c.employerRateBp));
-    return { c, base, capped: base < raw, employee, employer };
+    return { c, base, capped: base < raw, raised: base > raw, employee, employer };
   });
-  trace.contributions = contrib.map(({ c, base, capped, employee, employer }) => ({
-    id: c.id, type: c.type, name: c.name, method: c.method, base: c.base, baseAmount: base, capped, maxBase: c.maxBase,
+  trace.contributions = contrib.map(({ c, base, capped, raised, employee, employer }) => ({
+    id: c.id, type: c.type, name: c.name, method: c.method, base: c.base, baseAmount: base, capped, raised, maxBase: c.maxBase, minBase: c.minBase ?? null,
     employeeRateBp: c.employeeRateBp, employerRateBp: c.employerRateBp, employee, employer, preTax: c.preTax,
   }));
   const contribPreTax = contrib.filter((x) => x.c.preTax).reduce((s, x) => s + x.employee, 0);

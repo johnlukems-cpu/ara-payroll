@@ -14,6 +14,7 @@ import { assertActiveCurrency } from "@/lib/server/rates";
 import { getI18n } from "@/lib/server/i18n";
 import { assertPeriodReopenable, prepareMonthlyDeclaration } from "@/lib/server/declarations";
 import { dateField } from "@/lib/validation";
+import { buildLegalSnapshot } from "@/lib/server/legal-snapshot";
 import { assertNoIncidentalDuplicate, assertPensionNotDouble, missingStatutoryContributions, parseOverrides, resolveComponent } from "@/lib/server/pay-components";
 
 async function loadRun(companyId: string, runId: string) {
@@ -252,7 +253,9 @@ export async function approveRunAction(_: ActionState, fd: FormData): Promise<Ac
     const fresh = await db.payrollRun.findUniqueOrThrow({ where: { id: run.id } });
     if (fresh.legalStatus !== "VALIDATED" && fd.get("acknowledgePending") !== "on") throw new UserError("errors.acknowledgeLegalPending");
     // Conditional update: only a still-CALCULATED run is approved (guards against concurrent changes).
-    const approved = await db.payrollRun.updateMany({ where: { id: run.id, status: "CALCULATED" }, data: { status: "APPROVED", approvedById: ctx.user.id, approvedAt: new Date(), legalAcknowledgedById: fresh.legalStatus !== "VALIDATED" ? ctx.user.id : null } });
+    // Historical snapshot of the statutory rates and parameters used (never changed by later rule changes).
+    const legalSnapshot = await buildLegalSnapshot(run.id);
+    const approved = await db.payrollRun.updateMany({ where: { id: run.id, status: "CALCULATED" }, data: { status: "APPROVED", approvedById: ctx.user.id, approvedAt: new Date(), legalAcknowledgedById: fresh.legalStatus !== "VALIDATED" ? ctx.user.id : null, legalSnapshot } });
     if (approved.count !== 1) throw new UserError("errors.onlyCalculatedApprove");
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "payroll.approve", entity: "PayrollRun", entityId: run.id, details: { totalNet: fresh.totalNet, legalStatus: fresh.legalStatus } });
     // Automatic preparation of the LB/AOV declaration draft for this period.

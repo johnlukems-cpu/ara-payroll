@@ -28,7 +28,7 @@ export async function seedCompanyDefaults(tx: Prisma.TransactionClient, companyI
   const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
   await tx.contributionScheme.createMany({
     data: DEFAULT_SCHEMES.map((s) => ({
-      companyId, type: s.type, name: locale === "en" ? s.nameEn : s.nameNl, basis: s.basis, base: s.base, employeeTax: s.employeeTax,
+      companyId, type: s.type, name: locale === "en" ? s.nameEn : s.nameNl, basis: s.basis, method: s.method, base: s.base, employeeTax: s.employeeTax,
       legalStatus: s.legalStatus, legalReference: s.legalReference, currency: company.currency, effectiveFrom: yearStart, isActive: false,
     })),
   });

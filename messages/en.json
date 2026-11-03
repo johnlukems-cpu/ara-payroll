@@ -598,7 +598,15 @@
       "DEDUCTION": "Add extra deduction"
     },
     "statutoryMissing": "Finalising is blocked: the statutory scheme(s) {list} have not been configured and approved for this period.",
-    "statutoryMissingLink": "Go to Contributions"
+    "statutoryMissingLink": "Go to Contributions",
+    "snapshotTitle": "Statutory snapshot",
+    "snapshotSub": "Rates and parameters as recorded when the run was finalised on {date}. Later changes do not affect this payroll run.",
+    "snapshotTax": "Wage tax",
+    "snapshotTaxLine": "Tax-free allowance {free} per month · professional expenses deduction {lump} per month · special reward exemption {bonus} per year",
+    "snapshotBrackets": "Brackets",
+    "snapshotOvertime": "Overtime",
+    "snapshotAge": "until age {age}",
+    "snapshotNoSchemes": "No contribution schemes used."
   },
   "payslip": {
     "title": "Payslip",
@@ -1289,7 +1297,8 @@
     "schemeEndInFinalPeriod": "This scheme was used in approved payroll runs: its end date cannot fall in a finalised pay period.",
     "versionInFinalPeriod": "A new version cannot start in a pay period that has already been finalised.",
     "schemeNotApplicable": "This scheme is marked as not applicable.",
-    "statutoryConfigMissing": "The payroll run cannot be finalised: the statutory scheme(s) {list} have not been configured and approved (Settings → Contributions)."
+    "statutoryConfigMissing": "The payroll run cannot be finalised: the statutory scheme(s) {list} have not been configured and approved (Settings → Contributions).",
+    "schemeStatutoryUnverified": "A statutory scheme can only be approved once its legal basis has been verified. Check the official text, set the legal status to Verified and save."
   },
   "bracket": {
     "required": "at least one bracket is required",
@@ -1326,7 +1335,8 @@
     "percentRequired": "Enter a percentage greater than 0",
     "selfReference": "A component cannot refer to itself",
     "treatmentNotAllowed": "Not allowed for this category",
-    "unknownComponent": "Unknown component"
+    "unknownComponent": "Unknown component",
+    "minAboveMax": "The minimum cannot be higher than the maximum"
   },
   "defaults": {
     "components": {
@@ -1365,7 +1375,8 @@
     "CONFLICT": "Conflicting sources",
     "COMPANY_POLICY": "Company policy",
     "VALIDATED": "Legally validated",
-    "PENDING_LEGAL_VALIDATION": "Pending legal validation"
+    "PENDING_LEGAL_VALIDATION": "Pending legal validation",
+    "PARTIALLY_VERIFIED": "Partially verified"
   },
   "tax": {
     "title": "Tax & Declarations",
@@ -1653,7 +1664,66 @@
     "intro": "Legal sources register. Statuses reflect what could be confirmed; nothing here replaces review by a qualified tax professional. Verify later decrees and official instructions before production use.",
     "published": "published {date}",
     "effective": "in force {date}",
-    "article": "Art."
+    "article": "Art.",
+    "researchNote": "Last checked on 3 November 2026. The official websites (gov.sr, sris.sr, dna.sr, belastingdienst.sr, fvo.sr) could not be opened directly from the research environment; findings are based on excerpts of those official pages and on secondary sources. Therefore no rule is marked as fully verified.",
+    "inUseTitle": "Statutory settings in use",
+    "inUseSub": "Which rates and parameters payroll currently uses, with source, status and approval.",
+    "cols": {
+      "name": "Setting",
+      "value": "Value",
+      "validity": "Validity",
+      "source": "Source",
+      "status": "Status",
+      "approved": "Approved"
+    },
+    "param": {
+      "taxFree": "Tax-free allowance",
+      "lumpSum": "Professional expenses deduction",
+      "brackets": "Wage tax brackets",
+      "bonusExempt": "Special reward exemption",
+      "overtime": "Overtime brackets",
+      "childAllowance": "Child allowance exemption",
+      "aov": "AOV premium"
+    },
+    "childValue": "{amount} per child, max. {max} children",
+    "month": "month",
+    "year": "year",
+    "verifiedBy": "Verified on {date} by {name}",
+    "notUsed": "Not in use",
+    "inUse": "In use",
+    "manageHint": "Manage:",
+    "manageTax": "Wage tax rules",
+    "manageAov": "AOV rules",
+    "manageSchemes": "Contribution schemes",
+    "usedTax": "wage tax rule set {name}",
+    "usedAov": "AOV rule set {name}",
+    "usedScheme": "contribution scheme {name}",
+    "usedLeave": "leave type {name}",
+    "state": {
+      "IN_FORCE": "Legislation in force",
+      "AMENDED": "Amended legislation (in force, with later amendments)",
+      "TO_VERIFY": "To be verified",
+      "REPEALED": "Repealed legislation"
+    },
+    "f": {
+      "article": "Article",
+      "publication": "Official publication",
+      "published": "Publication date",
+      "effective": "Effective date",
+      "lastAmendment": "Last amendment",
+      "lastChecked": "Last checked on",
+      "components": "Related pay components",
+      "usedIn": "Used in"
+    },
+    "evidence": "Verification evidence ({count})",
+    "history": "Replaced information ({count})",
+    "previous": "Previously",
+    "current": "Now",
+    "reason": "Reason",
+    "kind": {
+      "OFFICIAL_EXCERPT": "Official source (excerpt)",
+      "SECONDARY": "Secondary source"
+    }
   },
   "components": {
     "intro": "Payroll components by category. Standard components come from the central ARA library; companies can add their own.",
@@ -2141,7 +2211,9 @@
       "employerRateOverride": "Individual employer percentage (%)",
       "employeeAmountOverride": "Individual employee amount",
       "employerAmountOverride": "Individual employer amount",
-      "overrideHint": "Empty = scheme ({value})"
+      "overrideHint": "Empty = scheme ({value})",
+      "minBase": "Minimum monthly base (optional)",
+      "minBaseHint": "Empty = no minimum (e.g. APF minimum)"
     },
     "statutoryWarning": "Statutory scheme: rates, base and split are not verified in ARA Payroll. A payroll run with an unverified scheme is marked 'pending legal validation'.",
     "versionTitle": "Change rates from a date",
@@ -2215,7 +2287,13 @@
     "deactivated": "{name} has been deactivated.",
     "markedNotApplicable": "{name} is marked as not applicable.",
     "markedApplicable": "{name} applies again and must be configured and approved.",
-    "notApplicableList": "Not applicable: {list}."
+    "notApplicableList": "Not applicable: {list}.",
+    "minBaseShort": "min. {amount}",
+    "fvoNotice": "FVO: the legal basis is {status}. According to official publications the premium is 1% of the basic monthly wage (excluding allowances and emoluments), with an employee share of at most half; the premium article in the law has not been verified yet. The FVO scheme stays inactive until an administrator has verified the official basis and approved the rates.",
+    "legalBasisTitle": "Legal basis",
+    "seeLegalSources": "See the findings in Legal sources",
+    "pensionByContract": "Pension: every employee has a pension percentage in the employment contract. This covers the statutory pension obligation for payroll; a pension scheme is not required.",
+    "statutoryNeedsVerification": "A statutory scheme can only be approved and activated once its legal status is 'Verified': check the official text (Staatsblad) and record the source."
   },
   "pricing": {
     "eyebrow": "Pricing",

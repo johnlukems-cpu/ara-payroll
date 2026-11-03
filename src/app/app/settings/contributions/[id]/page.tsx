@@ -19,6 +19,8 @@ import { schemeIssues, schemeState } from "@/lib/payroll/contributions";
 import { ActionButton } from "@/components/confirm-button";
 import { FieldError } from "@/components/action-form";
 import { IssueList, StateBadge } from "../status";
+import { LEGAL_SOURCE_FOR_TYPE } from "@/lib/contribution-format";
+import { LegalBadge } from "@/components/legal-badge";
 
 export async function generateMetadata() {
   const { t } = await getI18n();
@@ -42,6 +44,7 @@ export default async function SchemePage({ params, searchParams }: { params: Pro
   const tt = t as unknown as (k: string, v?: Record<string, string | number>) => string;
   const state = s ? schemeState(s, new Date()) : null;
   const issues = s ? schemeIssues(s) : [];
+  const legal = await db.legalSource.findUnique({ where: { code: LEGAL_SOURCE_FOR_TYPE[type] } });
   const approver = s?.approvedById ? await db.user.findUnique({ where: { id: s.approvedById }, select: { name: true } }) : null;
 
   return (
@@ -83,6 +86,20 @@ export default async function SchemePage({ params, searchParams }: { params: Pro
           </CardContent>
         </Card>
       )}
+      {legal && (
+        <Card data-testid="scheme-legal">
+          <CardHeader className="flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+            <div><CardTitle>{t("contrib.legalBasisTitle")}</CardTitle><CardDescription>{legal.publication}</CardDescription></div>
+            <LegalBadge status={legal.verificationStatus} />
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p>{legal.summary}</p>
+            {legal.notes && <p className="text-xs text-muted-foreground">{legal.notes}</p>}
+            {legal.verificationStatus !== "VERIFIED" && <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-xs">{t("contrib.statutoryNeedsVerification")}</p>}
+            <Link href={`/app/tax/legal#${legal.code}`} className="text-xs text-primary hover:underline">{t("contrib.seeLegalSources")}</Link>
+          </CardContent>
+        </Card>
+      )}
       <Card>
         <CardHeader>
           <CardTitle>{s ? s.name : t("contrib.newSchemeFor", { type: t(`enums.contributionType.${type}`) })}</CardTitle>
@@ -93,9 +110,9 @@ export default async function SchemePage({ params, searchParams }: { params: Pro
             canVerify={canVerify}
             currencies={currencies}
             v={{
-              id: s?.id, type, name: s?.name ?? (locale === "en" ? def.nameEn : def.nameNl), basis: s?.basis ?? def.basis, method: s?.method ?? "PERCENTAGE",
+              id: s?.id, type, name: s?.name ?? (locale === "en" ? def.nameEn : def.nameNl), basis: s?.basis ?? def.basis, method: s?.method ?? def.method,
               base: s?.base ?? def.base, employeeRate: pct(s?.employeeRateBp ?? 0), employerRate: pct(s?.employerRateBp ?? 0),
-              employeeAmount: minor(s?.employeeAmount ?? 0), employerAmount: minor(s?.employerAmount ?? 0), maxBase: s?.maxBaseMonthly ? minor(s.maxBaseMonthly) : "",
+              employeeAmount: minor(s?.employeeAmount ?? 0), employerAmount: minor(s?.employerAmount ?? 0), maxBase: s?.maxBaseMonthly ? minor(s.maxBaseMonthly) : "", minBase: s?.minBaseMonthly ? minor(s.minBaseMonthly) : "",
               currency: s?.currency ?? ctx.company.currency, effectiveFrom: toDateInput(s?.effectiveFrom ?? new Date()), effectiveTo: s?.effectiveTo ? toDateInput(s.effectiveTo) : "",
               isActive: s?.isActive ?? false, approved: !!s?.approvedAt, appliesToAll: s?.appliesToAll ?? true, employeeTax: s?.employeeTax ?? def.employeeTax, showOnPayslip: s?.showOnPayslip ?? true,
               legalStatus: s?.legalStatus ?? def.legalStatus, legalReference: s?.legalReference ?? def.legalReference, notes: s?.notes ?? "",

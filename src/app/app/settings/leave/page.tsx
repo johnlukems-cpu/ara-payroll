@@ -14,7 +14,7 @@ export async function generateMetadata() {
 }
 
 const CATEGORIES = ["ANNUAL", "SICK", "SPECIAL", "UNPAID", "PUBLIC_HOLIDAY", "PARENTAL", "MATERNITY", "PATERNITY", "ADOPTION", "UNAUTHORIZED"] as const;
-const LEGAL = ["COMPANY_POLICY", "PENDING_VERIFICATION", "CONFLICT", "VERIFIED"] as const;
+const LEGAL = ["COMPANY_POLICY", "PENDING_VERIFICATION", "PARTIALLY_VERIFIED", "CONFLICT", "VERIFIED"] as const;
 
 export default async function LeaveTypesPage() {
   const ctx = await requirePage("settings.manage");

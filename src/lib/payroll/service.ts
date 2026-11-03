@@ -70,6 +70,9 @@ export async function findAovRuleSet(companyId: string, onDate: Date) {
   });
 }
 
+/** Only verified rules and company policy count as legally validated; partial verification is not enough. */
+export const isLegallyUsable = (status: string) => status === "VERIFIED" || status === "COMPANY_POLICY";
+
 /** A rule is legally validated for a period only when verified and the period falls within its verified validity. */
 export function isLegallyValid(rule: { verificationStatus: string; verifiedUntil: Date | null } | null | undefined, periodEnd: Date) {
   return !!rule && rule.verificationStatus === "VERIFIED" && (!rule.verifiedUntil || rule.verifiedUntil >= periodEnd);
@@ -252,7 +255,7 @@ export async function calculateRun(runId: string) {
     };
     // Per-employee / per-payslip settings override the component configuration; null = component setting.
     const toInput = (c: Comp, src: Src, source: "FIXED" | "INCIDENTAL"): ComponentInput => {
-      if (c.legalStatus === "PENDING_VERIFICATION" || c.legalStatus === "CONFLICT") componentsLegal = false;
+      if (!isLegallyUsable(c.legalStatus)) componentsLegal = false;
       const calcType = src.calcType ?? c.calcType;
       const label = src.label || c.name;
       const useDefault = !src.explicit && src.amount === 0 && (calcType === "FIXED" || calcType === "MANUAL");
@@ -313,7 +316,7 @@ export async function calculateRun(runId: string) {
       if (contributions.some((c) => c.type === sch.type)) throw new PayrollError("errors.contributionMultiple", { employee: name, type: sch.type });
       const clash = components.find((c) => CONTRIBUTION_LIBRARY[sch.type].includes(c.libraryCode ?? c.code));
       if (clash) throw new PayrollError("errors.contributionDuplicate", { employee: name, scheme: sch.name, component: clash.name });
-      if (sch.legalStatus === "PENDING_VERIFICATION" || sch.legalStatus === "CONFLICT") componentsLegal = false;
+      if (!isLegallyUsable(sch.legalStatus)) componentsLegal = false;
       const shares = effectiveShares(sch, enrollment);
       contributions.push({
         id: sch.id, type: sch.type, name: sch.name, labels: { nl: sch.name, en: sch.name }, method: sch.method, base: sch.base,
@@ -321,6 +324,7 @@ export async function calculateRun(runId: string) {
         employeeAmount: toCalc(shares.employeeAmount, sch.currency, `${sch.name} (werknemer)`),
         employerAmount: toCalc(shares.employerAmount, sch.currency, `${sch.name} (werkgever)`),
         maxBase: sch.maxBaseMonthly != null ? toCalc(sch.maxBaseMonthly, sch.currency, `${sch.name} (max.)`) : null,
+        minBase: sch.minBaseMonthly != null ? toCalc(sch.minBaseMonthly, sch.currency, `${sch.name} (min.)`) : null,
         preTax: sch.employeeTax === "PRE_TAX", showEmployer: sch.showOnPayslip,
       });
     }

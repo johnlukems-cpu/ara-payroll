@@ -20,6 +20,7 @@ export type SchemeValues = {
   employeeAmount: string;
   employerAmount: string;
   maxBase: string;
+  minBase: string;
   currency: string;
   effectiveFrom: string;
   effectiveTo: string;
@@ -84,6 +85,7 @@ export function SchemeForm({ v, currencies, canVerify }: { v: SchemeValues; curr
                 {(["BASE_SALARY", "PENSION_BASE", "REGULAR_WAGE", "GROSS_WAGE"] as const).map((b) => <option key={b} value={b}>{t(`enums.contributionBase.${b}`)}</option>)}
               </Select>
             </F>
+            <F name="minBase" label={t("contrib.f.minBase")} hint={t("contrib.f.minBaseHint")}><Input id="minBase" name="minBase" inputMode="decimal" defaultValue={v.minBase} /></F>
             <F name="maxBase" label={t("contrib.f.maxBase")} hint={t("contrib.f.maxBaseHint")}><Input id="maxBase" name="maxBase" inputMode="decimal" defaultValue={v.maxBase} /></F>
           </>
         )}
@@ -99,7 +101,7 @@ export function SchemeForm({ v, currencies, canVerify }: { v: SchemeValues; curr
         </F>
         <F name="legalStatus" label={t("components.f.legalStatus")}>
           <Select id="legalStatus" name="legalStatus" defaultValue={v.legalStatus}>
-            {(["COMPANY_POLICY", "PENDING_VERIFICATION", "CONFLICT", ...(canVerify || v.legalStatus === "VERIFIED" ? ["VERIFIED"] : [])] as const).map((s) => <option key={s} value={s}>{t(`legal.${s}` as never)}</option>)}
+            {(["COMPANY_POLICY", "PENDING_VERIFICATION", "PARTIALLY_VERIFIED", "CONFLICT", ...(canVerify || v.legalStatus === "VERIFIED" ? ["VERIFIED"] : [])] as const).map((s) => <option key={s} value={s}>{t(`legal.${s}` as never)}</option>)}
           </Select>
         </F>
         <F name="legalReference" label={t("components.f.legalReference")} className="sm:col-span-2 lg:col-span-4"><Input id="legalReference" name="legalReference" defaultValue={v.legalReference} maxLength={300} /></F>

@@ -3,7 +3,7 @@ import type { AssignmentFrequency, PayComponent, Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 import { COMPONENT_LIBRARY, CONTRIBUTION_LIBRARY, libraryDefaults, SYSTEM_CODES } from "@/lib/payroll/library";
 import { scheduleFor } from "@/lib/payroll/schedule";
-import { statutoryGaps } from "@/lib/payroll/contributions";
+import { statutoryGaps, type ContributionType } from "@/lib/payroll/contributions";
 import { periodBounds } from "@/lib/payroll/service";
 import { UserError } from "./errors";
 
@@ -226,5 +226,20 @@ export async function recalcOpenRuns(companyId: string, employeeId: string, calc
 export async function missingStatutoryContributions(companyId: string, year: number, month: number) {
   const { start, end } = periodBounds(year, month);
   const schemes = await db.contributionScheme.findMany({ where: { companyId } });
-  return statutoryGaps(schemes, start, end).map((type) => ({ type, schemes: schemes.filter((s) => s.type === type && s.basis === "STATUTORY" && !s.notApplicable).map((s) => s.name) }));
+  const covered: ContributionType[] = (await pensionCoveredByContracts(companyId, year, month)) ? ["PENSION"] : [];
+  return statutoryGaps(schemes, start, end, covered).map((type) => ({ type, schemes: schemes.filter((s) => s.type === type && s.basis === "STATUTORY" && !s.notApplicable).map((s) => s.name) }));
+}
+
+/**
+ * The statutory pension obligation is also met when every employee in the period has a pension percentage in
+ * the employment contract (the existing way to record pension); a pension scheme is then not required.
+ */
+export async function pensionCoveredByContracts(companyId: string, year: number, month: number) {
+  const { start, end } = periodBounds(year, month);
+  const employees = await db.employee.findMany({
+    where: { companyId, hireDate: { lte: end }, OR: [{ terminationDate: null }, { terminationDate: { gte: start } }] },
+    select: { contracts: { where: { startDate: { lte: end } }, orderBy: { startDate: "desc" }, take: 1, select: { pensionEmployeeBp: true, pensionEmployerBp: true } } },
+  });
+  const withContract = employees.filter((e) => e.contracts.length > 0);
+  return withContract.length > 0 && withContract.every((e) => e.contracts[0].pensionEmployeeBp > 0 || e.contracts[0].pensionEmployerBp > 0);
 }

@@ -9,8 +9,13 @@ export function describeShare(s: Shares, side: "employee" | "employer", f: Fmt) 
   return f.pct(side === "employee" ? s.employeeRateBp : s.employerRateBp);
 }
 
-export function describeBase(s: { method: string; base: string; maxBaseMonthly: number | null; currency: string }, t: T, f: Fmt) {
+export function describeBase(s: { method: string; base: string; maxBaseMonthly: number | null; minBaseMonthly?: number | null; currency: string }, t: T, f: Fmt) {
   if (s.method === "FIXED") return t("contrib.fixedPerMonth");
-  const base = t(`enums.contributionBase.${s.base}`);
-  return s.maxBaseMonthly != null ? `${base} · ${t("contrib.maxBaseShort", { amount: f.money(s.maxBaseMonthly, s.currency) })}` : base;
+  const parts = [t(`enums.contributionBase.${s.base}`)];
+  if (s.minBaseMonthly != null) parts.push(t("contrib.minBaseShort", { amount: f.money(s.minBaseMonthly, s.currency) }));
+  if (s.maxBaseMonthly != null) parts.push(t("contrib.maxBaseShort", { amount: f.money(s.maxBaseMonthly, s.currency) }));
+  return parts.join(" · ");
 }
+
+/** Legal register entry behind each contribution type (see Belasting & aangiften → Wettelijke bronnen). */
+export const LEGAL_SOURCE_FOR_TYPE: Record<string, string> = { HEALTH: "WNBZ-2014", PENSION: "WAP-2014", FVO: "FVO" };

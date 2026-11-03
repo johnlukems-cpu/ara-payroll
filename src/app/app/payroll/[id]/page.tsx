@@ -9,6 +9,7 @@ import { can } from "@/lib/permissions";
 import { eligibleEmployeesWhere } from "@/lib/payroll/service";
 import { ActionForm } from "@/components/action-form";
 import { ComponentAssignmentForm } from "@/components/component-assignment-form";
+import { LegalSnapshotCard } from "@/components/legal-snapshot-card";
 import { componentOptions, isStatutory, missingStatutoryContributions } from "@/lib/server/pay-components";
 import { toDateInput } from "@/lib/format";
 import { ActionButton } from "@/components/confirm-button";
@@ -228,6 +229,8 @@ export default async function RunPage({ params, searchParams }: { params: Promis
           </Table>
         )}
       </Card>
+
+      {run.legalSnapshot && <LegalSnapshotCard snapshot={run.legalSnapshot} />}
 
       {editable && canRun && (
         <div className="mt-8 flex justify-end">

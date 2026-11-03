@@ -30,19 +30,20 @@ const schemeSchema = z.object({
   employeeAmount: moneyField,
   employerAmount: moneyField,
   maxBase: moneyField,
+  minBase: moneyField,
   currency: currencyField,
   effectiveFrom: dateField,
   effectiveTo: optionalDate,
   appliesToAll: checkbox,
   employeeTax: z.enum(["PRE_TAX", "AFTER_TAX"]),
   showOnPayslip: checkbox,
-  legalStatus: z.enum(["VERIFIED", "PENDING_VERIFICATION", "CONFLICT", "COMPANY_POLICY"]),
+  legalStatus: z.enum(["VERIFIED", "PARTIALLY_VERIFIED", "PENDING_VERIFICATION", "CONFLICT", "COMPANY_POLICY"]),
   legalReference: optionalText(300),
   notes: optionalText(500),
 });
 
 /** Fields that change the calculation: changing them for a period already in approved payroll requires a new version. */
-const CALC_FIELDS = ["method", "base", "employeeRateBp", "employerRateBp", "employeeAmount", "employerAmount", "maxBaseMonthly", "currency", "employeeTax", "effectiveFrom"] as const;
+const CALC_FIELDS = ["method", "base", "employeeRateBp", "employerRateBp", "employeeAmount", "employerAmount", "maxBaseMonthly", "minBaseMonthly", "currency", "employeeTax", "effectiveFrom"] as const;
 
 const overlaps = (a: { effectiveFrom: Date; effectiveTo: Date | null }, b: { effectiveFrom: Date; effectiveTo: Date | null }) =>
   a.effectiveFrom <= (b.effectiveTo ?? new Date(8.64e15)) && b.effectiveFrom <= (a.effectiveTo ?? new Date(8.64e15));
@@ -67,6 +68,8 @@ export async function saveSchemeAction(_: ActionState, fd: FormData): Promise<Ac
     const fail = (field: string, key: string) => ({ ok: false, message: t("validation.fixFields"), errors: { [field]: [t(key as never)] }, ts: Date.now() });
     if (d.effectiveTo && d.effectiveTo < d.effectiveFrom) return fail("effectiveTo", "validation.endAfterStart");
     if (raw.maxBase && d.maxBase <= 0) return fail("maxBase", "validation.amountRequired");
+    if (raw.minBase && d.minBase <= 0) return fail("minBase", "validation.amountRequired");
+    if (raw.minBase && raw.maxBase && d.minBase > d.maxBase) return fail("minBase", "validation.minAboveMax");
     if (!(await assertActiveCurrency(d.currency))) throw new UserError("errors.currencyInactive", { code: d.currency });
     if (d.legalStatus === "VERIFIED" && ctx.role !== "OWNER" && ctx.role !== "ADMIN") throw new AuthError("errors.forbidden");
     const data = {
@@ -74,6 +77,7 @@ export async function saveSchemeAction(_: ActionState, fd: FormData): Promise<Ac
       employeeRateBp: d.method === "PERCENTAGE" ? d.employeeRate : 0, employerRateBp: d.method === "PERCENTAGE" ? d.employerRate : 0,
       employeeAmount: d.method === "FIXED" ? d.employeeAmount : 0, employerAmount: d.method === "FIXED" ? d.employerAmount : 0,
       maxBaseMonthly: d.method === "PERCENTAGE" && raw.maxBase ? d.maxBase : null,
+      minBaseMonthly: d.method === "PERCENTAGE" && raw.minBase ? d.minBase : null,
       currency: d.currency, effectiveFrom: d.effectiveFrom, effectiveTo: d.effectiveTo, appliesToAll: d.appliesToAll,
       employeeTax: d.employeeTax, showOnPayslip: d.showOnPayslip, legalStatus: d.legalStatus, legalReference: d.legalReference, notes: d.notes,
     };
@@ -165,6 +169,8 @@ export async function approveSchemeAction(_: ActionState, fd: FormData): Promise
     if (!s) throw new UserError("errors.notFound");
     if (s.notApplicable) throw new UserError("errors.schemeNotApplicable");
     if (!isConfigured(s)) throw new UserError("errors.schemeNoRates");
+    // Statutory settings may only become active once their official legal basis has been verified.
+    if (s.basis === "STATUTORY" && s.legalStatus !== "VERIFIED") throw new UserError("errors.schemeStatutoryUnverified");
     const others = await db.contributionScheme.findMany({ where: { companyId: ctx.company.id, type: s.type, isActive: true, approvedAt: { not: null }, NOT: { id: s.id } } });
     const predecessors = others.filter((o) => o.appliesToAll === s.appliesToAll && o.name === s.name && o.effectiveFrom < s.effectiveFrom && overlaps(o, s));
     const clash = others.find((o) => !predecessors.includes(o) && (o.appliesToAll || s.appliesToAll) && overlaps(o, s));

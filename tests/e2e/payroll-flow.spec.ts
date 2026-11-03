@@ -1,8 +1,8 @@
 import { expect, test, type Page } from "@playwright/test";
 
-/** Records the explicit decision that the statutory health insurance and FVO schemes do not apply (test companies). */
+/** Records the explicit decision that the statutory health insurance, pension and FVO schemes do not apply (test companies). */
 async function markStatutoryNotApplicable(page: Page, en = false) {
-  for (const type of ["HEALTH", "FVO"]) {
+  for (const type of ["HEALTH", "PENSION", "FVO"]) {
     await page.goto("/app/settings/contributions");
     await page.getByTestId(`validation-${type}`).getByRole("link").click();
     await page.getByText(en ? "Mark as not applicable" : "Markeren als niet van toepassing").click();
@@ -223,7 +223,9 @@ test("accountants can view but not approve declarations; employees cannot open t
   await expect(page.getByRole("heading", { name: /Tax & Declarations|Belasting & Aangiften/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /^(Prepare|Opstellen)$/ })).toHaveCount(0);
   await page.goto("/app/tax/legal");
-  await expect(page.getByText(/S.B. 2024 no. 2 — Staatsbesluit/)).toBeVisible();
+  await expect(page.getByTestId("legal-source-SB-2024-2")).toContainText("S.B. 2024 no. 2");
+  await expect(page.getByTestId("legal-source-FVO")).toContainText(/Gedeeltelijk geverifieerd|Partially verified/);
+  await expect(page.getByTestId("parameters-in-use")).toBeVisible();
   await page.goto("/app/tax/rules");
   await expect(page.getByText("Loonbelasting S.B. 2024 no. 2 (art. 12, 13, 14)")).toBeVisible();
   await expect(page.getByRole("button", { name: /Create version|Versie aanmaken/ })).toHaveCount(0);
@@ -320,7 +322,7 @@ test("fixed and extra allowances/deductions via dropdowns, duplicate checks and 
   await page.goto("/app/payroll/new");
   await page.selectOption("#month", "3");
   await page.fill("#year", "2026");
-  await page.click("button:has-text('Salarisrun aanmaken')");
+  await page.click("button:has-text('Verloning aanmaken')");
   await page.getByRole("button", { name: "Salarissen berekenen" }).click();
   await expect(page.getByText(/1 loonstrook|1 loonstroken/).first()).toBeVisible();
   await page.reload();
@@ -419,8 +421,9 @@ test("employee and employer contributions: scheme setup, payroll, payslip, repor
   // Validation overview: nothing configured yet; statutory schemes block finalising payroll.
   for (const type of ["HEALTH", "PENSION", "FVO"]) await expect(page.getByTestId(`validation-${type}`)).toContainText("Niet geconfigureerd");
   await expect(page.getByTestId("validation-HEALTH")).toContainText("blokkeert het definitief maken");
-  await expect(page.getByTestId("validation-PENSION")).not.toContainText("blokkeert"); // voluntary
-  await expect(page.getByTestId("payroll-blocked")).toContainText("Ziektekostenverzekering, FVO-bijdrage");
+  await expect(page.getByTestId("validation-PENSION")).toContainText("blokkeert"); // Wet Algemeen Pensioen 2014: statutory
+  await expect(page.getByTestId("payroll-blocked")).toContainText("Ziektekostenverzekering, Pensioenbijdrage, FVO-bijdrage");
+  await expect(page.getByTestId("fvo-notice")).toContainText("Gedeeltelijk geverifieerd");
 
   // Approving without rates is refused.
   page.on("dialog", (dlg) => dlg.accept());
@@ -432,6 +435,8 @@ test("employee and employer contributions: scheme setup, payroll, payslip, repor
   const configure = async (type: string, ee: string, er: string, preTax = false) => {
     await page.goto("/app/settings/contributions");
     await page.getByTestId(`scheme-${type}`).getByRole("link", { name: "Bewerken" }).click();
+    await expect(page.getByTestId("scheme-legal")).toBeVisible(); // legal basis from the register
+    await page.selectOption("#method", "PERCENTAGE");
     await page.fill("#employeeRate", ee);
     await page.fill("#employerRate", er);
     await page.fill("#effectiveFrom", "2026-01-01");
@@ -440,6 +445,12 @@ test("employee and employer contributions: scheme setup, payroll, payslip, repor
     await expect(page.getByText("Regeling opgeslagen.")).toBeVisible();
     await page.reload();
     await expect(page.getByTestId("scheme-status")).toContainText("Wacht op goedkeuring"); // rates alone do not activate
+    // A statutory scheme can only be approved once its legal basis is verified.
+    await page.getByRole("button", { name: "Tarieven goedkeuren en activeren" }).click();
+    await expect(page.getByText(/kan pas worden goedgekeurd nadat de juridische grondslag is geverifieerd/)).toBeVisible();
+    await page.selectOption("#legalStatus", "VERIFIED"); // the administrator verified the official text
+    await page.getByRole("button", { name: "Wijzigingen opslaan" }).click();
+    await expect(page.getByText("Regeling opgeslagen.")).toBeVisible();
     await page.getByRole("button", { name: "Tarieven goedkeuren en activeren" }).click();
     await expect(page.getByText(/is goedgekeurd en actief/)).toBeVisible();
   };
@@ -485,7 +496,7 @@ test("employee and employer contributions: scheme setup, payroll, payslip, repor
   await page.goto("/app/payroll/new");
   await page.selectOption("#month", "3");
   await page.fill("#year", "2026");
-  await page.click("button:has-text('Salarisrun aanmaken')");
+  await page.click("button:has-text('Verloning aanmaken')");
   await page.getByRole("button", { name: "Salarissen berekenen" }).click();
   await expect(page.getByText(/1 loonstrook/).first()).toBeVisible();
   await page.reload();

@@ -186,7 +186,7 @@ export async function saveLeaveTypeAction(_: ActionState, fd: FormData): Promise
       allowPartTime: z.string().optional().transform((v) => v === "on"),
       carryForward: z.string().optional().transform((v) => v === "on"),
       maxCarryForwardDays: num(365),
-      legalStatus: z.enum(["PENDING_VERIFICATION", "CONFLICT", "COMPANY_POLICY", "VERIFIED"]).default("COMPANY_POLICY"),
+      legalStatus: z.enum(["PENDING_VERIFICATION", "PARTIALLY_VERIFIED", "CONFLICT", "COMPANY_POLICY", "VERIFIED"]).default("COMPANY_POLICY"),
       legalReference: optionalText(300),
     }).parse({ ...raw, payPercentBp: raw.payPercentBp ?? "100" });
     if (data.legalStatus === "VERIFIED" && ctx.role !== "OWNER" && ctx.role !== "ADMIN") throw new UserError("errors.forbidden");
@@ -263,9 +263,9 @@ export async function saveTaxRuleSetAction(_: ActionState, fd: FormData): Promis
       if (!rs) throw new UserError("errors.ruleCompanyOnly");
       const locked = await db.payrollRun.count({ where: { taxRuleSetId: rs.id, status: { in: ["APPROVED", "PAID"] } } });
       if (locked) throw new UserError("errors.ruleLocked");
-      await db.taxRuleSet.update({ where: { id: rs.id }, data: payload });
+      await db.taxRuleSet.update({ where: { id: rs.id }, data: { ...payload, approvedAt: new Date(), approvedById: ctx.user.id } });
     } else {
-      await db.taxRuleSet.create({ data: { ...payload, companyId: ctx.company.id } });
+      await db.taxRuleSet.create({ data: { ...payload, companyId: ctx.company.id, approvedAt: new Date(), approvedById: ctx.user.id } });
     }
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "tax_rules.save", entity: "TaxRuleSet", details: { name: data.name } });
     revalidatePath("/app/tax/rules");
@@ -300,7 +300,7 @@ export async function verifyTaxRuleSetAction(_: ActionState, fd: FormData): Prom
     const rs = await db.taxRuleSet.findFirst({ where: { id: String(fd.get("id")), companyId: ctx.company.id } });
     if (!rs) throw new UserError("errors.ruleVerifyCompanyOnly");
     const v = verifySchema.parse(formObject(fd));
-    await db.taxRuleSet.update({ where: { id: rs.id }, data: { isVerified: true, verificationStatus: "VERIFIED", verifiedUntil: v.verifiedUntil } });
+    await db.taxRuleSet.update({ where: { id: rs.id }, data: { isVerified: true, verificationStatus: "VERIFIED", verifiedUntil: v.verifiedUntil, verifiedAt: new Date(), verifiedById: ctx.user.id, verifiedReviewer: v.reviewer } });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "tax_rules.verified", entity: "TaxRuleSet", entityId: rs.id, details: { name: rs.name, verifiedUntil: v.verifiedUntil.toISOString().slice(0, 10), reviewer: v.reviewer } });
     revalidatePath("/app/tax/rules");
     return ok((await getTranslations())("settings.tax.verifiedMsg"));
@@ -405,9 +405,9 @@ export async function saveAovRuleSetAction(_: ActionState, fd: FormData): Promis
       const rs = await db.aovRuleSet.findFirst({ where: { id: raw.id, companyId: ctx.company.id } });
       if (!rs) throw new UserError("errors.ruleCompanyOnly");
       if (await db.payrollRun.count({ where: { aovRuleSetId: rs.id, status: { in: ["APPROVED", "PAID"] } } })) throw new UserError("errors.ruleLocked");
-      await db.aovRuleSet.update({ where: { id: rs.id }, data: payload });
+      await db.aovRuleSet.update({ where: { id: rs.id }, data: { ...payload, approvedAt: new Date(), approvedById: ctx.user.id } });
     } else {
-      await db.aovRuleSet.create({ data: { ...payload, companyId: ctx.company.id } });
+      await db.aovRuleSet.create({ data: { ...payload, companyId: ctx.company.id, approvedAt: new Date(), approvedById: ctx.user.id } });
     }
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "aov_rules.save", entity: "AovRuleSet", details: { name: d.name, rateBp: d.rateBp } });
     revalidatePath("/app/tax/aov-rules");
@@ -423,7 +423,7 @@ export async function verifyAovRuleSetAction(_: ActionState, fd: FormData): Prom
     const rs = await db.aovRuleSet.findFirst({ where: { id: String(fd.get("id")), companyId: ctx.company.id } });
     if (!rs) throw new UserError("errors.ruleVerifyCompanyOnly");
     const v = verifySchema.parse(formObject(fd));
-    await db.aovRuleSet.update({ where: { id: rs.id }, data: { verificationStatus: "VERIFIED", verifiedUntil: v.verifiedUntil } });
+    await db.aovRuleSet.update({ where: { id: rs.id }, data: { verificationStatus: "VERIFIED", verifiedUntil: v.verifiedUntil, verifiedAt: new Date(), verifiedById: ctx.user.id, verifiedReviewer: v.reviewer } });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "aov_rules.verified", entity: "AovRuleSet", entityId: rs.id, details: { name: rs.name, verifiedUntil: v.verifiedUntil.toISOString().slice(0, 10), reviewer: v.reviewer } });
     revalidatePath("/app/tax/aov-rules");
     return ok((await getTranslations())("settings.tax.verifiedMsg"));
@@ -462,7 +462,7 @@ const componentConfigSchema = z.object({
   effectiveFrom: optionalDate,
   effectiveTo: optionalDate,
   legalReference: optionalText(300),
-  legalStatus: z.enum(["VERIFIED", "PENDING_VERIFICATION", "CONFLICT", "COMPANY_POLICY"]),
+  legalStatus: z.enum(["VERIFIED", "PARTIALLY_VERIFIED", "PENDING_VERIFICATION", "CONFLICT", "COMPANY_POLICY"]),
   approvalStatus: z.enum(["DRAFT", "APPROVED"]),
   isActive: z.string().optional().transform((v) => v === "on"),
   availableToAll: z.string().optional().transform((v) => v === "on"),
