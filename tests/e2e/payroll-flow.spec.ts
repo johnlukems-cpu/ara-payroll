@@ -1,4 +1,15 @@
 import { expect, test, type Page } from "@playwright/test";
+import { PrismaClient } from "@prisma/client";
+import { resetDefaultSchemes } from "../helpers/schemes";
+
+const db = new PrismaClient();
+test.afterAll(() => db.$disconnect());
+
+/** Scenario tests below configure contribution schemes themselves: start from untouched default schemes. */
+async function resetSchemesOf(email: string) {
+  const m = await db.membership.findFirstOrThrow({ where: { user: { email } } });
+  await resetDefaultSchemes(db, m.companyId);
+}
 
 /** Records the explicit decision that the statutory health insurance, pension and FVO schemes do not apply (test companies). */
 async function markStatutoryNotApplicable(page: Page, en = false) {
@@ -62,6 +73,7 @@ test("owner registers, pays a USD-salaried employee and approves payroll (Englis
   await page.fill("#companyName", "E2E Company N.V.");
   await page.selectOption("#currency", "SRD");
   await submitRegistrationAndApprove(page, email);
+  await resetSchemesOf(email);
   await expect(page.getByText("Welcome to ARA Payroll")).toBeVisible();
 
   // Employee on a USD salary, paid out in USD
@@ -253,7 +265,7 @@ test("accountants can view but not approve declarations; employees cannot open t
   await expect(page.getByRole("button", { name: /^(Prepare|Opstellen)$/ })).toHaveCount(0);
   await page.goto("/app/tax/legal");
   await expect(page.getByTestId("legal-source-SB-2024-2")).toContainText("S.B. 2024 no. 2");
-  await expect(page.getByTestId("legal-source-FVO")).toContainText(/Gedeeltelijk geverifieerd|Partially verified/);
+  await expect(page.getByTestId("legal-source-FVO")).toContainText(/Geverifieerd|Verified/);
   await expect(page.getByTestId("parameters-in-use")).toBeVisible();
   await page.goto("/app/tax/rules");
   await expect(page.getByText("Loonbelasting S.B. 2024 no. 2 (art. 12, 13, 14)")).toBeVisible();
@@ -291,6 +303,7 @@ test("fixed and extra allowances/deductions via dropdowns, duplicate checks and 
   await page.fill("#companyName", "Toelagen N.V.");
   await page.selectOption("#currency", "SRD");
   await submitRegistrationAndApprove(page, email);
+  await resetSchemesOf(email);
 
   await page.goto("/app/employees/new");
   await page.fill("#firstName", "Ravi");
@@ -431,6 +444,7 @@ test("employee and employer contributions: scheme setup, payroll, payslip, repor
   await page.fill("#companyName", "Bijdragen N.V.");
   await page.selectOption("#currency", "SRD");
   await submitRegistrationAndApprove(page, contribEmail);
+  await resetSchemesOf(contribEmail);
 
   await page.goto("/app/employees/new");
   await page.fill("#firstName", "Maya");
@@ -445,13 +459,13 @@ test("employee and employer contributions: scheme setup, payroll, payslip, repor
   // Settings → Bijdragen: the three schemes exist, inactive and without rates.
   await page.goto("/app/settings/contributions");
   await expect(page.getByRole("link", { name: "Bijdragen", exact: true })).toBeVisible();
-  await expect(page.getByText(/vult geen percentages of bedragen vooraf in/)).toBeVisible();
+  await expect(page.getByText(/vult alleen tarieven in die zijn geverifieerd/)).toBeVisible();
   // Validation overview: nothing configured yet; statutory schemes block finalising payroll.
   for (const type of ["HEALTH", "PENSION", "FVO"]) await expect(page.getByTestId(`validation-${type}`)).toContainText("Niet geconfigureerd");
   await expect(page.getByTestId("validation-HEALTH")).toContainText("blokkeert het definitief maken");
   await expect(page.getByTestId("validation-PENSION")).toContainText("blokkeert"); // Wet Algemeen Pensioen 2014: statutory
   await expect(page.getByTestId("payroll-blocked")).toContainText("Ziektekostenverzekering, Pensioenbijdrage, FVO-bijdrage");
-  await expect(page.getByTestId("fvo-notice")).toContainText("Gedeeltelijk geverifieerd");
+  await expect(page.getByTestId("fvo-notice")).toHaveCount(0); // FVO verified against S.B. 2019 no. 64
 
   // Approving without rates is refused.
   page.on("dialog", (dlg) => dlg.accept());

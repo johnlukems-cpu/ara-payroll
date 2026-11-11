@@ -1,28 +1,30 @@
 /**
  * Contribution schemes (health insurance, pension, FVO): pure helpers shared by the engine, service and UI.
  * Every scheme has an employee share (a deduction) and an employer share (an employer cost that never
- * reduces net pay). Rates are never prefilled — they must be configured by an authorised administrator.
+ * reduces net pay). Only rates verified against the primary legal texts (statutory.ts) are pre-filled.
  */
+import { FVO_RULE, HEALTH_RULE, PENSION_RULE, pensionRateBp } from "./statutory";
+
 export type ContributionType = "HEALTH" | "PENSION" | "FVO";
 export const CONTRIBUTION_TYPES: ContributionType[] = ["HEALTH", "PENSION", "FVO"];
 
-/** Default schemes created (inactive, rates 0) for every company. Statutory schemes must be verified before use. */
+/** Default schemes created for every company. FVO and pension are pre-configured from verified law (statutory.ts). */
 export const DEFAULT_SCHEMES: {
   type: ContributionType; nameNl: string; nameEn: string; basis: "STATUTORY" | "VOLUNTARY"; method: "PERCENTAGE" | "FIXED";
-  base: "BASE_SALARY" | "PENSION_BASE" | "GROSS_WAGE"; employeeTax: "PRE_TAX" | "AFTER_TAX";
-  legalStatus: "PARTIALLY_VERIFIED" | "PENDING_VERIFICATION" | "COMPANY_POLICY"; legalReference: string;
+  base: "BASE_SALARY" | "PENSION_BASE" | "REGULAR_WAGE" | "GROSS_WAGE"; employeeTax: "PRE_TAX" | "AFTER_TAX";
+  legalStatus: "VERIFIED" | "PARTIALLY_VERIFIED" | "PENDING_VERIFICATION" | "COMPANY_POLICY"; legalReference: string;
 }[] = [
   {
-    type: "HEALTH", nameNl: "Ziektekostenverzekering", nameEn: "Health insurance", basis: "STATUTORY", method: "FIXED", base: "BASE_SALARY", employeeTax: "AFTER_TAX", legalStatus: "PARTIALLY_VERIFIED",
-    legalReference: "Wet Nationale Basiszorgverzekering (2014): werkgever verzekert iedere werknemer en betaalt minimaal 50% van de premie; premie per leeftijdscategorie (actuele bedragen niet geverifieerd — zie Wettelijke bronnen)",
+    type: "HEALTH", nameNl: "Ziektekostenverzekering", nameEn: "Health insurance", basis: "STATUTORY", method: "FIXED", base: "BASE_SALARY", employeeTax: "AFTER_TAX", legalStatus: "VERIFIED",
+    legalReference: HEALTH_RULE.legalReference,
   },
   {
-    type: "PENSION", nameNl: "Pensioenregeling", nameEn: "Pension scheme", basis: "STATUTORY", method: "PERCENTAGE", base: "GROSS_WAGE", employeeTax: "PRE_TAX", legalStatus: "PARTIALLY_VERIFIED",
-    legalReference: "Wet Algemeen Pensioen 2014 (S.B. 2014 no. 113) art. 8; S.B. 2023 no. 118 (minimum- en maximumgrondslag): werkgever minimaal 50% van de premie — percentage per regeling verifiëren (zie Wettelijke bronnen)",
+    type: "PENSION", nameNl: "Pensioenregeling", nameEn: "Pension scheme", basis: "STATUTORY", method: "PERCENTAGE", base: "REGULAR_WAGE", employeeTax: "PRE_TAX", legalStatus: "VERIFIED",
+    legalReference: PENSION_RULE.legalReference(new Date().getUTCFullYear()),
   },
   {
-    type: "FVO", nameNl: "FVO-bijdrage", nameEn: "FVO contribution", basis: "STATUTORY", method: "PERCENTAGE", base: "BASE_SALARY", employeeTax: "AFTER_TAX", legalStatus: "PARTIALLY_VERIFIED",
-    legalReference: "Wet Arbeidsbescherming Gezin (S.B. 2019 no. 64) / Fonds Voorzieningen Ouderschapsverlof: volgens officiële publicaties 1% van het basismaandloon excl. toelagen en emolumenten, werknemer max. 50% — premieartikel niet geverifieerd (zie Wettelijke bronnen)",
+    type: "FVO", nameNl: "FVO-bijdrage", nameEn: "FVO contribution", basis: "STATUTORY", method: "PERCENTAGE", base: "BASE_SALARY", employeeTax: "AFTER_TAX", legalStatus: "VERIFIED",
+    legalReference: FVO_RULE.legalReference,
   },
 ];
 
@@ -82,7 +84,7 @@ export function schemeState(s: SchemeLike, now: Date): SchemeState {
   return "ACTIVE";
 }
 
-export type SchemeIssue = { code: "NOT_CONFIGURED" | "AWAITING_APPROVAL" | "NOT_ACTIVE" | "LEGAL_UNVERIFIED" | "NO_LEGAL_REFERENCE" | "EMPLOYER_SHARE_BELOW_HALF"; blocking: boolean };
+export type SchemeIssue = { code: "NOT_CONFIGURED" | "AWAITING_APPROVAL" | "NOT_ACTIVE" | "LEGAL_UNVERIFIED" | "NO_LEGAL_REFERENCE" | "EMPLOYER_SHARE_BELOW_HALF" | "PENSION_RATE_DIFFERS" | "FVO_RATE_DIFFERS"; blocking: boolean; expected?: string };
 
 /**
  * Validation issues of a scheme. Missing configuration, approval or activation of a statutory scheme blocks
@@ -100,6 +102,12 @@ export function schemeIssues(s: SchemeLike): SchemeIssue[] {
   // Official publications for health insurance, pension (APF) and FVO: the employer pays at least half.
   const employeeHigher = s.method === "FIXED" ? s.employeeAmount > s.employerAmount : s.employeeRateBp > s.employerRateBp;
   if (statutory && isConfigured(s) && employeeHigher) out.push({ code: "EMPLOYER_SHARE_BELOW_HALF", blocking: false });
+  // Verified statutory totals (lib/payroll/statutory.ts): warn when a statutory percentage scheme differs.
+  if (statutory && isConfigured(s) && s.method === "PERCENTAGE") {
+    const total = s.employeeRateBp + s.employerRateBp;
+    if (s.type === "PENSION" && total !== pensionRateBp(s.effectiveFrom.getUTCFullYear())) out.push({ code: "PENSION_RATE_DIFFERS", blocking: false, expected: `${pensionRateBp(s.effectiveFrom.getUTCFullYear()) / 100}%` });
+    if (s.type === "FVO" && total !== FVO_RULE.employeeRateBp + FVO_RULE.employerRateBp) out.push({ code: "FVO_RATE_DIFFERS", blocking: false, expected: "1%" });
+  }
   return out;
 }
 

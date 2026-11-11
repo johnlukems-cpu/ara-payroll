@@ -3,6 +3,10 @@ import type { Prisma } from "@prisma/client";
 import type { Locale } from "@/i18n/config";
 import { COMPONENT_LIBRARY, libraryDefaults } from "@/lib/payroll/library";
 import { DEFAULT_SCHEMES } from "@/lib/payroll/contributions";
+import { FVO_RULE, HEALTH_RULE, PENSION_RULE, pensionVersions } from "@/lib/payroll/statutory";
+
+const STATUTORY_NOTE_NL = "Automatisch ingesteld en goedgekeurd volgens de geverifieerde wettelijke regeling (zie Wettelijke bronnen). Heeft uw bedrijf een eigen, gelijkwaardige pensioenregeling of een afwijkende verdeling, pas de regeling dan aan.";
+const STATUTORY_NOTE_EN = "Set up and approved automatically from the verified statutory rules (see Legal sources). If your company has its own equivalent pension scheme or a different split, adjust the scheme.";
 import en from "../../../messages/en.json";
 import nl from "../../../messages/nl.json";
 
@@ -23,15 +27,26 @@ export async function seedCompanyDefaults(tx: Prisma.TransactionClient, companyI
       })),
     ],
   });
-  // Contribution schemes: inactive and without rates until an administrator configures them.
+  // Contribution schemes. FVO and pension are pre-configured with the verified statutory parameters and approved
+  // (see lib/payroll/statutory.ts); health insurance needs the premium from the company's own insurance policy.
   const company = await tx.company.findUniqueOrThrow({ where: { id: companyId }, select: { currency: true } });
-  const yearStart = new Date(Date.UTC(new Date().getUTCFullYear(), 0, 1));
-  await tx.contributionScheme.createMany({
-    data: DEFAULT_SCHEMES.map((s) => ({
-      companyId, type: s.type, name: locale === "en" ? s.nameEn : s.nameNl, basis: s.basis, method: s.method, base: s.base, employeeTax: s.employeeTax,
-      legalStatus: s.legalStatus, legalReference: s.legalReference, currency: company.currency, effectiveFrom: yearStart, isActive: false,
-    })),
-  });
+  const now = new Date();
+  const year = now.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(year, 0, 1));
+  const name = (s: (typeof DEFAULT_SCHEMES)[number]) => (locale === "en" ? s.nameEn : s.nameNl);
+  const note = locale === "en" ? STATUTORY_NOTE_EN : STATUTORY_NOTE_NL;
+  for (const s of DEFAULT_SCHEMES) {
+    const common = { companyId, type: s.type, name: name(s), basis: s.basis, method: s.method, employeeTax: s.employeeTax, legalStatus: "VERIFIED" as const };
+    if (s.type === "FVO") {
+      await tx.contributionScheme.create({ data: { ...common, base: FVO_RULE.base, employeeRateBp: FVO_RULE.employeeRateBp, employerRateBp: FVO_RULE.employerRateBp, currency: company.currency, effectiveFrom: yearStart, isActive: true, approvedAt: now, legalReference: FVO_RULE.legalReference, notes: note } });
+    } else if (s.type === "PENSION") {
+      for (const v of pensionVersions(year)) {
+        await tx.contributionScheme.create({ data: { ...common, base: PENSION_RULE.base, employeeRateBp: v.employeeRateBp, employerRateBp: v.employerRateBp, minBaseMonthly: PENSION_RULE.minBaseMonthly, maxBaseMonthly: PENSION_RULE.maxBaseMonthly, currency: PENSION_RULE.currency, effectiveFrom: v.effectiveFrom, effectiveTo: v.effectiveTo, isActive: true, approvedAt: now, legalReference: PENSION_RULE.legalReference(v.year), notes: note } });
+      }
+    } else {
+      await tx.contributionScheme.create({ data: { ...common, base: s.base, currency: company.currency, effectiveFrom: yearStart, isActive: false, legalReference: HEALTH_RULE.legalReference } });
+    }
+  }
   const l = d.leave as Record<string, string>;
   await tx.leaveType.createMany({
     data: [

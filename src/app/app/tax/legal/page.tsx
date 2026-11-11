@@ -159,7 +159,7 @@ export default async function LegalRegisterPage() {
                         <ul className="mt-2 space-y-2">
                           {evidence.map((e, i) => (
                             <li key={i}>
-                              <Badge variant={e.kind === "OFFICIAL_EXCERPT" ? "accent" : "muted"}>{t(`legalRegister.kind.${e.kind}` as never)}</Badge>{" "}
+                              <Badge variant={e.kind === "OFFICIAL_TEXT" ? "success" : e.kind === "OFFICIAL_EXCERPT" ? "accent" : "muted"}>{t(`legalRegister.kind.${e.kind}` as never)}</Badge>{" "}
                               <a href={e.url} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{e.source}</a>
                               <span className="block text-muted-foreground">{e.finding} ({f.date(e.checkedAt)})</span>
                             </li>

@@ -20,7 +20,7 @@ export function IssueList({ issues, t }: { issues: SchemeIssue[]; t: T }) {
       {issues.map((i) => (
         <li key={i.code} className={i.blocking ? "flex items-start gap-1 text-destructive" : "flex items-start gap-1 text-warning"}>
           {i.blocking ? <CircleAlert className="mt-px h-3.5 w-3.5 shrink-0" /> : <AlertTriangle className="mt-px h-3.5 w-3.5 shrink-0" />}
-          <span>{t(`contrib.issue.${i.code}`)}{i.blocking ? ` — ${t("contrib.blocksPayroll")}` : ""}</span>
+          <span>{t(`contrib.issue.${i.code}`, { expected: i.expected ?? "" })}{i.blocking ? ` — ${t("contrib.blocksPayroll")}` : ""}</span>
         </li>
       ))}
     </ul>

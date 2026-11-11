@@ -9,6 +9,7 @@ import { PrismaClient, type Prisma } from "@prisma/client";
 import { calculateRun } from "@/lib/payroll/service";
 import { DEFAULT_SR_RULES } from "@/lib/payroll/defaults";
 import { seedCompanyDefaults } from "@/lib/server/company-setup";
+import { resetDefaultSchemes } from "../helpers/schemes";
 import { contributionReport } from "@/lib/server/reports";
 import { missingStatutoryContributions } from "@/lib/server/pay-components";
 import { buildLegalSnapshot } from "@/lib/server/legal-snapshot";
@@ -30,6 +31,7 @@ beforeAll(async () => {
   const c = await db.company.create({ data: { name: "Contributions Co", organizationId: org.id } });
   companyId = c.id;
   await db.$transaction((tx) => seedCompanyDefaults(tx, c.id));
+  await resetDefaultSchemes(db, c.id);
   await db.taxRuleSet.create({
     data: {
       companyId, name: "IT rules", effectiveFrom: d("2020-01-01"), ...DEFAULT_SR_RULES,
@@ -155,7 +157,7 @@ describe("contribution schemes in payroll", () => {
     expect(snap.taxRuleSets.map((r) => r.name)).toEqual([ruleSet.name]);
     expect(snap.contributionSchemes.map((c) => c.type).sort()).toEqual(["FVO", "HEALTH", "PENSION"]);
     expect(snap.contributionSchemes.find((c) => c.type === "HEALTH")?.employeeRateBp).toBe(200);
-    expect(snap.legalSources.find((l) => l.code === "FVO")?.verificationStatus).toBe("PARTIALLY_VERIFIED");
+    expect(snap.legalSources.find((l) => l.code === "FVO")?.verificationStatus).toBe("VERIFIED");
   });
 
   it("keeps approved payslips unchanged when a scheme rate changes", async () => {

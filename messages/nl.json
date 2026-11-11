@@ -1815,7 +1815,8 @@
     "reason": "Reden",
     "kind": {
       "OFFICIAL_EXCERPT": "Officiële bron (uittreksel)",
-      "SECONDARY": "Secundaire bron"
+      "SECONDARY": "Secundaire bron",
+      "OFFICIAL_TEXT": "Officiële wettekst"
     }
   },
   "components": {
@@ -2239,7 +2240,7 @@
   },
   "contrib": {
     "intro": "Per regeling legt u een werknemersaandeel (inhouding op het salaris) en een werkgeversaandeel (werkgeverslasten, nooit ingehouden op het nettoloon) vast. Wijzig tarieven met ingang van een datum via een nieuwe versie, zodat historische loonstroken ongewijzigd blijven.",
-    "noInventedRates": "ARA Payroll vult geen percentages of bedragen vooraf in. Stel de tarieven, grondslag en wettelijke toepasselijkheid zelf in en laat wettelijke regelingen verifiëren.",
+    "noInventedRates": "ARA Payroll vult alleen tarieven in die zijn geverifieerd tegen de officiële wettekst: FVO (1%: 0,5% werknemer en 0,5% werkgever, S.B. 2019 no. 64) en pensioen (Wet Algemeen Pensioen 2014 en S.B. 2023 no. 118). De premie van uw ziektekostenverzekering staat op de polis van uw zorgverzekeraar: vul dat maandbedrag zelf in (verdeling 50/50) en keur de regeling goed.",
     "typeHint": {
       "HEALTH": "Werknemers- en werkgeversdeel van de ziektekostenverzekering.",
       "PENSION": "Werknemers- en werkgeversdeel van de pensioenregeling. Een actieve regeling vervangt het pensioenpercentage uit de arbeidsovereenkomst (nooit beide).",
@@ -2344,7 +2345,9 @@
       "AWAITING_APPROVAL": "Tarieven ingesteld maar nog niet goedgekeurd",
       "NOT_ACTIVE": "Goedgekeurd maar niet actief",
       "LEGAL_UNVERIFIED": "Wettelijke grondslag niet geverifieerd",
-      "NO_LEGAL_REFERENCE": "Geen wettelijke bron vermeld"
+      "NO_LEGAL_REFERENCE": "Geen wettelijke bron vermeld",
+      "PENSION_RATE_DIFFERS": "Wijkt af van de wettelijke pensioenpremie voor dit jaar ({expected}, Wet Algemeen Pensioen art. 8) — alleen juist bij een eigen, gelijkwaardige regeling",
+      "FVO_RATE_DIFFERS": "Wijkt af van de wettelijke FVO-premie ({expected}, S.B. 2019 no. 64 art. 12 lid 4)"
     },
     "blocksPayroll": "blokkeert het definitief maken van verloningen",
     "validationTitle": "Validatieoverzicht",

@@ -1815,7 +1815,8 @@
     "reason": "Reason",
     "kind": {
       "OFFICIAL_EXCERPT": "Official source (excerpt)",
-      "SECONDARY": "Secondary source"
+      "SECONDARY": "Secondary source",
+      "OFFICIAL_TEXT": "Official legal text"
     }
   },
   "components": {
@@ -2239,7 +2240,7 @@
   },
   "contrib": {
     "intro": "For each scheme you record an employee contribution (deducted from salary) and an employer contribution (employer costs, never deducted from net pay). Change rates from a date with a new version so historical payslips stay unchanged.",
-    "noInventedRates": "ARA Payroll never prefills percentages or amounts. Configure the rates, base and legal applicability yourself and have statutory schemes verified.",
+    "noInventedRates": "ARA Payroll only pre-fills rates verified against the official legal text: FVO (1%: 0.5% employee and 0.5% employer, S.B. 2019 no. 64) and pension (General Pension Act 2014 and S.B. 2023 no. 118). Your health insurance premium is on your insurer's policy: enter that monthly amount yourself (50/50 split) and approve the scheme.",
     "typeHint": {
       "HEALTH": "Employee and employer contribution to health insurance.",
       "PENSION": "Employee and employer contribution to the pension scheme. An active scheme replaces the pension percentage of the employment contract (never both).",
@@ -2344,7 +2345,9 @@
       "AWAITING_APPROVAL": "Rates set but not yet approved",
       "NOT_ACTIVE": "Approved but not active",
       "LEGAL_UNVERIFIED": "Legal basis not verified",
-      "NO_LEGAL_REFERENCE": "No legal source recorded"
+      "NO_LEGAL_REFERENCE": "No legal source recorded",
+      "PENSION_RATE_DIFFERS": "Differs from the statutory pension premium for this year ({expected}, General Pension Act art. 8) — only correct for an own equivalent scheme",
+      "FVO_RATE_DIFFERS": "Differs from the statutory FVO premium ({expected}, S.B. 2019 no. 64 art. 12(4))"
     },
     "blocksPayroll": "blocks finalising payroll runs",
     "validationTitle": "Validation overview",

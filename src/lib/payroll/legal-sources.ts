@@ -12,7 +12,7 @@
  * secondary sources. That is why nothing below is marked VERIFIED. Earlier statements are kept in `history`.
  * Research notes: docs/LEGAL_RESEARCH.md.
  */
-export type Evidence = { source: string; url: string; kind: "OFFICIAL_EXCERPT" | "SECONDARY"; finding: string; checkedAt: string };
+export type Evidence = { source: string; url: string; kind: "OFFICIAL_TEXT" | "OFFICIAL_EXCERPT" | "SECONDARY"; finding: string; checkedAt: string };
 export type HistoryEntry = { date: string; previous: string; current: string; reason: string };
 
 export type LegalSourceEntry = {
@@ -36,6 +36,8 @@ export type LegalSourceEntry = {
 };
 
 const CHECKED = "2026-11-03";
+/** Second check against the primary texts (DNA Staatsblad PDFs, FVO), 11 November 2026. */
+const VERIFIED_AT = "2026-11-11";
 
 export const LEGAL_SOURCES: LegalSourceEntry[] = [
   {
@@ -231,30 +233,30 @@ export const LEGAL_SOURCES: LegalSourceEntry[] = [
   {
     code: "FVO",
     title: "Fonds Voorzieningen Ouderschapsverlof — premie, afdracht en uitkeringen",
-    publication: "Wet Arbeidsbescherming Gezin (S.B. 2019 no. 64) en uitvoeringsregels van het FVO",
-    effectiveFrom: "2023-03-01",
-    subject: "FVO-premie: 1% van het basismaandloon, verdeeld tussen werkgever (minimaal de helft) en werknemer (maximaal de helft)",
-    article: "premieartikel S.B. 2019 no. 64 (nummer te bevestigen)",
+    publication: "Wet Arbeidsbescherming Gezin (S.B. 2019 no. 64), art. 12 lid 4",
+    publishedAt: "2019-06-10",
+    effectiveFrom: "2023-04-01",
+    subject: "FVO-premie: 1% van het brutoloon (basisloon zonder toelagen en emolumenten); werknemer maximaal en werkgever minimaal de helft",
+    article: "art. 12 lid 4 en 5",
     state: "IN_FORCE",
-    summary: "Totale premie 1% van het basismaandloon exclusief toelagen en emolumenten. Werknemersdeel maximaal 0,5%, werkgeversdeel minimaal 0,5%. De werkgever houdt het werknemersdeel bij elke loonbetaling in en draagt beide delen maandelijks af (uiterlijk de 14e van de volgende maand). Geen maximum gevonden. Uitkeringen pas na minimaal 3 maanden premiebetaling (niet voor werkgevers die vóór 1 juli 2023 geregistreerd waren).",
+    summary: "Iedere werknemer en werkgever betaalt aan het Fonds een bijdrage van 1,0% van het brutoloon van de werknemer; de werknemersbijdrage is maximaal 50% en de werkgeversbijdrage minimaal 50% daarvan. De werkgever houdt de werknemersbijdrage bij elke loonbetaling in en draagt beide bijdragen af, en verstrekt de werknemer bij elke loonbetaling het bewijs van betaling. Volgens het FVO wordt de premie berekend over het basisloon zonder toelagen en emolumenten en geldt de premie per 1 april 2023. Geen maximumgrondslag.",
     articles: [
-      { article: "—", summary: "Premie 1% van het basismaandloon (exclusief toelagen en emolumenten)" },
-      { article: "—", summary: "Werknemer maximaal 50%, werkgever minimaal 50% van de premie" },
-      { article: "—", summary: "Maandelijkse afdracht door de werkgever, uiterlijk de 14e van de volgende maand" },
+      { article: "12 lid 4", summary: "Bijdrage 1,0% van het brutoloon; werknemer maximaal 50%, werkgever minimaal 50%; inhouding bij elke loonbetaling en afdracht door de werkgever" },
+      { article: "12 lid 5", summary: "Werkgever verstrekt bij elke loonbetaling het bewijs dat de bijdrage is voldaan" },
+      { article: "FVO FAQ 3, 8, 12", summary: "Grondslag basisloon zonder toelagen en emolumenten; 0,5% werknemer en 0,5% werkgever; premie per 1 april 2023" },
     ],
-    url: "https://fvo.sr/nl/faq",
-    verificationStatus: "PARTIALLY_VERIFIED",
-    notes: "Tegenstrijdigheden: (1) start inning 1 maart 2023 (overheid) of april 2023 (Celery); (2) verdeling 'gelijk' (overheid/FVO) of 'werkgever mag alles dragen' (Celery). Het premieartikel in de wettekst is niet ingezien. Daarom blijft de FVO-regeling inactief tot een beheerder de officiële grondslag heeft geverifieerd en de tarieven heeft goedgekeurd.",
+    url: "https://www.dna.sr/media/3bjewn4q/sb_2019___64.pdf",
+    verificationStatus: "VERIFIED",
+    notes: "Geverifieerd tegen de wettekst (S.B. 2019 no. 64, art. 12 lid 4) en de FAQ van het Fonds. ARA Payroll stelt 0,5% werknemer en 0,5% werkgever in over het basissalaris; een werkgever mag een groter deel dragen (werknemersdeel lager).",
     components: ["FVO-EE (werknemersaandeel)", "FVO-ER (werkgeversaandeel)", "DED012", "ER007"],
     evidence: [
-      { source: "FVO — Veelgestelde vragen", url: "https://fvo.sr/nl/faq", kind: "OFFICIAL_EXCERPT", finding: "Premie berekend over het basismaandloon, exclusief toelagen en emolumenten; welke vergoedingen het FVO vergoedt.", checkedAt: CHECKED },
-      { source: "Overheid Suriname — FVO", url: "https://gov.sr/fvo/", kind: "OFFICIAL_EXCERPT", finding: "Grondslag basissalaris exclusief emolumenten; werkgever minimaal en werknemer maximaal de helft van 1%.", checkedAt: CHECKED },
+      { source: "DNA — S.B. 2019 no. 64 (Wet Arbeidsbescherming Gezin), volledige tekst", url: "https://www.dna.sr/media/3bjewn4q/sb_2019___64.pdf", kind: "OFFICIAL_TEXT", finding: "Art. 12 lid 4: bijdrage gelijk aan 1.0% van het brutoloon, werknemersbijdrage maximaal 50%, werkgeversbijdrage minimaal 50%; inhouding bij elke loonbetaling.", checkedAt: VERIFIED_AT },
+      { source: "FVO — Veelgestelde vragen", url: "https://fvo.sr/nl/faq", kind: "OFFICIAL_EXCERPT", finding: "1% van het brutoloon (basisloon zonder emolumenten), 0,5% werknemer en 0,5% werkgever; premie van kracht per 1 april 2023.", checkedAt: VERIFIED_AT },
       { source: "Overheid Suriname — Registratieplicht voor doorbetaald ouderschapsverlof aangevangen", url: "https://gov.sr/registratieplicht-voor-doorbetaald-ouderschapsverlof-aangevangen/", kind: "OFFICIAL_EXCERPT", finding: "Registratie vóór 15 februari 2023; inning vanaf 1 maart 2023.", checkedAt: CHECKED },
-      { source: "VSB — Stand van zaken ouderschapsverlofregeling", url: "https://vsbstia.org/?p=8108", kind: "SECONDARY", finding: "Werkgever en werknemer elk 0,5% van het brutoloon; afdracht maandelijks.", checkedAt: CHECKED },
-      { source: "Celery — Fonds Voorzieningen Ouderschapsverlof (FVO)", url: "https://www.celerypayroll.com/blog/algemeen/suriname-fonds-voorzieningen-ouderschapsverlof-fvo/", kind: "SECONDARY", finding: "1% totaal, 0,5% werkgever en 0,5% werknemer; start april 2023; werkgever mag het volledige bedrag dragen.", checkedAt: CHECKED },
     ],
     history: [
       { date: CHECKED, previous: "Percentage en verdeling werkgever/werknemer niet geverifieerd; berichtgeving noemt 1% van het brutoloon.", current: "1% van het basismaandloon (excl. toelagen en emolumenten); werknemer max. 0,5%, werkgever min. 0,5% — gedeeltelijk geverifieerd.", reason: "Officiële FVO- en overheidspublicaties noemen het basismaandloon; 'brutoloon' komt alleen uit secundaire bronnen." },
+      { date: VERIFIED_AT, previous: "Gedeeltelijk geverifieerd; premieartikel niet ingezien.", current: "Geverifieerd: S.B. 2019 no. 64 art. 12 lid 4 — 1,0% van het brutoloon, werknemer max. 50%, werkgever min. 50%; ingang premie 1 april 2023 (FVO).", reason: "Wettekst op dna.sr en FAQ van het Fonds ingezien." },
     ],
   },
   {
@@ -263,70 +265,82 @@ export const LEGAL_SOURCES: LegalSourceEntry[] = [
     publication: "S.B. 2014 no. 113",
     publishedAt: "2014-09-09",
     effectiveFrom: "2014-12-09",
-    subject: "Verplichte algemene pensioenvoorziening voor werknemers (Algemeen Pensioenfonds of gelijkwaardige regeling van de werkgever)",
-    article: "art. 8 (premie), art. 7 (indexering)",
+    subject: "Verplichte algemene pensioenregeling voor werknemers (Algemeen Pensioenfonds of gelijkwaardige eigen regeling van de werkgever)",
+    article: "art. 2, 6 (loon), 8 (premie)",
     state: "AMENDED",
-    lastAmendment: "S.B. 2023 no. 117 en no. 118",
-    summary: "Werkgevers moeten hun werknemers een pensioenregeling bieden (via het Algemeen Pensioenfonds of een aan de wet aangepaste eigen regeling). Werkgever betaalt minimaal 50%, werknemer maximaal 50% van de premie. Premie 2025 volgens het APF: 8% van het brutoloon (art. 8 lid 2). Pensioengrondslag sinds 1 januari 2023: minimaal SRD 2.250 en maximaal SRD 22.500 per maand.",
+    lastAmendment: "S.B. 2023 no. 118 (art. 8 lid 3)",
+    summary: "Premie: 3% van de bijdragegrondslag bij inwerkingtreding, vanaf 1 januari 2016 jaarlijks verhoogd met 0,5% tot maximaal 28% (art. 8 lid 1–2): 2023 7%, 2024 7,5%, 2025 8%, 2026 8,5%, 2027 9%. Verdeling bij een dienstbetrekking 50% werknemer en 50% werkgever; bij onderling overleg mag het werknemersdeel niet hoger zijn dan het werkgeversdeel (art. 8 lid 7–8). Minimale en maximale bijdragegrondslag sinds 1 januari 2023 SRD 2.250 en SRD 22.500 per maand (S.B. 2023 no. 118); de minimumpremie geldt ongeacht het maandloon (art. 8 lid 4). Loon is elke geldelijke vergoeding behalve overwerk, vergoedingen voor tijdelijke extra werkzaamheden, vakantie-uitkeringen, winstuitkeringen, voorwaardelijke uitkeringen, onkostenvergoedingen, uitkeringen aan gezinshoofden en eindejaarsuitkeringen (art. 6). Een eigen pensioenregeling die minimaal gelijkwaardig is, mag blijven (art. 2 lid 3–5).",
     articles: [
-      { article: "8 lid 2", summary: "Premie 2025: 8% van het brutoloon (volgens het Algemeen Pensioenfonds); premie 2026 niet gevonden" },
-      { article: "8 lid 6", summary: "Minimum- en maximumgrondslag bij staatsbesluit (zie S.B. 2023 no. 118)" },
-      { article: "—", summary: "Werkgever minimaal 50%, werknemer maximaal 50% van de premie" },
+      { article: "6 lid 1", summary: "Loon = elke geldelijke vergoeding, behalve overwerk, tijdelijke extra werkzaamheden, vakantie-uitkeringen, winstuitkeringen, voorwaardelijke uitkeringen, onkostenvergoedingen, uitkeringen aan gezinshoofden en eindejaarsuitkeringen" },
+      { article: "8 lid 1–2", summary: "Premie 3% bij inwerkingtreding; vanaf 1 januari 2016 jaarlijks +0,5% tot maximaal 28% (2026: 8,5%)" },
+      { article: "8 lid 3 (S.B. 2023 no. 118)", summary: "Minimale bijdragegrondslag SRD 2.250, maximale SRD 22.500 per maand" },
+      { article: "8 lid 4–5", summary: "Minimumpremie over de minimale grondslag ongeacht het maandloon; geen premie boven de maximale grondslag" },
+      { article: "8 lid 7–8", summary: "Werknemer 50%, werkgever 50%; werknemersdeel nooit hoger dan werkgeversdeel" },
     ],
-    url: "https://www.dna.sr/media/edbanrlx/wet_algemeen_pensioen_2014.pdf",
-    verificationStatus: "PARTIALLY_VERIFIED",
-    notes: "Nieuw opgenomen. Pensioen is daarmee een wettelijke verplichting (in ARA Payroll stond pensioen standaard als arbeidsvoorwaardelijk). Eigen pensioenregelingen van werkgevers kunnen afwijkende (gelijkwaardige) tarieven hebben.",
+    url: "https://www.dna.sr/media/yjol5xwe/sb_2014__no_113_wet_algemeen_pensioen_2014.pdf",
+    verificationStatus: "VERIFIED",
+    notes: "Geverifieerd tegen de wettekst (DNA) en S.B. 2023 no. 118. Werkgevers met een eigen, door de Pensioenraad als gelijkwaardig beoordeelde regeling stellen hun eigen percentages in (pensioenpercentage in de arbeidsovereenkomst of een eigen regeling).",
     components: ["PENSION-EE", "PENSION-ER", "DED002", "ER001", "Pensioenpercentage arbeidsovereenkomst"],
     evidence: [
-      { source: "Algemeen Pensioenfonds — Veelgestelde vragen", url: "https://www.pensioen.sr/veelgestelde-vragen/", kind: "OFFICIAL_EXCERPT", finding: "Premie 2025: 8% van het brutoloon (art. 8 lid 2); werkgever minimaal 50%, werknemer maximaal 50%.", checkedAt: CHECKED },
-      { source: "DNA — Wet Algemeen Pensioen 2014 (uittreksel)", url: "https://www.dna.sr/media/edbanrlx/wet_algemeen_pensioen_2014.pdf", kind: "OFFICIAL_EXCERPT", finding: "Werkgever past bestaande regeling aan of sluit zich aan bij de wet; pensioenrecht na minimaal 5 jaar premiebetaling.", checkedAt: CHECKED },
-      { source: "Celery — What employers should know about the APF pension scheme", url: "https://www.celerypayroll.com/en/blog/general/suriname-what-employers-should-know-about-the-pension-scheme-of-the-algemeen-pensioenfonds-apf/", kind: "SECONDARY", finding: "2023: totaal 7% (3,5% / 3,5%).", checkedAt: CHECKED },
-      { source: "Milliman — IFRS-waarderingen werkgevers Suriname", url: "https://www.milliman.com/nl-NL/insight/ifrs-waarderingen-werkgevers-suriname-impact-wet-algemeen-pensioen", kind: "SECONDARY", finding: "Werkgevers verplicht een minimale pensioenregeling te bieden; vermeldt een maximumsalaris van SRD 5.000 (verouderd).", checkedAt: CHECKED },
+      { source: "DNA — S.B. 2014 no. 113 Wet Algemeen Pensioen 2014 (volledige tekst)", url: "https://www.dna.sr/media/yjol5xwe/sb_2014__no_113_wet_algemeen_pensioen_2014.pdf", kind: "OFFICIAL_TEXT", finding: "Art. 8: premie 3%, vanaf 1-1-2016 jaarlijks +0,5% tot max. 28%; verdeling 50/50; art. 6: definitie loon met uitzonderingen.", checkedAt: VERIFIED_AT },
+      { source: "S.B. 2023 no. 118 (Staatsbesluit ter uitvoering van art. 8 lid 6 WAP 2014)", url: "https://www.celerypayroll.com/wp-content/uploads/2023/10/S.B.-2023-no.-118-STAATSBESLUIT-van-7-augustus-ter-uitvoering-van-artikel-8-lid-6-van-de-Wet-Algemeen-Pensioen-2014-S.B.-2014-no.-113.pdf", kind: "OFFICIAL_TEXT", finding: "Art. I: minimale bijdragegrondslag SRD 2.250 en maximale SRD 22.500 per maand; terugwerkend tot 1 januari 2023 (art. II).", checkedAt: VERIFIED_AT },
+      { source: "Algemeen Pensioenfonds — Veelgestelde vragen", url: "https://www.pensioen.sr/veelgestelde-vragen/", kind: "OFFICIAL_EXCERPT", finding: "Premie 2025: 8% (consistent met art. 8 lid 2).", checkedAt: CHECKED },
     ],
-    history: [],
+    history: [
+      { date: VERIFIED_AT, previous: "Gedeeltelijk geverifieerd: premie 2025 8% volgens APF, premie 2026 niet gevonden.", current: "Geverifieerd: premie volgens art. 8 lid 2 (2026: 8,5%, 2027: 9%), verdeling 50/50, grondslag SRD 2.250–22.500 per maand (S.B. 2023 no. 118).", reason: "Wettekst S.B. 2014 no. 113 en staatsbesluit S.B. 2023 no. 118 ingezien." },
+    ],
   },
   {
     code: "SB-2023-118",
     title: "Staatsbesluit van 7 augustus 2023 ter uitvoering van artikel 8 lid 6 van de Wet Algemeen Pensioen 2014",
     publication: "S.B. 2023 no. 118",
-    publishedAt: "2023-08-07",
+    publishedAt: "2023-08-18",
     effectiveFrom: "2023-01-01",
     subject: "Minimum- en maximumgrondslag pensioenpremie",
-    article: "uitvoering art. 8 lid 6 WAP 2014",
+    article: "art. I (nieuw art. 8 lid 3 WAP 2014), art. II",
     state: "IN_FORCE",
-    summary: "Minimumgrondslag SRD 2.250 per maand (was SRD 500); maximumgrondslag SRD 270.000 per jaar / SRD 22.500 per maand (was SRD 60.000 per jaar), terugwerkend tot 1 januari 2023.",
-    articles: [{ article: "—", summary: "Minimum SRD 2.250 per maand; maximum SRD 22.500 per maand (SRD 270.000 per jaar)" }],
+    summary: "Artikel 8 lid 3 WAP 2014 luidt: de minimale bijdragegrondslag bedraagt SRD 2.250 per maand en de maximale bijdragegrondslag SRD 22.500 per maand. Uitgegeven 18 augustus 2023, terugwerkend tot en met 1 januari 2023 (index 450 × SRD 500 / SRD 5.000).",
+    articles: [
+      { article: "I", summary: "Minimale bijdragegrondslag SRD 2.250 per maand; maximale SRD 22.500 per maand" },
+      { article: "II lid 2", summary: "In werking de dag na afkondiging, terugwerkend tot en met 1 januari 2023" },
+    ],
     url: "https://www.celerypayroll.com/wp-content/uploads/2023/10/S.B.-2023-no.-118-STAATSBESLUIT-van-7-augustus-ter-uitvoering-van-artikel-8-lid-6-van-de-Wet-Algemeen-Pensioen-2014-S.B.-2014-no.-113.pdf",
-    verificationStatus: "PARTIALLY_VERIFIED",
+    verificationStatus: "VERIFIED",
+    notes: "Tekst van het Staatsblad ingezien (gepubliceerde kopie). Geen later staatsbesluit over de grondslagen gevonden op de officiële sites; controleer jaarlijks bij het Algemeen Pensioenfonds.",
     components: ["Pensioen: minimum- en maximumgrondslag"],
     evidence: [
-      { source: "Celery — Major changes pension scheme APF", url: "https://www.celerypayroll.com/en/blog/general/suriname-major-changes-pension-scheme-of-algemeen-pensioenfonds-apf/", kind: "SECONDARY", finding: "Minimum SRD 2.250 per maand, maximum SRD 270.000 per jaar, terugwerkend tot 1 januari 2023.", checkedAt: CHECKED },
+      { source: "S.B. 2023 no. 118 (Staatsblad, volledige tekst)", url: "https://www.celerypayroll.com/wp-content/uploads/2023/10/S.B.-2023-no.-118-STAATSBESLUIT-van-7-augustus-ter-uitvoering-van-artikel-8-lid-6-van-de-Wet-Algemeen-Pensioen-2014-S.B.-2014-no.-113.pdf", kind: "OFFICIAL_TEXT", finding: "Minimale bijdragegrondslag SRD 2.250, maximale SRD 22.500 per maand; terugwerkend tot 1 januari 2023.", checkedAt: VERIFIED_AT },
     ],
-    history: [],
+    history: [
+      { date: VERIFIED_AT, previous: "Gedeeltelijk geverifieerd via secundaire bron (maximum genoemd als SRD 270.000 per jaar).", current: "Geverifieerd: SRD 2.250 en SRD 22.500 per maand.", reason: "Tekst van het Staatsblad ingezien." },
+    ],
   },
   {
     code: "WNBZ-2014",
     title: "Wet Nationale Basiszorgverzekering",
-    publication: "Wet Nationale Basiszorgverzekering (2014)",
+    publication: "S.B. 2014 no. 114",
+    publishedAt: "2014-09-09",
     effectiveFrom: "2014-10-09",
-    subject: "Verplichte basiszorgverzekering; werkgever verzekert iedere werknemer en betaalt minimaal 50% van de premie",
-    article: "werkgeversverplichtingen (nummering te bevestigen)",
+    subject: "Verplichte basiszorgverzekering; werkgever verzekert iedere werknemer; premie volgens de polis, verdeling 50/50",
+    article: "art. 4, 7, 8",
     state: "IN_FORCE",
-    summary: "De werkgever sluit voor iedere werknemer een basiszorgverzekering af, betaalt minimaal 50% van de premie, spreekt de inhouding van het werknemersdeel af en draagt de premie tijdig af. Premie per leeftijdscategorie (vast bedrag, geen percentage); de actuele bedragen zijn niet bevestigd (2014: SRD 55 / 75 / 165 / 240).",
+    summary: "Iedere werkgever sluit voor zijn werknemers een basiszorgverzekering af, maakt afspraken over de inhouding van het werknemersaandeel op het loon en draagt de premie conform de polisvoorwaarden tijdig af aan de zorgverzekeraar (art. 8). De premie is een vast bedrag per deelnemer volgens de polis van de zorgverzekeraar, binnen de wettelijke maximale premie per leeftijdscategorie (art. 7 lid 1; bij invoering SRD 55 / 75 / 165 / 240, wijziging bij staatsbesluit). Bij een dienstbetrekking: 50% werknemer, 50% werkgever; het werknemersaandeel mag nooit hoger zijn dan het werkgeversaandeel (art. 7 lid 6–7).",
     articles: [
-      { article: "—", summary: "Werkgever minimaal 50% van de premie; werknemersdeel ingehouden op het loon" },
-      { article: "—", summary: "Premie per leeftijdscategorie (vast bedrag); actuele bedragen niet bevestigd" },
+      { article: "7 lid 1–2", summary: "Maximale premie per leeftijdscategorie (2014: 0–16 SRD 55, 17–20 SRD 75, 21–59 SRD 165, 60+ SRD 240); wijziging bij staatsbesluit" },
+      { article: "7 lid 6–7", summary: "Werknemer 50%, werkgever 50%; werknemersaandeel nooit hoger dan werkgeversaandeel" },
+      { article: "8 lid 1–2", summary: "Werkgever sluit de verzekering af, houdt het werknemersaandeel in en draagt de premie conform de polis af" },
     ],
-    url: "https://www.basiszorg.sr/index.php/basiszorgverzekering-2/wetnationalebasiszorgverzekering/",
-    verificationStatus: "PARTIALLY_VERIFIED",
-    notes: "Bronnen geven tegenstrijdige premiebedragen. Stel de bedragen per medewerker (leeftijd) in op basis van de polis van de zorgverzekeraar.",
+    url: "https://www.dna.sr/media/wsxjnsrb/sb_2014__no_114_wet_nationale_basiszorgverzekering.pdf",
+    verificationStatus: "VERIFIED",
+    notes: "De verdeling en de verplichtingen zijn geverifieerd. Het premiebedrag is bedrijfsspecifiek: neem het maandbedrag over uit de polis van uw zorgverzekeraar (eventueel per werknemer verschillend via individuele bedragen). ARA Payroll vult geen bedrag in.",
     components: ["HEALTH-EE", "HEALTH-ER", "DED004", "ER002"],
     evidence: [
+      { source: "DNA — S.B. 2014 no. 114 Wet Nationale Basiszorgverzekering (volledige tekst)", url: "https://www.dna.sr/media/wsxjnsrb/sb_2014__no_114_wet_nationale_basiszorgverzekering.pdf", kind: "OFFICIAL_TEXT", finding: "Art. 7: maximale premies per leeftijdscategorie, verdeling 50/50; art. 8: verplichtingen werkgever, premie conform polisvoorwaarden.", checkedAt: VERIFIED_AT },
       { source: "Overheid Suriname — Basiszorgverzekering", url: "https://gov.sr/thema/basiszorgverzekering/", kind: "OFFICIAL_EXCERPT", finding: "Iedere werkgever is verplicht minimaal 50% van de premie te betalen.", checkedAt: CHECKED },
-      { source: "Uitvoeringsorgaan Basiszorg — Wet Nationale Basiszorgverzekering", url: "https://www.basiszorg.sr/index.php/basiszorgverzekering-2/wetnationalebasiszorgverzekering/", kind: "OFFICIAL_EXCERPT", finding: "Premies per leeftijd: SRD 55 (0–16), 75 (17–20), 165 (21–59), 240 (60+) — stand 2014.", checkedAt: CHECKED },
-      { source: "Vertrekklaar — Zorg in Suriname", url: "https://vertrekklaar.nl/kennis/zorg-in-suriname", kind: "SECONDARY", finding: "Noemt veel hogere maandpremies (bijv. SRD 785 voor 21–40 jaar) — tegenstrijdig.", checkedAt: CHECKED },
     ],
-    history: [],
+    history: [
+      { date: VERIFIED_AT, previous: "Gedeeltelijk geverifieerd; artikelnummers en premiebedragen niet bevestigd.", current: "Geverifieerd: art. 7 lid 6–7 (50/50) en art. 8 (premie conform polis); premiebedrag volgt uit de polis van de zorgverzekeraar.", reason: "Wettekst S.B. 2014 no. 114 op dna.sr ingezien." },
+    ],
   },
   {
     code: "VACANTIEWET",

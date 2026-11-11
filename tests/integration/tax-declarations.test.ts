@@ -9,6 +9,7 @@ import { PrismaClient, type Prisma } from "@prisma/client";
 import { calculateRun, findRuleSet, isLegallyValid } from "@/lib/payroll/service";
 import { SB_2024_2, AOV_RESEARCH } from "@/lib/payroll/defaults";
 import { seedCompanyDefaults } from "@/lib/server/company-setup";
+import { resetDefaultSchemes } from "../helpers/schemes";
 import { loadDeclaration, prepareMonthlyDeclaration, recalculateDeclaration, transition } from "@/lib/server/declarations";
 
 const db = new PrismaClient();
@@ -23,6 +24,7 @@ let empId: string;
 async function makeCompany(name: string) {
   const c = await db.company.create({ data: { name, organizationId: orgId } });
   await db.$transaction((tx) => seedCompanyDefaults(tx, c.id, "nl"));
+  await resetDefaultSchemes(db, c.id);
   return c.id;
 }
 

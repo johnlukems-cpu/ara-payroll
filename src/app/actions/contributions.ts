@@ -38,7 +38,7 @@ const schemeSchema = z.object({
   employeeTax: z.enum(["PRE_TAX", "AFTER_TAX"]),
   showOnPayslip: checkbox,
   legalStatus: z.enum(["VERIFIED", "PARTIALLY_VERIFIED", "PENDING_VERIFICATION", "CONFLICT", "COMPANY_POLICY"]),
-  legalReference: optionalText(300),
+  legalReference: optionalText(600),
   notes: optionalText(500),
 });
 

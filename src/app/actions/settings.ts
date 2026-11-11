@@ -72,6 +72,8 @@ export async function changeBaseCurrencyAction(_: ActionState, fd: FormData): Pr
     if (open) throw new UserError("errors.openRuns");
     const from = ctx.company.currency;
     await db.company.update({ where: { id: ctx.company.id }, data: { currency: data.currency } });
+    // Schemes that were never configured follow the new base currency (configured amounts keep their own currency).
+    await db.contributionScheme.updateMany({ where: { companyId: ctx.company.id, approvedAt: null, employeeAmount: 0, employerAmount: 0, employeeRateBp: 0, employerRateBp: 0 }, data: { currency: data.currency } });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "company.base_currency_changed", entity: "Company", entityId: ctx.company.id, details: { from, to: data.currency, reason: data.reason } });
     revalidatePath("/app", "layout");
     return ok((await getTranslations())("settings.currency.changed", { from, to: data.currency }));

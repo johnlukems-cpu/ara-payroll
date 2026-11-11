@@ -111,3 +111,16 @@ Payroll only adjusts salary according to the **approved policy** of each leave t
 - FVO-grondslag: basismaandloon (eerder genoemd: brutoloon).
 - Vaderschapsverlof: 8 dagen (eerder conflict 5/7/8).
 - Vrijstelling bijzondere beloningen in de actieve regelset is nog SRD 10.016; volgens S.B. 2025 no. 101 SRD 19.500 — **niet automatisch aangepast**; beheerder stelt na verificatie een nieuwe regelset-versie vast.
+
+## Verificatie primaire teksten — 11 november 2026
+
+De officiële sites (dna.sr, gov.sr, fvo.sr) waren vanaf deze datum bereikbaar. Ingezien en vastgelegd:
+
+| Regeling | Primaire bron | Vastgesteld | In ARA Payroll |
+|---|---|---|---|
+| FVO | S.B. 2019 no. 64, art. 12 lid 4 (dna.sr) + FAQ Fonds (fvo.sr) | 1,0% van het brutoloon; werknemer max. 50%, werkgever min. 50%; grondslag basisloon zonder toelagen/emolumenten; premie per 1 april 2023 | 0,5% + 0,5% over basissalaris, geverifieerd en goedgekeurd |
+| Pensioen | S.B. 2014 no. 113 (WAP 2014) art. 6 en 8 (dna.sr) | 3% bij inwerkingtreding, vanaf 1-1-2016 jaarlijks +0,5% tot max. 28% (2026: 8,5%; 2027: 9%); 50/50; loon zonder overwerk, vakantie- en eindejaarsuitkeringen | 4,25% + 4,25% (2026) en 4,5% + 4,5% (2027) over regulier loon, geverifieerd en goedgekeurd |
+| Pensioengrondslag | S.B. 2023 no. 118 (Staatsblad, gepubliceerde kopie) | min. SRD 2.250 / max. SRD 22.500 per maand, terugwerkend tot 1-1-2023 | min-/maxgrondslag op de pensioenregeling |
+| Basiszorg | S.B. 2014 no. 114 art. 7 en 8 (dna.sr) | premie conform polis van de zorgverzekeraar (wettelijke maxima per leeftijd, bij staatsbesluit aanpasbaar); 50/50 | juridische grondslag geverifieerd; maandbedrag uit de eigen polis vult de werkgever in |
+
+Migratie `20261111120000_statutory_schemes_verified` past dit alleen toe op onaangeroerde standaardregelingen. Overgeslagen: bedrijven met een al goedgekeurde regeling, en voor pensioen bedrijven die pensioenpercentages in arbeidsovereenkomsten vastleggen (eigen pensioenregeling). Afgesloten loonstroken veranderen niet. Controleer jaarlijks op een nieuw staatsbesluit over de pensioengrondslag en voeg per 1 januari de nieuwe pensioenversie toe (ARA Payroll waarschuwt bij een afwijkend percentage).

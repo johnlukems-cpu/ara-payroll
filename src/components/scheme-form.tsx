@@ -104,7 +104,7 @@ export function SchemeForm({ v, currencies, canVerify }: { v: SchemeValues; curr
             {(["COMPANY_POLICY", "PENDING_VERIFICATION", "PARTIALLY_VERIFIED", "CONFLICT", ...(canVerify || v.legalStatus === "VERIFIED" ? ["VERIFIED"] : [])] as const).map((s) => <option key={s} value={s}>{t(`legal.${s}` as never)}</option>)}
           </Select>
         </F>
-        <F name="legalReference" label={t("components.f.legalReference")} className="sm:col-span-2 lg:col-span-4"><Input id="legalReference" name="legalReference" defaultValue={v.legalReference} maxLength={300} /></F>
+        <F name="legalReference" label={t("components.f.legalReference")} className="sm:col-span-2 lg:col-span-4"><Input id="legalReference" name="legalReference" defaultValue={v.legalReference} maxLength={600} /></F>
         <div className="space-y-2 text-sm sm:col-span-2">
           <label className="flex items-start gap-2"><input type="checkbox" name="appliesToAll" defaultChecked={v.appliesToAll} className="mt-0.5" /> <span>{t("contrib.f.appliesToAll")}<span className="block text-xs text-muted-foreground">{t("contrib.f.appliesToAllHint")}</span></span></label>
           <label className="flex items-start gap-2"><input type="checkbox" name="showOnPayslip" defaultChecked={v.showOnPayslip} className="mt-0.5" /> <span>{t("contrib.f.showOnPayslip")}<span className="block text-xs text-muted-foreground">{t("contrib.f.showOnPayslipHint")}</span></span></label>
