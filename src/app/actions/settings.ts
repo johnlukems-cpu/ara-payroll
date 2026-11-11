@@ -1,5 +1,6 @@
 "use server";
 
+import { calculateRun } from "@/lib/payroll/service";
 import { assertUserCapacity } from "@/lib/server/saas";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -68,13 +69,18 @@ export async function changeBaseCurrencyAction(_: ActionState, fd: FormData): Pr
     if (data.currency === ctx.company.currency) throw new UserError("errors.sameBase");
     if (data.confirmName.trim() !== ctx.company.name.trim()) throw new UserError("errors.nameMismatch");
     await ensureCurrency(data.currency);
-    const open = await db.payrollRun.count({ where: { companyId: ctx.company.id, status: { in: ["DRAFT", "CALCULATED"] } } });
-    if (open) throw new UserError("errors.openRuns");
+    // Open (not yet approved) payroll runs are recalculated in the new reporting currency afterwards; approved
+    // and paid runs keep the currency and amounts they were finalised with.
+    const open = await db.payrollRun.findMany({ where: { companyId: ctx.company.id, status: { in: ["DRAFT", "CALCULATED"] } }, select: { id: true, status: true } });
     const from = ctx.company.currency;
     await db.company.update({ where: { id: ctx.company.id }, data: { currency: data.currency } });
     // Schemes that were never configured follow the new base currency (configured amounts keep their own currency).
     await db.contributionScheme.updateMany({ where: { companyId: ctx.company.id, approvedAt: null, employeeAmount: 0, employerAmount: 0, employeeRateBp: 0, employerRateBp: 0 }, data: { currency: data.currency } });
-    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "company.base_currency_changed", entity: "Company", entityId: ctx.company.id, details: { from, to: data.currency, reason: data.reason } });
+    let failed = 0;
+    for (const r of open.filter((x) => x.status === "CALCULATED")) {
+      try { await calculateRun(r.id); } catch { failed++; await db.payrollRun.update({ where: { id: r.id }, data: { status: "DRAFT" } }); }
+    }
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "company.base_currency_changed", entity: "Company", entityId: ctx.company.id, details: { from, to: data.currency, reason: data.reason, openRuns: open.length, recalculationFailed: failed } });
     revalidatePath("/app", "layout");
     return ok((await getTranslations())("settings.currency.changed", { from, to: data.currency }));
   } catch (e) {

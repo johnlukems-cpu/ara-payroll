@@ -89,4 +89,13 @@ describe("statutory schemes of a new company", () => {
     // Health insurance: 2% employee and 2% employer of the base salary.
     expect([amt("mid", "HEALTH-EE"), amt("mid", "HEALTH-ER")]).toEqual([SRD(300), SRD(300)]);
   });
+
+  it("never needs an exchange rate for a percentage scheme recorded in another currency", async () => {
+    await db.contributionScheme.updateMany({ where: { companyId, type: "HEALTH" }, data: { currency: "EUR" } });
+    const run = await db.payrollRun.create({ data: { companyId, year, month: 2, payDate: d(`${year}-02-25`) } });
+    await expect(calculateRun(run.id)).resolves.toBeDefined();
+    const slip = await db.payslip.findFirstOrThrow({ where: { runId: run.id, employeeNumber: "mid" }, include: { lines: true } });
+    expect(slip.lines.find((l) => l.code === "HEALTH-EE")?.amount).toBe(SRD(300));
+    await db.contributionScheme.updateMany({ where: { companyId, type: "HEALTH" }, data: { currency: "SRD" } });
+  });
 });

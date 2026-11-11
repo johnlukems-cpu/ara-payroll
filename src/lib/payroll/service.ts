@@ -199,9 +199,15 @@ export async function calculateRun(runId: string) {
     const sc = e.contracts[0]?.salaryCurrency;
     if (!sc) continue;
     pairs.push([sc, calcCur], [calcCur, e.paymentCurrency ?? sc]);
-    for (const a of e.components) pairs.push([a.currency ?? sc, calcCur], [a.component.currency ?? sc, calcCur]);
-    for (const a of adjustments.filter((x) => x.employeeId === e.id)) pairs.push([a.currency ?? sc, calcCur], [a.component.currency ?? sc, calcCur]);
-    for (const sch of schemes) pairs.push([sch.currency, calcCur]);
+    // Only pairs that convert a non-zero amount: percentages and empty amounts never need an exchange rate
+    // (toCalc skips zero amounts), so e.g. a percentage scheme recorded in EUR does not demand EUR rates.
+    const compPair = (c: { currency: string | null; defaultAmount: number; unitPrice: number }) => (c.defaultAmount || c.unitPrice ? [[c.currency ?? sc, calcCur] as [string, string]] : []);
+    for (const a of e.components) pairs.push(...(a.amount ? [[a.currency ?? sc, calcCur] as [string, string]] : []), ...compPair(a.component));
+    for (const a of adjustments.filter((x) => x.employeeId === e.id)) pairs.push(...(a.amount ? [[a.currency ?? sc, calcCur] as [string, string]] : []), ...compPair(a.component));
+    for (const sch of schemes) {
+      const individual = e.contributions.some((c) => c.schemeId === sch.id && (c.employeeAmount || c.employerAmount));
+      if (sch.employeeAmount || sch.employerAmount || individual || sch.minBaseMonthly != null || sch.maxBaseMonthly != null) pairs.push([sch.currency, calcCur]);
+    }
   }
   await book.prepare(pairs);
   if (book.missing.size) throw new PayrollError("errors.missingRates", { pairs: [...book.missing].join(", ") });
@@ -321,8 +327,9 @@ export async function calculateRun(runId: string) {
       contributions.push({
         id: sch.id, type: sch.type, name: sch.name, labels: { nl: sch.name, en: sch.name }, method: sch.method, base: sch.base,
         employeeRateBp: shares.employeeRateBp, employerRateBp: shares.employerRateBp,
-        employeeAmount: toCalc(shares.employeeAmount, sch.currency, `${sch.name} (werknemer)`),
-        employerAmount: toCalc(shares.employerAmount, sch.currency, `${sch.name} (werkgever)`),
+        // Only fixed amounts are converted: a percentage scheme never needs an exchange rate for its currency.
+        employeeAmount: shares.employeeAmount ? toCalc(shares.employeeAmount, sch.currency, `${sch.name} (werknemer)`) : 0,
+        employerAmount: shares.employerAmount ? toCalc(shares.employerAmount, sch.currency, `${sch.name} (werkgever)`) : 0,
         maxBase: sch.maxBaseMonthly != null ? toCalc(sch.maxBaseMonthly, sch.currency, `${sch.name} (max.)`) : null,
         minBase: sch.minBaseMonthly != null ? toCalc(sch.minBaseMonthly, sch.currency, `${sch.name} (min.)`) : null,
         preTax: sch.employeeTax === "PRE_TAX", showEmployer: sch.showOnPayslip,
