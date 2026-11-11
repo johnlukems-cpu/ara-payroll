@@ -1,3 +1,4 @@
+import { OpField, OpForm } from "@/components/admin-op-form";
 import type { Contract, EmployeePayComponent, PayComponent } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getI18n } from "@/lib/server/i18n";
@@ -11,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/misc";
 import { Table, TBody, TD, TH, THead, TR } from "@/components/ui/table";
-import { removeComponentAction, saveAssignmentAction } from "@/app/actions/employees";
+import { removeComponentAction, saveAssignmentAction, setAssignmentsStartAction } from "@/app/actions/employees";
 import { removeEnrollmentAction, saveEnrollmentAction } from "@/app/actions/contributions";
 import { CONTRIBUTION_TYPES, effectiveShares, schemeApplies, type ContributionType } from "@/lib/payroll/contributions";
 import { describeBase, describeShare } from "@/lib/contribution-format";
@@ -199,6 +200,14 @@ export async function EmployeeComponentsTab(props: {
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground">{t("assign.intro")}</p>
+      {canEdit && assignments.some((a) => a.isActive && a.frequency !== "ONE_OFF") && (
+        <div className="max-w-xl">
+          <OpForm action={setAssignmentsStartAction} title={t("employee.setStartTitle")} submit={t("employee.setStartSubmit")} hidden={{ employeeId: props.employeeId }} testId="set-components-start">
+            <OpField label={t("assign.f.startDate")}><Input name="startDate" type="date" required /></OpField>
+            <p className="text-xs text-muted-foreground sm:col-span-2">{t("employee.setStartHint")}</p>
+          </OpForm>
+        </div>
+      )}
       {section("ALLOWANCE", "A")}
       {section("DEDUCTION", "B")}
       <Card id="contributions" data-testid="section-CONTRIBUTIONS">

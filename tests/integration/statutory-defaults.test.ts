@@ -98,4 +98,17 @@ describe("statutory schemes of a new company", () => {
     expect(slip.lines.find((l) => l.code === "HEALTH-EE")?.amount).toBe(SRD(300));
     await db.contributionScheme.updateMany({ where: { companyId, type: "HEALTH" }, data: { currency: "SRD" } });
   });
+
+  it("recalculates open (also draft) runs automatically after an allowance change", async () => {
+    const { recalcOpenRuns } = await import("@/lib/server/pay-components");
+    const emp = await db.employee.findFirstOrThrow({ where: { companyId, employeeNumber: "mid" } });
+    const run = await db.payrollRun.create({ data: { companyId, year, month: 3, payDate: d(`${year}-03-25`) } });
+    const comp = await db.payComponent.findFirstOrThrow({ where: { companyId, kind: "ALLOWANCE", isActive: true, calcType: "FIXED" } });
+    await db.employeePayComponent.create({ data: { employeeId: emp.id, componentId: comp.id, amount: SRD(1000), frequency: "MONTHLY", startDate: d(`${year}-01-01`), isActive: true } as never });
+    const rec = await recalcOpenRuns(companyId, emp.id, calculateRun);
+    expect(rec.failed).toBe(0);
+    expect((await db.payrollRun.findUniqueOrThrow({ where: { id: run.id } })).status).toBe("CALCULATED");
+    const slip = await db.payslip.findFirstOrThrow({ where: { runId: run.id, employeeId: emp.id } });
+    expect(slip.grossPay).toBe(SRD(16000));
+  });
 });

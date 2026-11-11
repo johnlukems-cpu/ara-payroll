@@ -413,17 +413,13 @@ test("fixed and extra allowances/deductions via dropdowns, duplicate checks and 
   await expect(page.getByText(/kan niet definitief worden gemaakt/).first()).toBeVisible();
   await markStatutoryNotApplicable(page);
 
-  // A salary change after calculation: approval recalculates first and refuses to approve outdated figures.
+  // A salary change after calculation: the open payroll is recalculated automatically, so the payslip shows it at once.
   await page.goto(composeUrl.replace(/\/app\/payroll\/[^/]+\/employees\/([^/?]+).*/, "/app/employees/$1?tab=contracts"));
   await page.fill("#baseSalary", "21000");
   await page.fill("#startDate", "2026-03-01");
   await page.getByRole("button", { name: "Overeenkomst opslaan" }).click();
   await expect(page.getByText("Nieuwe overeenkomst / salariswijziging vastgelegd.")).toBeVisible();
   await page.goto(composeUrl);
-  await page.getByLabel(/Ik bevestig dat de wettelijke regels/).check();
-  await page.getByRole("button", { name: "Goedkeuren", exact: true }).click();
-  await expect(page.getByText(/De gegevens zijn gewijzigd sinds de laatste berekening/)).toBeVisible();
-  await page.reload();
   await expect(page.getByTestId("compose-calculation").getByRole("row", { name: /^Brutosalaris/ })).toContainText("24.280,00"); // 21,000 + fuel 600 + holiday 8% × 21,000 + gratuity 1,000
   await page.getByLabel(/Ik bevestig dat de wettelijke regels/).check();
   await page.getByRole("button", { name: "Goedkeuren", exact: true }).click();

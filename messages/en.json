@@ -519,7 +519,12 @@
       "archive": "Archived",
       "restore": "Restored",
       "delete": "Deleted"
-    }
+    },
+    "setStartTitle": "Change the start date of all fixed allowances and deductions",
+    "setStartSubmit": "Apply start date",
+    "setStartHint": "Applies to all active, recurring allowances and deductions of this employee (one-off items are unchanged). Open payroll runs are recalculated; approved payslips stay unchanged.",
+    "startChanged": "Start date changed for {count, plural, one {# allowance or deduction} other {# allowances and deductions}}.",
+    "startChangedApproved": "Note: {count, plural, one {# approved payroll run falls} other {# approved payroll runs fall}} after this date and {count, plural, one {is} other {are}} not changed automatically. Use the correction procedure (reopen with a reason) on the payroll run."
   },
   "payroll": {
     "title": "Payroll runs",
@@ -1393,7 +1398,8 @@
     "alreadyArchived": "This employee is already archived.",
     "notArchived": "This employee is not archived.",
     "correctionReason": "Please give a reason for the correction of at least 10 characters.",
-    "invalidAdjustment": "Enter a number of days (multiple of 0.5, not 0)."
+    "invalidAdjustment": "Enter a number of days (multiple of 0.5, not 0).",
+    "noRecurringAssignments": "This employee has no recurring fixed allowances or deductions."
   },
   "bracket": {
     "required": "at least one bracket is required",

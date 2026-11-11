@@ -122,6 +122,15 @@ test("employees, documents, leave and HR reports (Dutch UI)", async ({ page }) =
   await expect(page.locator("body")).toContainText(lastName);
   await db.payrollRun.delete({ where: { id: run.id } });
 
+  // One start date for all recurring allowances (e.g. from 1 January).
+  await page.goto(`${empUrl}?tab=pay`);
+  await page.getByTestId("set-components-start").locator("summary").click();
+  await page.getByTestId("set-components-start").locator("input[name=startDate]").fill("2026-01-01");
+  await page.getByTestId("set-components-start").locator("button[type=submit]").click();
+  await expect(page.getByText(/Ingangsdatum aangepast voor 1 toelage of inhouding/)).toBeVisible();
+  const moved = await db.employeePayComponent.findMany({ where: { employeeId: emp.id } });
+  expect(moved.map((m) => m.startDate.toISOString().slice(0, 10))).toEqual(["2026-01-01"]);
+
   // Clean up the test employee.
   await db.employee.delete({ where: { id: emp.id } });
 });

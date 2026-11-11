@@ -519,7 +519,12 @@
       "archive": "Gearchiveerd",
       "restore": "Teruggezet",
       "delete": "Verwijderd"
-    }
+    },
+    "setStartTitle": "Ingangsdatum van alle vaste toelagen en inhoudingen wijzigen",
+    "setStartSubmit": "Ingangsdatum toepassen",
+    "setStartHint": "Geldt voor alle actieve, doorlopende toelagen en inhoudingen van deze werknemer (eenmalige blijven ongewijzigd). Openstaande verloningen worden herberekend; goedgekeurde loonstroken blijven ongewijzigd.",
+    "startChanged": "Ingangsdatum aangepast voor {count, plural, one {# toelage of inhouding} other {# toelagen en inhoudingen}}.",
+    "startChangedApproved": "Let op: {count, plural, one {# goedgekeurde verloning valt} other {# goedgekeurde verloningen vallen}} na deze datum en {count, plural, one {wordt} other {worden}} niet automatisch aangepast. Gebruik daarvoor de correctieprocedure (heropenen met reden) op de verloning."
   },
   "payroll": {
     "title": "Verloningen",
@@ -1393,7 +1398,8 @@
     "alreadyArchived": "Deze werknemer is al gearchiveerd.",
     "notArchived": "Deze werknemer is niet gearchiveerd.",
     "correctionReason": "Geef een reden voor de correctie van minimaal 10 tekens.",
-    "invalidAdjustment": "Voer een aantal dagen in (veelvoud van 0,5, niet 0)."
+    "invalidAdjustment": "Voer een aantal dagen in (veelvoud van 0,5, niet 0).",
+    "noRecurringAssignments": "Deze werknemer heeft geen doorlopende vaste toelagen of inhoudingen."
   },
   "bracket": {
     "required": "er is ten minste één schijf vereist",

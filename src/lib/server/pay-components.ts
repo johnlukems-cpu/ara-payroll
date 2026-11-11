@@ -207,11 +207,23 @@ export async function parseOverrides(
 }
 
 /**
- * Recalculates open (calculated) payroll runs in which an employee has a payslip after their fixed
- * components changed. Approved/paid runs are never touched. A run that cannot be recalculated is put back to draft.
+ * Recalculates the open (draft or calculated) payroll runs affected by a change, so allowances, deductions,
+ * contributions and salary changes appear on the payslip automatically. With an employee: the runs of periods in
+ * which that employee is employed (also when the employee was not yet on the run); without: all open runs of the
+ * company. Approved/paid runs are never touched (correction procedure). A run that cannot be recalculated (e.g.
+ * a missing exchange rate) is put back to draft and reported.
  */
-export async function recalcOpenRuns(companyId: string, employeeId: string, calculate: (runId: string) => Promise<unknown>) {
-  const runs = await db.payrollRun.findMany({ where: { companyId, status: "CALCULATED", payslips: { some: { employeeId } } }, select: { id: true } });
+export async function recalcOpenRuns(companyId: string, employeeId: string | null, calculate: (runId: string) => Promise<unknown>) {
+  const open = await db.payrollRun.findMany({ where: { companyId, status: { in: ["DRAFT", "CALCULATED"] } }, select: { id: true, year: true, month: true }, orderBy: [{ year: "asc" }, { month: "asc" }] });
+  let runs = open;
+  if (employeeId) {
+    const emp = await db.employee.findFirst({ where: { id: employeeId, companyId }, select: { hireDate: true, terminationDate: true } });
+    if (!emp) return { recalculated: 0, failed: 0 };
+    runs = open.filter((r) => {
+      const { start, end } = periodBounds(r.year, r.month);
+      return emp.hireDate <= end && (!emp.terminationDate || emp.terminationDate >= start);
+    });
+  }
   let failed = 0;
   for (const r of runs) {
     try { await calculate(r.id); } catch { failed++; await db.payrollRun.update({ where: { id: r.id }, data: { status: "DRAFT" } }); }

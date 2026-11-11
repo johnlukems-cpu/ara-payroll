@@ -108,6 +108,7 @@ export async function createEmployeeAction(_: ActionState, fd: FormData): Promis
     });
     id = created.id;
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.create", entity: "Employee", entityId: id, details: { employeeNumber } });
+    await recalcOpenRuns(ctx.company.id, id, calculateRun);
   } catch (err) {
     return handleError(err);
   }
@@ -134,6 +135,7 @@ export async function updateEmployeeAction(_: ActionState, fd: FormData): Promis
     const departmentId = await ensureDepartment(ctx.company.id, e.departmentId);
     await db.employee.update({ where: { id }, data: { ...e, departmentId } });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.update", entity: "Employee", entityId: id });
+    await recalcOpenRuns(ctx.company.id, id, calculateRun);
     revalidatePath(`/app/employees/${id}`);
     return ok(t("employees.saved"));
   } catch (err) {
@@ -152,6 +154,7 @@ export async function archiveEmployeeAction(_: ActionState, fd: FormData): Promi
     if (d.terminationDate < emp.hireDate) throw new UserError("validation.endAfterStart");
     await db.employee.update({ where: { id: emp.id }, data: { status: "TERMINATED", terminationDate: d.terminationDate } });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.archive", entity: "Employee", entityId: emp.id, details: { terminationDate: d.terminationDate.toISOString().slice(0, 10), reason: d.reason } });
+    await recalcOpenRuns(ctx.company.id, null, calculateRun);
     revalidatePath(`/app/employees/${emp.id}`);
     return ok((await getTranslations())("employee.archived"));
   } catch (err) {
@@ -170,6 +173,7 @@ export async function reactivateEmployeeAction(_: ActionState, fd: FormData): Pr
     await assertEmployeeCapacity(ctx.company.organizationId);
     await db.employee.update({ where: { id: emp.id }, data: { status: "ACTIVE", terminationDate: null } });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.reactivate", entity: "Employee", entityId: emp.id, details: { previousTerminationDate: emp.terminationDate?.toISOString().slice(0, 10) ?? null } });
+    await recalcOpenRuns(ctx.company.id, emp.id, calculateRun);
     revalidatePath(`/app/employees/${emp.id}`);
     return ok((await getTranslations())("employee.reactivated"));
   } catch (err) {
@@ -188,8 +192,10 @@ export async function addContractAction(_: ActionState, fd: FormData): Promise<A
     await ensureCurrencies(c.salaryCurrency);
     await db.contract.create({ data: { ...c, employeeId } });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "contract.create", entity: "Employee", entityId: employeeId, details: { baseSalary: c.baseSalary, hourlyRate: c.hourlyRate, currency: c.salaryCurrency, startDate: c.startDate.toISOString() } });
+    const rec = await recalcOpenRuns(ctx.company.id, employeeId, calculateRun);
     revalidatePath(`/app/employees/${employeeId}`);
-    return ok((await getTranslations())("employee.contractSaved"));
+    const t = await getTranslations();
+    return ok(`${t("employee.contractSaved")}${rec.recalculated || rec.failed ? ` ${t(rec.failed ? "employee.recalcFailed" : "employee.recalculated", { count: rec.recalculated })}` : ""}`);
   } catch (err) {
     return handleError(err);
   }
@@ -281,6 +287,7 @@ export async function bulkAssignAction(_: ActionState, fd: FormData): Promise<Ac
       created++;
     }
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.component_bulk_assigned", entity: "PayComponent", entityId: comp.id, details: { component: comp.code, employees: created, skipped } });
+    if (created) await recalcOpenRuns(ctx.company.id, null, calculateRun);
     revalidatePath("/app/settings/components");
     return ok(`${t("employee.bulkAssigned", { count: created, name: comp.name })}${skipped.length ? ` ${t("employee.bulkSkipped", { list: skipped.join(", ") })}` : ""}`);
   } catch (err) {
@@ -402,6 +409,36 @@ export async function enableSelfServiceAction(_: ActionState, fd: FormData): Pro
     return ok(tempPassword
       ? t("employee.selfServiceNew", { email: emp.email, password: tempPassword })
       : t("employee.selfServiceExisting", { email: emp.email }));
+  } catch (err) {
+    return handleError(err);
+  }
+}
+
+/**
+ * Sets one start date for all recurring fixed allowances and deductions of an employee (e.g. "from 1 January").
+ * One-off items keep their payment date. Open payroll runs are recalculated; approved and paid payslips are
+ * never changed (use the correction procedure for those periods).
+ */
+export async function setAssignmentsStartAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  try {
+    const ctx = await requireSalaryEdit();
+    const d = z.object({ employeeId: z.string().min(1), startDate: dateField }).parse(formObject(fd));
+    const emp = await db.employee.findFirst({ where: { id: d.employeeId, companyId: ctx.company.id } });
+    if (!emp) throw new UserError("errors.notFound");
+    const items = await db.employeePayComponent.findMany({ where: { employeeId: emp.id, isActive: true, frequency: { not: "ONE_OFF" }, OR: [{ endDate: null }, { endDate: { gte: d.startDate } }] } });
+    if (!items.length) throw new UserError("errors.noRecurringAssignments");
+    await db.$transaction(async (tx) => {
+      for (const a of items) await tx.employeePayComponent.update({ where: { id: a.id }, data: { startDate: d.startDate } });
+    });
+    const approved = await db.payrollRun.count({ where: { companyId: ctx.company.id, status: { in: ["APPROVED", "PAID"] }, payslips: { some: { employeeId: emp.id } }, OR: [{ year: { gt: d.startDate.getUTCFullYear() } }, { year: d.startDate.getUTCFullYear(), month: { gte: d.startDate.getUTCMonth() + 1 } }] } });
+    await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "employee.components_start_changed", entity: "Employee", entityId: emp.id, details: { startDate: d.startDate.toISOString().slice(0, 10), count: items.length, approvedPeriodsAffected: approved } });
+    const rec = await recalcOpenRuns(ctx.company.id, emp.id, calculateRun);
+    revalidatePath(`/app/employees/${emp.id}`);
+    const t = await getTranslations();
+    const parts = [t("employee.startChanged", { count: items.length })];
+    if (rec.recalculated || rec.failed) parts.push(t(rec.failed ? "employee.recalcFailed" : "employee.recalculated", { count: rec.recalculated }));
+    if (approved) parts.push(t("employee.startChangedApproved", { count: approved }));
+    return ok(parts.join(" "));
   } catch (err) {
     return handleError(err);
   }

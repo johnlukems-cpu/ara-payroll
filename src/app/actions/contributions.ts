@@ -102,6 +102,8 @@ export async function saveSchemeAction(_: ActionState, fd: FormData): Promise<Ac
       companyId: ctx.company.id, userId: ctx.user.id, action: existing ? "contribution.scheme_updated" : "contribution.scheme_created", entity: "ContributionScheme", entityId: existing?.id ?? createdId,
       details: { before: existing ? { ...Object.fromEntries(CALC_FIELDS.map((k) => [k, existing[k]])), isActive: existing.isActive } : null, after: { ...data, effectiveFrom: data.effectiveFrom.toISOString() } },
     });
+    // Open payroll runs follow the change immediately (approved runs never change).
+    await recalcOpenRuns(ctx.company.id, null, calculateRun);
     revalidatePath("/app/settings/contributions");
     if (existing) return ok(needsApproval && existing.approvedAt ? t("contrib.savedNeedsApproval") : t("contrib.saved"));
   } catch (e) {
@@ -197,6 +199,8 @@ export async function approveSchemeAction(_: ActionState, fd: FormData): Promise
       companyId: ctx.company.id, userId: ctx.user.id, action: "contribution.scheme_approved", entity: "ContributionScheme", entityId: s.id,
       details: { type: s.type, method: s.method, employeeRateBp: s.employeeRateBp, employerRateBp: s.employerRateBp, employeeAmount: s.employeeAmount, employerAmount: s.employerAmount, effectiveFrom: s.effectiveFrom.toISOString(), endedPrevious: predecessors.map((o) => o.id) },
     });
+    // Open payroll runs follow the change immediately (approved runs never change).
+    await recalcOpenRuns(ctx.company.id, null, calculateRun);
     revalidatePath("/app/settings/contributions", "layout");
     return ok(t("contrib.approved", { name: s.name }));
   } catch (e) {
@@ -212,6 +216,8 @@ export async function deactivateSchemeAction(_: ActionState, fd: FormData): Prom
     if (!s) throw new UserError("errors.notFound");
     await db.contributionScheme.update({ where: { id: s.id }, data: { isActive: false } });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: "contribution.scheme_deactivated", entity: "ContributionScheme", entityId: s.id });
+    // Open payroll runs follow the change immediately (approved runs never change).
+    await recalcOpenRuns(ctx.company.id, null, calculateRun);
     revalidatePath("/app/settings/contributions", "layout");
     return ok((await getTranslations())("contrib.deactivated", { name: s.name }));
   } catch (e) {
@@ -234,6 +240,8 @@ export async function setSchemeApplicabilityAction(_: ActionState, fd: FormData)
     if (notApplicable && reason.length < 5) return { ok: false, message: t("validation.fixFields"), errors: { reason: [t("contrib.reasonRequired")] }, ts: Date.now() };
     await db.contributionScheme.update({ where: { id: s.id }, data: notApplicable ? { notApplicable: true, notApplicableReason: reason.slice(0, 300), isActive: false } : { notApplicable: false, notApplicableReason: null } });
     await audit({ companyId: ctx.company.id, userId: ctx.user.id, action: notApplicable ? "contribution.scheme_not_applicable" : "contribution.scheme_applicable", entity: "ContributionScheme", entityId: s.id, details: { type: s.type, basis: s.basis, reason: notApplicable ? reason : null } });
+    // Open payroll runs follow the change immediately (approved runs never change).
+    await recalcOpenRuns(ctx.company.id, null, calculateRun);
     revalidatePath("/app/settings/contributions", "layout");
     return ok(t(notApplicable ? "contrib.markedNotApplicable" : "contrib.markedApplicable", { name: s.name }));
   } catch (e) {
