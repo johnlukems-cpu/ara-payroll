@@ -87,7 +87,8 @@ export async function EmployeeComponentsTab(props: {
   const lastSlip = await db.payslip.findFirst({ where: { employeeId: props.employeeId }, orderBy: [{ run: { year: "desc" } }, { run: { month: "desc" } }], select: { trace: true, calcCurrency: true, run: { select: { year: true, month: true } } } });
   const accruals = ((lastSlip?.trace as { accruals?: Record<string, AccrualState> } | null)?.accruals) ?? {};
   const now = new Date();
-  const today = toDateInput(now);
+  // New assignments start on the 1st of the current month by default: allowances count per calendar month.
+  const today = toDateInput(new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1)));
 
   const status = (a: Assignment) => {
     if (!a.isActive) return <Badge variant="muted">{t("assign.status.inactive")}</Badge>;

@@ -665,7 +665,9 @@
     "correctionHistory": "Correctiehistorie",
     "correctionHistorySub": "Eerder goedgekeurde versies van deze verloning blijven bewaard.",
     "correctionDate": "Datum",
-    "correctionNetBefore": "Netto vóór correctie"
+    "correctionNetBefore": "Netto vóór correctie",
+    "futureComponents": "Deze vaste toelagen of inhoudingen gaan pas ná {period} in en tellen daarom niet mee op deze loonstrook. Gelden ze ook voor deze periode? Pas dan de ingangsdatum aan bij de werknemer (tab Toelagen en inhoudingen) en bereken opnieuw.",
+    "futureFrom": "ingang {date}"
   },
   "payslip": {
     "title": "Loonstrook",

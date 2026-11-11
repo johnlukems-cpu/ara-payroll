@@ -665,7 +665,9 @@
     "correctionHistory": "Correction history",
     "correctionHistorySub": "Previously approved versions of this payroll are kept.",
     "correctionDate": "Date",
-    "correctionNetBefore": "Net before correction"
+    "correctionNetBefore": "Net before correction",
+    "futureComponents": "These fixed allowances or deductions only start after {period} and therefore do not count on this payslip. Do they also apply to this period? Then change the start date on the employee (Allowances and deductions tab) and recalculate.",
+    "futureFrom": "starts {date}"
   },
   "payslip": {
     "title": "Payslip",

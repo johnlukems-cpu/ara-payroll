@@ -179,6 +179,12 @@ export default async function ComposePayslipPage({ params }: { params: Promise<{
       <Link href={`/app/payroll/${run.id}`} className={buttonVariants({ variant: "ghost" })}><ArrowLeft /> {t("payslip.backToRun")}</Link>
       <PageHeader title={t("compose.title", { name })} description={`${f.period(run.year, run.month)} · #${e.employeeNumber}`} actions={<StatusBadge status={run.status} />} />
       {!editable && (run.status === "APPROVED" || run.status === "PAID") && <Alert variant="info">{t("compose.locked")}</Alert>}
+      {(run.status === "DRAFT" || run.status === "CALCULATED") && e.components.some((a) => a.isActive && a.startDate > end) && (
+        <Alert variant="warning">
+          <span data-testid="future-components">{t("run.futureComponents", { period: f.period(run.year, run.month) })}</span>{" "}
+          {e.components.filter((a) => a.isActive && a.startDate > end).map((a) => `${a.label || a.component.name} (${t("run.futureFrom", { date: f.date(a.startDate) })})`).join(", ")}
+        </Alert>
+      )}
       {run.status === "DRAFT" && slip && <Alert variant="info">{t("run.inputsChanged")}</Alert>}
 
       <section>

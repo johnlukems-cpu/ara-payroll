@@ -113,6 +113,15 @@ test("employees, documents, leave and HR reports (Dutch UI)", async ({ page }) =
     expect((await page.request.get(url)).status(), url).toBe(200);
   }
 
+  // An allowance starting after the payroll period is flagged on the run page (it does not count there).
+  const comp = await db.payComponent.findFirstOrThrow({ where: { companyId: emp.companyId, isActive: true, kind: "ALLOWANCE" } });
+  await db.employeePayComponent.create({ data: { employeeId: emp.id, componentId: comp.id, amount: 100000, calcType: "FIXED", frequency: "MONTHLY", startDate: new Date("2030-02-03"), isActive: true } as never });
+  const run = await db.payrollRun.create({ data: { companyId: emp.companyId, year: 2030, month: 1, payDate: new Date("2030-01-25") } });
+  await page.goto(`/app/payroll/${run.id}`);
+  await expect(page.getByTestId("future-components")).toBeVisible();
+  await expect(page.locator("body")).toContainText(lastName);
+  await db.payrollRun.delete({ where: { id: run.id } });
+
   // Clean up the test employee.
   await db.employee.delete({ where: { id: emp.id } });
 });

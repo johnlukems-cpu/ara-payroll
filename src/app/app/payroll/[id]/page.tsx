@@ -42,6 +42,12 @@ export default async function RunPage({ params, searchParams }: { params: Promis
   const corrections = run.corrections;
   const editable = run.status === "DRAFT" || run.status === "CALCULATED";
   const missing = editable ? await missingStatutoryContributions(ctx.company.id, run.year, run.month) : [];
+  // Fixed allowances/deductions that only start after this period: they do not count here, which is easy to miss
+  // (e.g. allowances entered today for an earlier month).
+  const periodEnd = new Date(Date.UTC(run.year, run.month, 0, 23, 59, 59));
+  const futureComponents = editable
+    ? await db.employeePayComponent.findMany({ where: { isActive: true, startDate: { gt: periodEnd }, employee: eligibleEmployeesWhere(ctx.company.id, run.year, run.month) }, include: { component: true, employee: { select: { firstName: true, lastName: true } } }, orderBy: [{ employee: { lastName: "asc" } }, { startDate: "asc" }], take: 50 })
+    : [];
   const canRun = can(ctx.role, "payroll.run");
   const canApprove = can(ctx.role, "payroll.approve");
 
@@ -106,6 +112,16 @@ export default async function RunPage({ params, searchParams }: { params: Promis
         <Alert variant="error" className="mb-4">
           <span data-testid="statutory-missing">{t("run.statutoryMissing", { list: missing.map((m) => t(`enums.contributionType.${m.type}`)).join(", ") })}</span>{" "}
           <Link href="/app/settings/contributions" className="font-medium underline">{t("run.statutoryMissingLink")}</Link>
+        </Alert>
+      )}
+      {futureComponents.length > 0 && (
+        <Alert variant="warning" className="mb-4">
+          <span data-testid="future-components">{t("run.futureComponents", { period: f.period(run.year, run.month) })}</span>
+          <ul className="mt-1 list-disc pl-5 text-sm">
+            {futureComponents.map((a) => (
+              <li key={a.id}><Link href={`/app/employees/${a.employeeId}?tab=pay`} className="underline">{a.employee.firstName} {a.employee.lastName}</Link>: {a.label || a.component.name} — {t("run.futureFrom", { date: f.date(a.startDate) })}</li>
+            ))}
+          </ul>
         </Alert>
       )}
       {run.status === "DRAFT" && run.payslips.length > 0 && <Alert variant="info" className="mb-4">{t("run.inputsChanged")}</Alert>}
