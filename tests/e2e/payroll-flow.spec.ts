@@ -459,7 +459,7 @@ test("employee and employer contributions: scheme setup, payroll, payslip, repor
   // Settings → Bijdragen: the three schemes exist, inactive and without rates.
   await page.goto("/app/settings/contributions");
   await expect(page.getByRole("link", { name: "Bijdragen", exact: true })).toBeVisible();
-  await expect(page.getByText(/vult alleen tarieven in die zijn geverifieerd/)).toBeVisible();
+  await expect(page.getByText(/vult tarieven in die zijn geverifieerd tegen de officiële wettekst/)).toBeVisible();
   // Validation overview: nothing configured yet; statutory schemes block finalising payroll.
   for (const type of ["HEALTH", "PENSION", "FVO"]) await expect(page.getByTestId(`validation-${type}`)).toContainText("Niet geconfigureerd");
   await expect(page.getByTestId("validation-HEALTH")).toContainText("blokkeert het definitief maken");

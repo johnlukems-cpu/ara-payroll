@@ -2240,7 +2240,7 @@
   },
   "contrib": {
     "intro": "Per regeling legt u een werknemersaandeel (inhouding op het salaris) en een werkgeversaandeel (werkgeverslasten, nooit ingehouden op het nettoloon) vast. Wijzig tarieven met ingang van een datum via een nieuwe versie, zodat historische loonstroken ongewijzigd blijven.",
-    "noInventedRates": "ARA Payroll vult alleen tarieven in die zijn geverifieerd tegen de officiële wettekst: FVO (1%: 0,5% werknemer en 0,5% werkgever, S.B. 2019 no. 64) en pensioen (Wet Algemeen Pensioen 2014 en S.B. 2023 no. 118). De premie van uw ziektekostenverzekering staat op de polis van uw zorgverzekeraar: vul dat maandbedrag zelf in (verdeling 50/50) en keur de regeling goed.",
+    "noInventedRates": "ARA Payroll vult tarieven in die zijn geverifieerd tegen de officiële wettekst: FVO (1%: 0,5% werknemer en 0,5% werkgever, S.B. 2019 no. 64) en pensioen (Wet Algemeen Pensioen 2014 en S.B. 2023 no. 118). Ziektekostenverzekering staat standaard op 4% van het basissalaris (2% + 2%); de echte premie staat op de polis van uw zorgverzekeraar.",
     "typeHint": {
       "HEALTH": "Werknemers- en werkgeversdeel van de ziektekostenverzekering.",
       "PENSION": "Werknemers- en werkgeversdeel van de pensioenregeling. Een actieve regeling vervangt het pensioenpercentage uit de arbeidsovereenkomst (nooit beide).",
@@ -2389,7 +2389,8 @@
     "legalBasisTitle": "Wettelijke grondslag",
     "seeLegalSources": "Bekijk de bevindingen in Wettelijke bronnen",
     "pensionByContract": "Pensioen: alle medewerkers hebben een pensioenpercentage in de arbeidsovereenkomst. Daarmee is de wettelijke pensioenplicht voor de verloning gedekt; een pensioenregeling is niet vereist.",
-    "statutoryNeedsVerification": "Een wettelijke regeling kan pas worden goedgekeurd en geactiveerd als de juridische status op 'Geverifieerd' staat: controleer de officiële tekst (Staatsblad) en leg de bron vast."
+    "statutoryNeedsVerification": "Een wettelijke regeling kan pas worden goedgekeurd en geactiveerd als de juridische status op 'Geverifieerd' staat: controleer de officiële tekst (Staatsblad) en leg de bron vast.",
+    "healthDefaultNotice": "Ziektekostenverzekering staat op de standaardinstelling van ARA Payroll: 4% van het basissalaris (2% werknemer, 2% werkgever). Dit is geen wettelijk tarief. Controleer het percentage met de polis van uw zorgverzekeraar en pas de regeling aan als die afwijkt."
   },
   "pricing": {
     "eyebrow": "Prijzen",

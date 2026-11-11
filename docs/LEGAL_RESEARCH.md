@@ -124,3 +124,7 @@ De officiële sites (dna.sr, gov.sr, fvo.sr) waren vanaf deze datum bereikbaar. 
 | Basiszorg | S.B. 2014 no. 114 art. 7 en 8 (dna.sr) | premie conform polis van de zorgverzekeraar (wettelijke maxima per leeftijd, bij staatsbesluit aanpasbaar); 50/50 | juridische grondslag geverifieerd; maandbedrag uit de eigen polis vult de werkgever in |
 
 Migratie `20261111120000_statutory_schemes_verified` past dit alleen toe op onaangeroerde standaardregelingen. Overgeslagen: bedrijven met een al goedgekeurde regeling, en voor pensioen bedrijven die pensioenpercentages in arbeidsovereenkomsten vastleggen (eigen pensioenregeling). Afgesloten loonstroken veranderen niet. Controleer jaarlijks op een nieuw staatsbesluit over de pensioengrondslag en voeg per 1 januari de nieuwe pensioenversie toe (ARA Payroll waarschuwt bij een afwijkend percentage).
+
+### Standaardinstelling ziektekostenverzekering (11 november 2026)
+
+Besluit van ARA Intelligent Solutions: nieuwe klanten (en bestaande bedrijven met een onaangeroerde regeling) krijgen voor de ziektekostenverzekering standaard 4% van het basissalaris, 2% werknemer en 2% werkgever, goedgekeurd. Dit is geen wettelijk tarief (de wet kent een premie per polis); de verdeling 50/50 volgt uit S.B. 2014 no. 114 art. 7 lid 6. De bijdragenpagina toont een melding dat klanten het percentage met hun polis moeten controleren. Migratie: `20261111140000_health_default`.

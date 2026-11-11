@@ -33,6 +33,15 @@ export const HEALTH_RULE = {
   legalReference: "Wet Nationale Basiszorgverzekering, S.B. 2014 no. 114, art. 7 lid 6–7 en art. 8: premie conform de polis van de zorgverzekeraar, 50% werknemer / 50% werkgever (werknemersdeel nooit hoger) — geverifieerd 11-11-2026; vul het maandbedrag uit uw polis in",
 };
 
+/**
+ * ARA Payroll's standard health insurance setting (NOT a statutory rate): 4% of the base salary, split 50/50 as
+ * required by S.B. 2014 no. 114 art. 7 lid 6. The actual premium follows each company's insurance policy, so the
+ * contributions page asks companies to check it. Recognised by its note text.
+ */
+export const HEALTH_DEFAULT = { method: "PERCENTAGE" as const, base: "BASE_SALARY" as const, employeeRateBp: 200, employerRateBp: 200 };
+export const HEALTH_DEFAULT_NOTE_NL = "Standaardinstelling van ARA Payroll: 4% van het basissalaris (2% werknemer, 2% werkgever). Dit is geen wettelijk tarief: controleer het percentage met de polis van uw zorgverzekeraar en pas het zo nodig aan.";
+export const HEALTH_DEFAULT_NOTE_EN = "ARA Payroll standard setting: 4% of the base salary (2% employee, 2% employer). This is not a statutory rate: check the percentage against your insurer's policy and adjust it if needed.";
+
 /** Pension scheme versions for a year and the next one (rates rise every 1 January). */
 export function pensionVersions(year: number) {
   return [year, year + 1].map((y) => ({

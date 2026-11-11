@@ -1,3 +1,4 @@
+import { HEALTH_DEFAULT, HEALTH_DEFAULT_NOTE_EN, HEALTH_DEFAULT_NOTE_NL } from "@/lib/payroll/statutory";
 import Link from "next/link";
 import { CheckCircle2, CircleAlert, Plus } from "lucide-react";
 import { db } from "@/lib/db";
@@ -57,6 +58,9 @@ export default async function ContributionsPage({ searchParams }: { searchParams
       <p className="text-sm text-muted-foreground">{t("contrib.intro")}</p>
       {sp.saved && <Alert variant="success">{t("contrib.savedDraft")}</Alert>}
       <Alert variant="info">{t("contrib.noInventedRates")}</Alert>
+      {schemes.some((x) => x.type === "HEALTH" && (x.notes === HEALTH_DEFAULT_NOTE_NL || x.notes === HEALTH_DEFAULT_NOTE_EN) && x.employeeRateBp === HEALTH_DEFAULT.employeeRateBp && x.employerRateBp === HEALTH_DEFAULT.employerRateBp) && (
+        <Alert variant="warning"><span data-testid="health-default-notice">{t("contrib.healthDefaultNotice")}</span></Alert>
+      )}
       {fvoSource && fvoSource.verificationStatus !== "VERIFIED" && (
         <Alert variant="warning"><span data-testid="fvo-notice">{t("contrib.fvoNotice", { status: t(`legal.${fvoSource.verificationStatus}`) })}</span> <Link href="/app/tax/legal#FVO" className="font-medium underline">{t("contrib.seeLegalSources")}</Link></Alert>
       )}

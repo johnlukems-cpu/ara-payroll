@@ -71,12 +71,14 @@ test("ARA admin portal: full customer lifecycle and tenant isolation (acceptance
 
   await login(page, email, password);
   await page.waitForURL(/\/app/);
-  // Statutory schemes of the new customer: FVO and pension pre-configured from the verified law; health insurance
-  // awaits the premium from the company's own insurance policy.
+  // Contribution schemes of the new customer: FVO and pension from the verified law, health insurance on the
+  // ARA standard setting — payroll can be finalised straight away.
   await page.goto("/app/settings/contributions");
   await expect(page.getByTestId("validation-FVO")).toContainText("Actief");
   await expect(page.getByTestId("validation-PENSION").first()).toContainText("Actief");
-  await expect(page.getByTestId("validation-HEALTH")).toContainText("Niet geconfigureerd");
+  await expect(page.getByTestId("validation-HEALTH")).toContainText("Actief"); // ARA standard: 4% of base salary
+  await expect(page.getByTestId("health-default-notice")).toContainText("4% van het basissalaris");
+  await expect(page.getByTestId("payroll-blocked")).toHaveCount(0);
   await page.goto("/app/plan");
   await expect(page.getByTestId("customer-plan")).toContainText("Starter");
   await expect(page.getByTestId("customer-plan")).toContainText("Proefperiode");
